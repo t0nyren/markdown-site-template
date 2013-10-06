@@ -1,3 +1,8 @@
+var $ENV, $DOC = { options: {
+    userjs: 'user.js',
+    icon: 'favicon.ico'
+}};
+
 /*!
  * jQuery JavaScript Library v2.0.3
  * http://jquery.com/
@@ -10838,10 +10843,8 @@ if (!jQuery) { throw new Error("Bootstrap requires jQuery") }
 
 
 
-var $DOC, $ENV, /*deprecated*/$$DOC, $$ENV;
 ;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 if (!$ENV) {
-    
     
 $ENV =
 {
@@ -10850,7 +10853,6 @@ $ENV =
     marked: require('./temp/marked'),
     'bootstrap.controls': require('./temp/bootstrap.controls.js')
 };
-
 
 (function() { 'use strict';
     
@@ -10865,7 +10867,6 @@ $ENV =
     $ENV.markedPostProcess = function(text, options) {
         var formatted = marked(text, options);
         return formatted;
-        // experimental patch return (formatted.substr(0,3) === '<p>' && formatted.slice(-5) === '</p>\n') ? formatted.substr(3, formatted.length-8) : formatted;
     };
     
     // default control templates
@@ -10903,9 +10904,10 @@ $ENV =
         }
     }
     
+    var options = $DOC.options;
     $DOC =
     {
-        options: {},
+        options: options,
                 
         // State
         state: 0, // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
@@ -10924,14 +10926,14 @@ $ENV =
         // Document named sections content
         sections: {},
         // Sections constants
-        ORDER: ['fixed-top-bar', 'fixed-top-panel',
+        order: ['fixed-top-bar', 'fixed-top-panel',
             'header-bar', 'header-panel',
             'left-side-bar', 'left-side-panel',
             'content-bar', 'content-panel',
             'right-side-panel', 'right-side-bar',
             'footer-panel', 'footer-bar',
             'fixed-bottom-panel', 'fixed-bottom-bar'],
-        COLUMNS: ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'],
+        columns: ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'],
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
             if (exists) {
@@ -11275,7 +11277,10 @@ $ENV =
     
                 
     $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+    if (options.icon)
+        $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
     
+    // document style
     
     $DOC.appendCSS('document.css',
 '.fixed-top-bar, .fixed-top-panel\
@@ -16565,7 +16570,7 @@ this.text(), // additional css
         function setColumnsWidths() {
             visible_columns = [];
             var cbody = $DOC.body;
-            $DOC.COLUMNS.forEach(function(column) {
+            $DOC.columns.forEach(function(column) {
                 var ccol = cbody[column];
                 if (ccol) {
                     var element = ccol._element;
@@ -16700,7 +16705,8 @@ this.text(), // additional css
     $DOC.transformation = transformation;
 
     // load user.js script:
-    $DOC.appendScript($DOC.root + "user.js");
+    if ($DOC.options.userjs)
+        $DOC.appendScript($DOC.root + $DOC.options.userjs);
     
     // These controls are are not attached, childs are attached
     var chead = controls.create('head'),
@@ -16821,7 +16827,7 @@ this.text(), // additional css
     
 
     var sections = $DOC.sections,
-        order = $DOC.ORDER,
+        order = $DOC.order,
         log_level = $ENV.log_level;
 
     // process found sections content
@@ -16852,11 +16858,12 @@ this.text(), // additional css
         if (process_head && text_nodes.length)
             head_processed = true;
         
+        // iterate text elements and process the each of them
         for(var i = 0, c = text_nodes.length; i < c; i++) {
             var text_node = text_nodes[i];
             
             if (processed_nodes.indexOf(text_node) < 0) {
-                var control = undefined,  text = text_node.nodeValue, first_char = text[0];
+                var control = undefined, fordel = false, text = text_node.nodeValue, first_char = text[0];
                 if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
                     try {
                         if (first_char === '%') {
@@ -16870,6 +16877,7 @@ this.text(), // additional css
                         } else if (first_char === '!') {
                             // <!--!sectionname--> - section remover
                             $DOC.removeSection(text.slice(1));
+                            fordel = true;
                         } else {
                             // <--sectionname...-->
                             var namelen = text.indexOf(' '),
@@ -16878,9 +16886,11 @@ this.text(), // additional css
                             if (namelen < 0 && eolpos < 0 && move < 0) {
                                 // <--sectionname-->
                                 $DOC.sectionPlaceholder(text, text_node);
+                                // Do not delete the placeholder!
                             } else if (namelen < 0 && move > 0) {
                                 // <--sectionname->newname-->
                                 $DOC.sectionMover(text_node, text.slice(0, move), text.slice(move + 2));
+                                fordel = true;
                             } else {
                                 // <--sectionname ...-->
                                 if (eolpos > 0 && (namelen < 0 || eolpos < namelen))
@@ -16900,22 +16910,23 @@ this.text(), // additional css
                         if (control) {
                             // insert control element to DOM
                             
-//                            if (!control._element) // element exists if placeholder 
+                            /* ? if (!control._element) // element exists if placeholder ? */
                                 control.createElement(text_node, 2/*before node*/);
                             if (control._element && control._element.parentNode === document.body)
                                 cbody.add(control);
 
                             // create component loader
-                            // FIX: (for orphaned control) start loader after DOM element was created
+                            // FIX: (for orphaned control) start loading after DOM element was created
                             if (control.isStub)
                                 new stubResLoader(control);
                         }
                     } catch (e) { console.log(e); }
                 }
-                (control ? fordelete : processed_nodes).push(text_node);
+                ((fordel || control) ? fordelete : processed_nodes).push(text_node);
             }
         }
         
+        // delete processed nodes
         for( var i = fordelete.length - 1; i >= 0; i--) {
             var node = fordelete[i], parent = node.parentNode;
             parent.removeChild(node);
@@ -17141,9 +17152,3 @@ this.text(), // additional css
     }
     
 })();
-
-
-
-
-
-

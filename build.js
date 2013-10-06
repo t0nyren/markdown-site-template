@@ -1,5 +1,3 @@
-// Build task creates files document.js, document.min.js 
-
 var spawn = require('child_process').spawn;
 var fs = require('fs');
 var archiver = require('archiver');
@@ -18,17 +16,13 @@ copy('../tmp/controls.js',          'temp/controls.js');
 copy('../tmp/controls.js',          '../node_modules/controls/controls.js');
 
 
-// --> DOCUMENT.API.JS
-var bfy = spawn('browserify.cmd', ['preprocessing.js', '-o', 'document.api.js']);
+// -> DOCUMENT.API.JS
+var bfy = spawn('browserify.cmd', ['document.init.part.js', '-o', 'document.api.js']);
 bfy.stderr.on('data', function (data) { console.log('\n! 1>' + data); });
 bfy.stdout.on('data', function (data) { console.log('1>' + data); });
 bfy.on('exit', function ()
 {
-    // --> DOCUMENT.API.JS
-    fs.writeFileSync('document.api.js',
-        'var $DOC, $ENV, /*deprecated*/$$DOC, $$ENV;\n' + fs.readFileSync('document.api.js'));
-    
-    // --> DOCUMENT.LESS.JS
+    // -> DOCUMENT.LESS.JS
     concat([
         'document.api.js',
         // >> built-in components
@@ -39,14 +33,13 @@ bfy.on('exit', function ()
         'components/controls/page-layout/controls.page-layout.js',
         'components/controls/footer-layout/controls.footer-layout.js',
         // << built-in components
-        'index.js',
-        'postprocessing.js'],
+        'document.proc.part.js'],
     // >> output
         'document.less.js');
     // << output
     
     
-    // --> DOCUMENT.JS
+    // -> DOCUMENT.JS
     concat([
         'temp/jquery.js',
         'temp/bootstrap.js',
@@ -56,20 +49,32 @@ bfy.on('exit', function ()
     // << output
     
     // remove #604
-    replace('document.js', /\/\/ #604 >>[^>]*(?=\/\/ << #604)/g, 'var controls = $$ENV.controls;');
+    replace('document.js', /\/\/ #604 >>[^>]*(?=\/\/ << #604)/g, 'var controls = $ENV.controls;');
     replace('document.js', /\/\/ << #604.*/g, '');    
 
-    
-    
 
-    // --> DOCUMENT.MIN.JS
+    // -> DOCUMENT.MIN.JS
     var ufy = spawn('uglifyjs.cmd', ['document.js', '-o', 'document.min.js', '-cmb beautify=false,negate_iife=false']);
     ufy.stdout.on('data', function (data) { console.log('2>' + data); });
-    ufy.on('exit', function (code)
+    ufy.on('exit', function ()
     {
+        
+        // add options
+        // -> DOCUMENT.API.JS
+        // -> DOCUMENT.LESS.JS
+        // -> DOCUMENT.JS
+        // -> DOCUMENT.MIN.JS
+        var options = 'var $ENV, $DOC = { options: {\n\
+    userjs: \'user.js\',\n\
+    icon: \'favicon.ico\'\n\
+}};\n\n';
+        fs.writeFileSync('document.api.js',  options + fs.readFileSync('document.api.js'));
+        fs.writeFileSync('document.less.js', options + fs.readFileSync('document.less.js'));
+        fs.writeFileSync('document.js',      options + fs.readFileSync('document.js'));
+        fs.writeFileSync('document.min.js',  options + fs.readFileSync('document.min.js'));
+        
 
-
-        // --> MARKDOWN-SITE-TEMPLATE.ZIP
+        // -> MARKDOWN-SITE-TEMPLATE.ZIP
         zip('markdown-site-template.zip', 'markdown-site-template',
         [
             'bootstrap.css',
@@ -102,24 +107,16 @@ bfy.on('exit', function ()
             
             'mods\\msdn-like-theme.html'
         ]);
-    
     });
-    
     
 
-    // --> DOCUMENT.API.MIN.JS
+    // -> DOCUMENT.API.MIN.JS
     var ufy = spawn('uglifyjs.cmd', ['document.api.js', '-o', 'document.api.min.js', '-cmb beautify=false,negate_iife=false']);
     ufy.stdout.on('data', function (data) { console.log('3>' + data); });
-    ufy.on('exit', function ()
-    {
-    });
     
-    // минификация document.less.js -> document.less.min.js
+    // -> DOCUMENT.LESS.MIN.JS
     var ufy = spawn('uglifyjs.cmd', ['document.less.js', '-o', 'document.less.min.js', '-cmb beautify=false,negate_iife=false']);
     ufy.stdout.on('data', function (data) { console.log('5>' + data); });
-    ufy.on('exit', function ()
-    {
-    });
 });
 
 
@@ -150,7 +147,7 @@ function replace(filepath, find, replace)
 }
 function copy(filepath, to)
 {
-    console.log('copy> ' + filepath + ' --> ' + to);
+    console.log('copy> ' + filepath + ' -> ' + to);
     fs.writeFileSync(to, fs.readFileSync(filepath, 'utf-8'), 'utf-8');
 }
 function zip(zipfile, subfolder, files)

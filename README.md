@@ -23,9 +23,9 @@ Advanced formatting and special features can be added to the document. To do thi
 
 * components\YouTube\YouTube.Player.js
 
-## Explanations of the document.root.js
+## Explanations of the document.js
 
-document.root.js must be located in the root folder of the site. The site will not display correctly if this file not found or inaccessible. This script contains and load required for operation of the site libraries listed below:
+document.js located in the root folder of the site. This script contains and load required for operation of the site libraries listed below:
 
 * jquery.js
 * bootstrap.js

@@ -1,6 +1,5 @@
 if (!$ENV) {
     
-    
 $ENV =
 {
     dot: require('./temp/dot'),
@@ -8,7 +7,6 @@ $ENV =
     marked: require('./temp/marked'),
     'bootstrap.controls': require('./temp/bootstrap.controls.js')
 };
-
 
 (function() { 'use strict';
     
@@ -23,7 +21,6 @@ $ENV =
     $ENV.markedPostProcess = function(text, options) {
         var formatted = marked(text, options);
         return formatted;
-        // experimental patch return (formatted.substr(0,3) === '<p>' && formatted.slice(-5) === '</p>\n') ? formatted.substr(3, formatted.length-8) : formatted;
     };
     
     // default control templates
@@ -61,9 +58,10 @@ $ENV =
         }
     }
     
+    var options = $DOC.options;
     $DOC =
     {
-        options: {},
+        options: options,
                 
         // State
         state: 0, // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
@@ -82,14 +80,14 @@ $ENV =
         // Document named sections content
         sections: {},
         // Sections constants
-        ORDER: ['fixed-top-bar', 'fixed-top-panel',
+        order: ['fixed-top-bar', 'fixed-top-panel',
             'header-bar', 'header-panel',
             'left-side-bar', 'left-side-panel',
             'content-bar', 'content-panel',
             'right-side-panel', 'right-side-bar',
             'footer-panel', 'footer-bar',
             'fixed-bottom-panel', 'fixed-bottom-bar'],
-        COLUMNS: ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'],
+        columns: ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'],
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
             if (exists) {
@@ -433,7 +431,10 @@ $ENV =
     
                 
     $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+    if (options.icon)
+        $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
     
+    // document style
     
     $DOC.appendCSS('document.css',
 '.fixed-top-bar, .fixed-top-panel\
