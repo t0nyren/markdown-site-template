@@ -3,14 +3,18 @@ var fs = require('fs');
 var archiver = require('archiver');
 
 // copy libs
+
+// downloaded local copy
 copy('libs/jquery.js',              'temp/jquery.js');
 copy('libs/bootstrap.js',           'temp/bootstrap.js');
 copy('libs/bootstrap.css',          'temp/bootstrap.css');
 copy('libs/bootstrap.min.css',      'temp/bootstrap.min.css');
+// patched local copy
 copy('libs/marked.js',              'temp/marked.js');
-copy('libs/dot.js',                 'temp/dot.js');
-copy('../tmp/bootstrap.controls.js','temp/bootstrap.controls.js');
+// module from npm 
+//copy('../node_modules/dot/doT.min.js',                 'temp/dot.js');
 // Take an unpublished version of the latest fixes
+copy('../tmp/bootstrap.controls.js','temp/bootstrap.controls.js');
 copy('../tmp/controls.js',          'temp/controls.js');
 // Locally update module
 copy('../tmp/controls.js',          '../node_modules/controls/controls.js');
@@ -22,6 +26,18 @@ bfy.stderr.on('data', function (data) { console.log('\n! 1>' + data); });
 bfy.stdout.on('data', function (data) { console.log('1>' + data); });
 bfy.on('exit', function ()
 {
+    
+    // --> BUG FIXES
+    // Common 
+    // doT.templateSettings  strip: !0, must be false
+    replace('document.api.js', /strip:[\s]*true,/, 'strip:0,');
+
+    // Safari bugs
+    replace('document.api.js', /\(function\(\)\{ return this \|\| \(0,eval\)\('this'\); \}\(\)\).doT = doT;/, 'this.doT=doT;');
+    // <-- BUG FIXES
+    
+    
+    
     // -> DOCUMENT.LESS.JS
     concat([
         'document.api.js',
@@ -54,11 +70,10 @@ bfy.on('exit', function ()
 
 
     // -> DOCUMENT.MIN.JS
-    var ufy = spawn('uglifyjs.cmd', ['document.js', '-o', 'document.min.js', '-cmb beautify=false,negate_iife=false']);
+    var ufy = spawn('uglifyjs.cmd', ['document.js', '-o', 'document.min.js', '-cmb beautify=false']);
     ufy.stdout.on('data', function (data) { console.log('2>' + data); });
     ufy.on('exit', function ()
     {
-        
         // add options
         // -> DOCUMENT.API.JS
         // -> DOCUMENT.LESS.JS
@@ -111,11 +126,11 @@ bfy.on('exit', function ()
     
 
     // -> DOCUMENT.API.MIN.JS
-    var ufy = spawn('uglifyjs.cmd', ['document.api.js', '-o', 'document.api.min.js', '-cmb beautify=false,negate_iife=false']);
+    var ufy = spawn('uglifyjs.cmd', ['document.api.js', '-o', 'document.api.min.js', '-cmb beautify=false']);
     ufy.stdout.on('data', function (data) { console.log('3>' + data); });
     
     // -> DOCUMENT.LESS.MIN.JS
-    var ufy = spawn('uglifyjs.cmd', ['document.less.js', '-o', 'document.less.min.js', '-cmb beautify=false,negate_iife=false']);
+    var ufy = spawn('uglifyjs.cmd', ['document.less.js', '-o', 'document.less.min.js', '-cmb beautify=false']);
     ufy.stdout.on('data', function (data) { console.log('5>' + data); });
 });
 

@@ -2,7 +2,7 @@ if (!$ENV) {
     
 $ENV =
 {
-    dot: require('./temp/dot'),
+    dot: require('dot'),
     controls: require('controls'),
     marked: require('./temp/marked'),
     'bootstrap.controls': require('./temp/bootstrap.controls.js')
