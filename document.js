@@ -11410,7 +11410,7 @@ function Bootstrap(controls)
 {
     var bootstrap = this;
     var doT = controls.doT;
-    bootstrap.VERSION = '0.6.8';
+    bootstrap.VERSION = '0.6.9';
     controls.bootstrap = bootstrap;
     
     var control_prototype = (function()
@@ -13048,7 +13048,7 @@ if (typeof exports === 'object') {
 //
 // require doT.js
 
-(function() { "use strict"; var VERSION = '0.6.8';
+(function() { "use strict"; var VERSION = '0.6.9';
 
 function Controls(doT)
 {
@@ -17074,6 +17074,7 @@ this.text(), // additional css
             // page transformation
             
             processSections(true);
+            processSections();
             
             // delay first transformation -> timer
             var timer = setInterval(function() {

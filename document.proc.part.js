@@ -378,6 +378,7 @@
             // page transformation
             
             processSections(true);
+            processSections();
             
             // delay first transformation -> timer
             var timer = setInterval(function() {
