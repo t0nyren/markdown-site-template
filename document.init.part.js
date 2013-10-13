@@ -263,8 +263,11 @@ $ENV =
                     }
                     document.head.appendChild(link);
                 }
-            } else if (israwcss && exists.innerHTML !== css)
-                exists.innerHTML = css;
+            } else if (israwcss) {
+                if (exists.innerHTML !== css)
+                    exists.innerHTML = css;
+            } else if (exists.href !== css)
+                exists.href = css;
         },
         
         mods: {},
@@ -479,39 +482,54 @@ $ENV =
     { display: table-cell; margin: 0; padding: 0; vertical-align: top; min-width: 240px; width: 28%;}\
 .right-side-panel\
     { padding:25px 25px 25px 9px;}\
-@media (max-width: 1024px) {\
-    .right-side-bar, .right-side-panel\
-        { display: block; padding:25px 25px 25px 37px; width: 50%; }\
-    .right-side-panel\
-        { padding:25px 25px 25px 37px; }\
-}\
-@media (max-width: 768px) {\
-    .left-side-bar, .left-side-panel\
-        { display: block; margin: 0; padding: 0; width: auto; }\
-    .left-side-panel\
-        { padding:25px 25px 25px 25px; }\
-    .content-bar, .content-panel\
-        { display: block; margin: 0; padding: 0; max-width: 100%; width: auto; }\
-    .content-panel\
-        { padding:25px 25px 25px 25px; }\
-    .right-side-bar, .right-side-panel\
-        { display: block; margin: 0; padding: 0; width: auto; }\
-    .right-side-panel\
-        { padding:25px 25px 25px 25px; }\
-}\
-.table-bordered\
-    { display: table-cell; }\
-.stub\
-    { display: inline-block; }\
-.stub-error\
-    { width:18px; height:18px; border: silver dotted 1px; border-radius: 2px; }\
-.stub-error:before\
-    { content: "?"; font-size: small; color: silver; margin: 4px; position: relative; top: -2px; }\
 \
-.tabpanel-body\
-    { padding-bottom: 5px; border-left: #DDD solid 1px; border-right: #DDD solid 1px; border-bottom: #DDD solid 1px;}\
-.nav-tabs > li > a:focus\
-    { outline-color: silver; }');
+@media (max-width: 1024px) {\
+.right-side-bar, .right-side-panel\
+    { display: block; padding:25px 25px 25px 37px; width: 50%; }\
+.right-side-panel\
+    { padding:25px 25px 25px 37px; }\
+}\
+\
+@media (max-width: 768px) {\
+.left-side-bar, .left-side-panel\
+    { display: block; margin: 0; padding: 0; width: auto; }\
+.left-side-panel\
+    { padding:25px 25px 25px 25px; }\
+.content-bar, .content-panel\
+    { display: block; margin: 0; padding: 0; max-width: 100%; width: auto; }\
+.content-panel\
+    { padding:25px 25px 25px 25px; }\
+.right-side-bar, .right-side-panel\
+    { display: block; margin: 0; padding: 0; width: auto; }\
+.right-side-panel\
+    { padding:25px 25px 25px 25px; }\
+}\
+.table-bordered {display:table-cell;}\
+.stub {display:inline-block;}\
+.stub-error {width:18px; height:18px; border:silver dotted 1px; border-radius:2px;}\
+.stub-error:before {content:"?"; font-size:small; color:silver; margin:4px; position:relative; top:-2px;}\
+\
+.tabpanel-body {padding-bottom:5px; border-left:#DDD solid 1px; border-right:#DDD solid 1px; border-bottom:#DDD solid 1px;}\
+.nav-tabs > li > a:focus {outline-color:silver;}\
+\
+.transparent {background-color:transparent;border-color:transparent;} .transparent:hover {text-decoration:none;}\
+.rel {position:relative;} .abs {position:absolute;}\
+.hidden {display:none;} .block {display:block;} .inline {display:inline;} .inlineblock {display:inline-block;} .tabcell {display:table-cell;} .tabcol {display:table-column;} .tabrow {display:table-row;}\
+.bold {font-weight:bold;} .justify {text-align:justify;} .nowrap {white-space:nowrap;} .l {font-size:90%;} .ll {font-size:80%;}\
+.fleft {float:left;} .fright {float:right;} .fnone {float:none;}\
+.left {text-align:left;} .right {text-align:right;} .clear {clear:both;} .clearleft {clear:left;} .clearright {clear:right;}\
+.center {text-align:center;vertical-align:middle;} .hcenter {text-align:center;} .vcenter {vertical-align:middle;} .bottom {vertical-align:bottom;}\
+.mar0 {margin:0;} .martop0 {margin-top:0;}\
+.mar5 {margin:5px;} .martop5 {margin-top:5px;} .marbottom5 {margin-top:5px;}\
+.mar10 {margin:10px;} .martop10 {margin-top:10px;} .marbottom10 {margin-bottom:10px;} .marright10 {margin-bottom:10px;}\
+.mar15 {margin:15px;} .martop15 {margin-top:15px;} .marbottom15 {margin-bottom:15px;}\
+.mar20 {margin:20px;} .martop20 {margin-top:20px;} .marbottom20 {margin-bottom:20px;} .marleft20 {margin-left:20px;}\
+.pad0 {padding:0;} .padtop0 {padding-top:0;}\
+.pad5 {padding:5px;} .pad10 {padding:10px;} .pad15 {padding:15px;} .pad20 {padding:20px;}\
+.padtop15 {padding-top:15px;} .padtop20 {padding-top:20px;}\
+.padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
+.padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
+');
 
     if (!theme) {
         // load css on default theme

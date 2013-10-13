@@ -2,14 +2,6 @@
 //     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
 
-// Parameters:
-// style - one of the available styles, for example 'vs' - Visual Studio, 'github' - GitHub
-// lang - language identifier, for example 'ruby'
-// Example: %highlight#lang=javascript;style=vs( ... )%highlight
-// 
-// List of languages and style sheets Yandex CDN hosted: http://api.yandex.ru/jslibs/libs.xml#highlightjs
-// Style examples: http://softwaremaniacs.org/media/soft/highlight/test.html
-
 (function() { "use strict";
     
 if (typeof $ENV !== 'undefined')
@@ -20,6 +12,8 @@ else {
         this.clq12604 = [];
     this.clq12604.push(initialize);
 }
+
+//$DOC.appendCSS('bootstrap+highlight.js pre fix', ' pre { padding:0; }');
 
 function initialize() {
     

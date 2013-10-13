@@ -29,6 +29,7 @@ $DOC.parseContent(function(){/*
  * [MathJax]({{=$DOC.root}}components/controls.math.html)
  * [Google Charts]({{=$DOC.root}}components/gcharts/Google%20Charts.html)
  * [d3js.org]({{=$DOC.root}}components/d3/d3.html)
+ * [Code highlighting]({{=$DOC.root}}components/controls.highlight.html)
 )%navbar
 -->
 

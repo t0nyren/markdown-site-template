@@ -35,14 +35,14 @@ Example of simple components:
 
 ### Hello World!
 %highlight#lang=javascript;style=vs((function () {
-    function HelloWorldSimplest(parameters, attributes) {
+    function HelloWorld(parameters, attributes) {
         $ENV.controls.controlInitialize(this, 'hello', parameters, attributes,
             $ENV.default_template, $ENV.default_inner_template);
 
         this.text('# Hello World!'); // ← Markdown
     };
-    HelloWorldSimplest.prototype = $ENV.controls.control_prototype;
-    controls.typeRegister('hello', HelloWorldSimplest);
+    HelloWorld.prototype = $ENV.controls.control_prototype;
+    controls.typeRegister('hello', HelloWorld);
 })();
 )%highlight
 
