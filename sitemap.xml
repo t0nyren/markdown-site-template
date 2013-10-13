@@ -46,7 +46,7 @@
 <loc>http://aplib.github.io/markdown-site-template/components/controls.page-layout.html</loc>
 </url>
 <url>
-<loc>http://aplib.github.io/markdown-site-template/components/GitHub.gemoji.html</loc>
+<loc>http://aplib.github.io/markdown-site-template/components/controls.emoji.html</loc>
 </url>
 <url>
 <loc>http://aplib.github.io/markdown-site-template/components/YouTube.Player.html</loc>
@@ -62,6 +62,9 @@
 </url>
 <url>
 <loc>http://aplib.github.io/markdown-site-template/components/d3/d3.html</loc>
+</url>
+<url>
+<loc>http://aplib.github.io/markdown-site-template/components/controls.highlight.html</loc>
 </url>
 <url>
 <loc>http://aplib.github.io/markdown-site-template/customize-with-a-Bootstrap-theme.html</loc>
