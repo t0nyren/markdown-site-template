@@ -11211,7 +11211,7 @@ $ENV =
         var scripts = document.getElementsByTagName('script');
         for(var i = scripts.length - 1; i >= 0; i--) {
             var script = scripts[i];
-            if (script.src.indexOf('document.') >= 0 && ' complete interactive'.indexOf(script.readyState) > 0)
+            if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
                 current = script;
         }
     }
