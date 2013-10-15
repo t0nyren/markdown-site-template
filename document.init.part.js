@@ -37,14 +37,14 @@ $ENV =
         return $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") );
     };
     
-    // #log-level=?
     var hash = window.location.hash;
+    
+    // #log-level=?
     var log_level_pos = hash.indexOf('log-level=');
     if (log_level_pos >= 0) {
         console.log('>document: "' + window.location.href + '"');
         $ENV.log_level = parseInt(hash[log_level_pos + 10]);
     }
-    
     
     // initialize $DOC
     
@@ -554,7 +554,11 @@ $ENV =
         $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
     }
     
-    
+    // edit mode
+    if (/(#|^|&)edit($|&)/.test(hash)) {
+        $DOC.appendScript('editor.js', $DOC.root + 'editor.js');
+        $DOC.options.edit_mode = true;
+    }
     
     // load queued components
     if (window.clq12604) {
