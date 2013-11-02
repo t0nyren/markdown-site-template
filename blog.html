@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Blog</title>
-    <script src="document.min.js" id='DOC' onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
+    <script src="document.min.js" id="DOC" onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
 </head>
 <body>
 
@@ -13,6 +13,9 @@
 ## Blog
 
 %panel#success;New features(
+
+#### 2013/10/16
+Code highlighting component started
 
 #### 2013/10/03
 Built-in footer-layout component started.
@@ -41,6 +44,10 @@ To generate a sitemap template added a special page sitemap.html
 
 %panel#danger;Last breaking changes(
 
+#### 2013/10/16 Renamed defer initialization queue:
+
+window.clq12604 -> window.defercqueue
+
 #### 2013/9/24 Renamed globals
 
 document.css replaced with bootstrap.css
@@ -49,7 +56,7 @@ document.css replaced with bootstrap.css
 
 Layout totally redesigned.
 For example fixed-top-navbar section deprecated,
-%off(fixed-top-navbar replaced with a combination fixed-top-bar + %navbar()*%*navbar
+%off(fixed-top-navbar replaced with a combination fixed-top-bar + %navbar()%navbar
 )%off
 
 #### 2013/9/19 Renamed globals:

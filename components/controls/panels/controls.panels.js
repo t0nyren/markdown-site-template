@@ -71,14 +71,14 @@ var bootstrap = controls.bootstrap;
         this.class('collapse-panel' + (in_panel || panel_class ? ' panel ' + (panel_class || 'panel-default') : ''));
         
         // subcontrols
-        var collapse = this.add('collapse:div', {class:'panel-collapse collapse collapse-body' + (start_collapsed ? '' : ' in')});
-        var content = collapse.add('div', {class:'panel-body'});
-        var header = this.insert(0, 'header:div',
+        var collapse = this.add('collapse:div', {class:'panel-collapse collapse collapse-body' + (start_collapsed ? '' : ' in')}),
+            content = collapse.add('div', {class:'panel-body'}),
+            header = this.insert(0, 'header:div',
         {
                     class: 'panel-heading collapse-header',
             'data-toggle': 'collapse',
             'data-target': '#'+collapse.id,
-                    $text: '<a href="#" class="panel-title">' + Object.keys(parameters)[0] + '</a>'
+                    $text: '<a href="#" class="panel-title">' + (this.parameter('title') || Object.keys(parameters)[0] || '') + '</a>'
         });
         
         $DOC.processContent(content, this.text());

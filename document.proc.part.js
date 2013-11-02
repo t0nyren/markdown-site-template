@@ -6,22 +6,27 @@
 
 (function() { "use strict";
     
-    if ($DOC.head)
+    if ($DOC.state)
         return;
-    
-    $DOC.events.load = new controls.Event();
-    $DOC.transformation = transformation;
 
-    // load user.js script:
-    if ($DOC.options.userjs)
-        $DOC.appendScript($DOC.root + $DOC.options.userjs);
+    // document transformation started after all libraries and user.js is loaded
+    $DOC.loadUserJS = function()
+    {
+        // load user.js script:
+        if (this.options.userjs)
+            this.appendScript('user.js', this.root + this.options.userjs);
+    };
+    $DOC.loadUserJS();
     
-    // These controls are are not attached, childs are attached
-    var chead = controls.create('head'),
-        cbody = controls.create('body'),
-        head = document.head;
-    $DOC.head = chead;
-    $DOC.body = cbody;
+    // load queued components
+    if (window.defercqueue) {
+        var q = window.defercqueue;
+        delete window.defercqueue;
+        for(var i = 0, c = q.length; i < c; i++)
+        try {
+            q[i]();
+        } catch (e) { console.log(e); }
+    }
     
     // Stub controls loading dispatcher
     var stubs = {};
@@ -36,7 +41,7 @@
         stublist.push(stub);
         var url = $DOC.components + original__type[0] + '/' + original__type[1] + '/' + original__type[0] + '.' + original__type[1] + '.js';
         // load component asynchronously
-        var component_js = $(head).children('script[src*="' + url +'"]:first')[0];
+        var head = document.head, component_js = $(head).children('script[src*="' + url +'"]:first')[0];
         if (!component_js) {
             var component_js = controls.extend(document.createElement('script'), {src:url, async:true});
             component_js.addEventListener('load', function() { stubs[original__type].forEach(function(stub){ stub.state = 1; }); stubs[original__type] = []; });
@@ -66,13 +71,13 @@
         if (!content)
             return;
         
-        if ($DOC.options.off) {
-            $DOC.addTextContainer(collection, content);
+        if (this.options.off) {
+            this.addTextContainer(collection, content);
             return;
         }
         
         // 1. check substitutions
-        var filters = $DOC.filters;
+        var filters = this.filters;
         for(var i in filters) {
             var subst = filters[i];
             content = content.replace(subst.regex, subst);
@@ -107,7 +112,7 @@
                             if (control) {
                                 // flush buffer
                                 if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/) {
-                                    $DOC.addTextContainer(collection, buffered_text);
+                                    this.addTextContainer(collection, buffered_text);
                                     buffered_text = '';
                                 }
 
@@ -130,128 +135,136 @@
         
         // flush buffer
         if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/)
-            $DOC.addTextContainer(collection, buffered_text);
+            this.addTextContainer(collection, buffered_text);
     };
     
 
     var sections = $DOC.sections,
         order = $DOC.order,
-        log_level = $ENV.log_level;
+        edit_mode = $DOC.options.edit_mode;
 
-    // process found sections content
-    var processed_nodes = [], head_processed;
+    $DOC.processTextNode = processTextNode;
+    function processTextNode(text_node, value) {
+        
+        if (edit_mode) {
+            // remove controls if already created for this text_node
+            for(var prop in $DOC.sections) {
+                var section = $DOC.sections[prop];
+                if (typeof section === 'object' && section.deleteAll && section.source_node === text_node) {
+                    section.deleteAll();
+                }
+            }
+        }
+        
+        var control, text = (arguments.length > 1) ? value : text_node.nodeValue, first_char = text[0], body = document.body, section_name;
+        if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
+            try {
+                if (first_char === '%') {
+                    // <--%namespace.cid#params( ... )%namespace.cid-->
+                    // \1 cid \2 #params \3 content
+                    var match = text.match(/^(%(?:[^ \t\n\(]{1,128}\.)?[^ \t\n\(]{1,128})(#[^\t\n\(]{1,512})?\(([\S\s]*)\)\1$/);
+                    if (match) {
+                        control = controls.createOrStub(match[1].slice(1) + (match[2] || ''), {$text: match[3]});
+                    }
+                } else if (first_char === '!') {
+                    // <!--!sectionname--> - section remover
+                    $DOC.removeSection(text.slice(1));
+                    var parent = text_node.parentNode;
+                    if (parent) parent.removeChild(text_node);
+                } else {
+                    // <--sectionname...-->
+                    var namelen = text.indexOf(' '),
+                        eolpos = text.indexOf('\n'),
+                        move = text.indexOf('->');
+                    if (namelen < 0 && eolpos < 0 && move < 0) {
+                        // <--sectionname-->
+                        $DOC.sectionPlaceholder(text, text_node);
+                        // Do not delete the placeholder!
+                    } else if (namelen < 0 && move > 0) {
+                        // <--sectionname->newname-->
+                        $DOC.sectionMover(text_node, text.slice(0, move), text.slice(move + 2));
+                    } else {
+                        // <--sectionname ...-->
+                        if (eolpos > 0 && (namelen < 0 || eolpos < namelen))
+                            namelen = eolpos;
+                        if (namelen > 0 && namelen < 128) {
+                            section_name = text.slice(0, namelen);
+                            var section_value = text.slice(namelen + 1);
+                            control = controls.create('div', {class:section_name});
+                            control.name = section_name;
+                            $DOC.addSection(section_name, control);
+                            control.template($ENV.default_template, $ENV.default_inner_template);
+                            $DOC.processContent(control, section_value);
+                        }
+                    }
+                }
+                if (control) {
+                    // insert control element to DOM
+
+                    /* ? if (!control._element) // element exists if placeholder ? */
+                    control.createElement(text_node, 2/*before node*/);
+                    if (edit_mode === 2) {
+                        control.source_node = text_node;
+                        control.source_section = section_name;
+                    }
+                    else {
+                        var parent = text_node.parentNode;
+                        if (parent) parent.removeChild(text_node);
+                    }
+                    if (control._element && control._element.parentNode === body)
+                        $DOC.cbody.add(control);
+
+                    // create component loader
+                    // FIX: (for orphaned control) start loading after DOM element was created
+                    if (control.isStub)
+                        new stubResLoader(control);
+                    
+                    $DOC.events.section.raise(section_name, control, text_node);
+                }
+            } catch (e) { console.log(e); }
+        }
+    }
+    
+    // process sections content
+    var head_nodes = [], head_processed, body_nodes = [];
     function processSections(process_head) {
         
-        if (!process_head && !document.body)
+        var head = document.head, body = document.body;
+        if (!process_head && !body)
             return;
         
-        var translated_sections = [];
+        // process DOM tree text nodes
         
-        // process DOM
-        // get list of the special marked text elements from the dom tree
-        // syntax:
-        // <--sectionname ... -->
-        // <--%[namespace.]cid[#parameters]( ... )%[namespace.]cid-->
-        //
-        var text_nodes = [],
-            iterator = document.createNodeIterator(process_head ? document.head : document.body, 0x80, null, false),
-            text_node = iterator.nextNode(),
-            fordelete = [];
-
+        var processed_nodes = process_head ? head_nodes : body_nodes,
+            text_nodes = [],
+            iterator = document.createNodeIterator(process_head ? head : body, 0x80, null, false),
+            text_node = iterator.nextNode();
         while(text_node) {
-            text_nodes.push(text_node);
+            if (processed_nodes.indexOf(text_node) < 0) {
+                processed_nodes.push(text_node);
+                    text_nodes.push(text_node);
+            }
             text_node = iterator.nextNode();
         }
         
         if (process_head && text_nodes.length)
             head_processed = true;
         
-        // iterate text elements and process the each of them
-        for(var i = 0, c = text_nodes.length; i < c; i++) {
-            var text_node = text_nodes[i];
-            
-            if (processed_nodes.indexOf(text_node) < 0) {
-                var control = undefined, fordel = false, text = text_node.nodeValue, first_char = text[0];
-                if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
-                    try {
-                        if (first_char === '%') {
-                            // <--%namespace.cid#params( ... )%namespace.cid-->
-                            // \1 cid \2 #params \3 content
-                            var match = text.match(/^(%(?:[^ \t\n\(]{1,128}\.)?[^ \t\n\(]{1,128})(#[^\t\n\(]{1,512})?\(([\S\s]*)\)\1$/);
-                            if (match) {
-                                // create control
-                                control = controls.createOrStub(match[1].slice(1) + (match[2] || ''), {$text: match[3]});
-                            }
-                        } else if (first_char === '!') {
-                            // <!--!sectionname--> - section remover
-                            $DOC.removeSection(text.slice(1));
-                            fordel = true;
-                        } else {
-                            // <--sectionname...-->
-                            var namelen = text.indexOf(' '),
-                                eolpos = text.indexOf('\n'),
-                                move = text.indexOf('->');
-                            if (namelen < 0 && eolpos < 0 && move < 0) {
-                                // <--sectionname-->
-                                $DOC.sectionPlaceholder(text, text_node);
-                                // Do not delete the placeholder!
-                            } else if (namelen < 0 && move > 0) {
-                                // <--sectionname->newname-->
-                                $DOC.sectionMover(text_node, text.slice(0, move), text.slice(move + 2));
-                                fordel = true;
-                            } else {
-                                // <--sectionname ...-->
-                                if (eolpos > 0 && (namelen < 0 || eolpos < namelen))
-                                    namelen = eolpos;
-                                if (namelen > 0 && namelen < 128) {
-                                    var section_name = text.slice(0, namelen),
-                                    // create section div
-                                    control = controls.create('div', {class:section_name});
-                                    control.name = section_name;
-                                    $DOC.addSection(section_name, control);
-                                    control.template($ENV.default_template, $ENV.default_inner_template);
-                                    $DOC.processContent(control, text.slice(namelen + 1));
-                                    translated_sections.push(section_name);
-                                }
-                            }
-                        }
-                        if (control) {
-                            // insert control element to DOM
-                            
-                            /* ? if (!control._element) // element exists if placeholder ? */
-                                control.createElement(text_node, 2/*before node*/);
-                            if (control._element && control._element.parentNode === document.body)
-                                cbody.add(control);
-
-                            // create component loader
-                            // FIX: (for orphaned control) start loading after DOM element was created
-                            if (control.isStub)
-                                new stubResLoader(control);
-                        }
-                    } catch (e) { console.log(e); }
-                }
-                ((fordel || control) ? fordelete : processed_nodes).push(text_node);
-            }
-        }
-        
-        // delete processed nodes
-        for( var i = fordelete.length - 1; i >= 0; i--) {
-            var node = fordelete[i], parent = node.parentNode;
-            parent.removeChild(node);
-        }
+        for(var i = 0, c = text_nodes.length; i < c; i++)
+            processTextNode(text_nodes[i]);
         
         if (process_head)
             return;
         
-        
         // check body
-        if (!cbody._element && document.body)
+        var cbody = $DOC.cbody;
+        if (!cbody._element && body)
             cbody.attachAll();
         if (!cbody._element)
             return;
         
         // process other named sections content, applied from controls or user.js
-        //
+        
         for(var name in sections)
         if (name) { // skip unnamed for compatibility
             try
@@ -263,19 +276,14 @@
                 }
                 if (typeof content === 'string') {
 
-                    if (log_level)
-                        console.log('>section ' + name);
-
                     // translate section to control object
 
-                    var section_control = cbody.add(name + ':div', {class:name});
+                    var section_control = cbody.add('div', {class:name});
+                    section_control.name = name;
                     section_control.template($ENV.default_template, $ENV.default_inner_template);
                     $DOC.processContent(section_control, content);
 
-
-                    // create dom element
-
-                    // look for element position in dom
+                    // create dom element and place in a definite order
                     
                     var created = false;
                     
@@ -289,9 +297,9 @@
                             // look element after in order
                             for(var i = in_order + 1, c = order.length; i < c; i++) {
                                 var exists_after_in_order = sections[order[i]];
-                                if (exists_after_in_order && typeof exists_after_in_order !=='string') {
+                                if (exists_after_in_order && typeof exists_after_in_order !== 'string') {
                                     // insert before
-                                    section_control.createElement(exists_after_in_order._element, 2);
+                                    section_control.createElement(exists_after_in_order.element, 2);
                                     created = true;
                                     break;
                                 }
@@ -301,11 +309,15 @@
                             // look element before in order
                             for(var i = in_order - 1; i >= 0; i--) {
                                 var exists_before_in_order = sections[order[i]];
-                                if (exists_before_in_order && typeof exists_before_in_order !=='string') {
-                                    // insert after
-                                    section_control.createElement(exists_before_in_order._element, 3);
-                                    created = true;
-                                    break;
+                                if (exists_before_in_order && typeof exists_before_in_order !== 'string') {
+                                    if (exists_before_in_order.source_node) {
+                                        // insert after source node
+                                        section_control.createElement(exists_before_in_order.source_node, 3);
+                                    } else
+                                        // insert after
+                                        section_control.createElement(exists_before_in_order.element, 3);
+                                        created = true;
+                                        break;
                                 }
                             }
                         }
@@ -315,26 +327,23 @@
                         section_control.createElement(document.body, 0);
                     
                     sections[name] = section_control;
-                    translated_sections.push(name);
                 }
             }
             catch (e) { console.log(e); }
         }
-        
-        if (translated_sections.length > 0)
-            apply_patches(translated_sections);
     }
 
     // document transformation started after all libraries and user.js is loaded
-    function transformation()
+    $DOC.finalTransformation = function()
     {
-        if ($DOC.state > 0)
+        if ($DOC.state)
             return;
-        
         $DOC.state = 1;
         
-        chead.attachAll();
-        cbody.attachAll();
+        if ($DOC.cbody)
+            $DOC.cbody.detachAll();
+        $DOC.cbody = controls.create('body');
+        $DOC.cbody.attach();
         
         var gen_flag = document.body && document.body.getAttribute('data-generator'),
         page_ready = gen_flag && gen_flag.indexOf('embed-processed') >= 0;
@@ -365,7 +374,6 @@
 
                 // raise 'load' event
                 $DOC.state = 2;
-                $DOC.isLoaded = true;
                 var load_event = $DOC.forceEvent('load');
                 load_event.raise();
                 load_event.clear();
@@ -373,7 +381,7 @@
                 onresize(); // before and after 'load' event
             });
             
-        } else {
+        } else if (edit_mode !== 1 /*page not processed in edit mode*/) {
             
             // page transformation
             
@@ -422,7 +430,6 @@
                 
                 // raise 'load' event
                 $DOC.state = 2;
-                $DOC.isLoaded = true;
                 var load_event = $DOC.forceEvent('load');
                 load_event.raise();
                 load_event.clear();
@@ -430,14 +437,25 @@
                 onresize(); // before and after 'load' event
             });
         }
-    }
+    };
+    
+    // Patches
     
     // apply js patches for dom elements on transformation progress
-    function apply_patches(translated_section) {
-
-        $('table').addClass('table table-bordered table-stripped');
-    }
+    
+    $DOC.onsection(function(name, control, source_node) {
+        if (control) {
+            var element = control.element;
+            if (element)
+                $(element).find('table').addClass('table table-bordered table-stripped');
+            else
+                for(var prop in control.controls)
+                    $(control.controls[prop].element).find('table').addClass('table table-bordered table-stripped');
+        }
+    });
+    
     // fired on 1. dom manipulation 2. css loading in progress can size effects 3. window resize after page loaded
+    
     function onresize() {
         // body padding
         var css = '', top = 0, right = 0, bottom = 0, left = 0;

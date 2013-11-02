@@ -8,18 +8,18 @@ if (typeof $ENV !== 'undefined')
     initialize();
 else {
     // queue component for loading
-    if (!this.clq12604)
-        this.clq12604 = [];
-    this.clq12604.push(initialize);
+    if (!this.defercqueue)
+        this.defercqueue = [];
+    this.defercqueue.push(initialize);
 }
 
 function initialize() {
     
-    var load_controls = [],
+    var script_loaded = 0, load_controls = [],
         script_template = controls['controls.script'].outer_template,
         preload_template = controls.doT.template('<div{{=it.printAttributes()}}>loading...</div>');
     
-    // after MathJax.js loaded
+    // call for each load_controls on MathJax.js loaded
     function onload() {
         var math_type = this.parameters.type || Object.keys(this.parameters)[0] || 'mml';
         this.attr('type', 'math/' + math_type + '; mode=display');
@@ -32,7 +32,7 @@ function initialize() {
         this.refresh();
     }
     
-    // if MathJax.js load error
+    // call for each load_controls on MathJax.js load error
     function onerror() {
         this.template(function(){ return '&lt;' + this.__type + '?&gt;';});
         this.refresh();
@@ -43,8 +43,10 @@ function initialize() {
         
         if (typeof MathJax === 'undefined') {
             // MathJax yet not loaded
-            this.template(preload_template);
-            load_controls.push(this);
+            if (script_loaded >= 0) {
+                this.template(preload_template);
+                load_controls.push(this);
+            }
         } else {
             // MathJax loaded
             onload.call(this);
@@ -59,6 +61,7 @@ function initialize() {
     if (typeof MathJax === 'undefined') {
         var config = 'TeX-AMS-MML_HTMLorMML'; // http://docs.mathjax.org/en/latest/configuration.html
         $DOC.appendScript('math.MathJax', "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=" + config, function(state) {
+            script_loaded = state;
             for(var prop in load_controls) {
                 var control = load_controls[prop];
                 if (state > 0)

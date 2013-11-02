@@ -79,7 +79,8 @@ bfy.on('exit', function ()
         // -> DOCUMENT.LESS.JS
         // -> DOCUMENT.JS
         // -> DOCUMENT.MIN.JS
-        var options = 'var $ENV, $DOC = { options: {\n\
+        var options = 
+'var $ENV, $DOC = { options: {\n\
     userjs: \'user.js\',\n\
     icon: \'favicon.ico\'\n\
 }};\n\n';
@@ -132,6 +133,10 @@ bfy.on('exit', function ()
     // -> DOCUMENT.LESS.MIN.JS
     var ufy = spawn('uglifyjs.cmd', ['document.less.js', '-o', 'document.less.min.js', '-cmb beautify=false']);
     ufy.stdout.on('data', function (data) { console.log('5>' + data); });
+
+    // -> EDITOR.MIN.JS
+    var ufy = spawn('uglifyjs.cmd', ['editor.js', '-o', 'editor.min.js', '-cmb beautify=false']);
+    ufy.stdout.on('data', function (data) { console.log('6>' + data); });
 });
 
 

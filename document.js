@@ -10845,7 +10845,7 @@ if (!jQuery) { throw new Error("Bootstrap requires jQuery") }
 
 ;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 if (!$ENV) {
-    
+
 $ENV =
 {
     dot: require('dot'),
@@ -10883,35 +10883,25 @@ $ENV =
         return $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") );
     };
     
-    var hash = window.location.hash;
-    
-    // #log-level=?
-    var log_level_pos = hash.indexOf('log-level=');
-    if (log_level_pos >= 0) {
-        console.log('>document: "' + window.location.href + '"');
-        $ENV.log_level = parseInt(hash[log_level_pos + 10]);
-    }
-    
     // initialize $DOC
     
-    var scripts_count = 0, scripts_stated = 0, transformation_started;
-    function check_all_script() {
-        // document transformation start after the scripts loaded or failed
-        var transformation = $DOC.transformation;
-        if (scripts_count === scripts_stated && !transformation_started && transformation) {
-            transformation_started = true;
-            transformation();
-        }
-    }
-    
+    var url_params = {};
+    window.location.search.substring(1).split('&').forEach(function(seg){ if (seg) {
+        var pos = seg.indexOf('=');
+        if (pos < 0)
+            url_params[seg] = true;
+        else
+            url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
+    }});
+                
     var options = $DOC.options;
     $DOC =
     {
         options: options,
+        urlParams: url_params,
                 
         // State
         state: 0, // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
-        isLoaded: false,
                 
         // Document events - 'load'
         events: {},
@@ -10921,7 +10911,10 @@ $ENV =
                 events[name] = new controls.Event();
             return events[name];
         },
-        onload: function(handler) { this.forceEvent('load').addListener(handler); },
+        // Document transformation completed event
+        onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
+        // Section control created event
+        onsection: function(handler) { this.forceEvent('section').addListener(handler); },
                 
         // Document named sections content
         sections: {},
@@ -10937,7 +10930,6 @@ $ENV =
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
             if (exists) {
-                if ($ENV.log_level) console.log('>' + name + ' overriden!');
                 if (exists._element)
                     exists.deleteElement();
             }
@@ -11075,27 +11067,27 @@ $ENV =
             if (id)
                 script.id = id;
             script.src = src;
-            script.async = true; // no affects?
+            script.async = true;
             script.addEventListener('load', function() {
                 if (callback)
                     callback(+1);
                 scripts_stated++;
-                check_all_script();
+                check_all_scripts_ready();
             });
             script.addEventListener('error', function() {
                 if (callback)
                     callback(-1);
                 scripts_stated++;
-                check_all_script();
+                check_all_scripts_ready();
             });
             document.head.appendChild(script);
         },
-        appendCSS: function(id, css, callback) {
-            var exists = document.getElementById(id),
+        appendCSS: function(id, css, callback, position) {
+            var head = document.head, exists = document.getElementById(id),
                 israwcss = (css.indexOf('{') >= 0);
             if (!exists) {
                 if (israwcss) {
-                    document.head.insertAdjacentHTML('beforeend', '<style id="' + id + '" auto="true">' + css + '</style>');
+                    head.insertAdjacentHTML(position || 'beforeend', '<style id="' + id + '" auto="true">' + css + '</style>');
                 } else {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
@@ -11107,7 +11099,16 @@ $ENV =
                         link.addEventListener('load', function() { callback(1); });
                         link.addEventListener('error', function() { callback(-1); });
                     }
-                    document.head.appendChild(link);
+                    switch(position) {
+                        case 'afterbegin':
+                            if (head.firstChild)
+                                head.insertBefore(link, head.firstChild);
+                            else
+                                head.appendChild(link);
+                        break;
+                        default:
+                            head.appendChild(link);
+                    }
                 }
             } else if (israwcss) {
                 if (exists.innerHTML !== css)
@@ -11149,76 +11150,43 @@ $ENV =
         }
     };
     
-    
-    // Path
-    // root - document folder root path, preferred relative
-    // executing - document.js path
-    // index - document index file
-    // components - codebase start path
-    
-    
-    var nodes = document.head.childNodes, meta_root, meta_index, param_root, param_index, src_root, src_index;
-    for(var i = 0, c = nodes.length; i < c && !meta_root; i++) {
-        var node = nodes[i];
-        if (node.nodeType === 1)
-        switch(node.tagName.toLowerCase()) {
-            
-            case 'meta':
-                meta_root = node.getAttribute('root');
-                meta_index = node.getAttribute('index');
-                
-                if (meta_index) {
-                    var milowercase = meta_index.toLowerCase();
-                    if ((meta_index.slice(-1) === '/' || meta_index === meta_root)
-                    && (!milowercase.indexOf('.php') && !milowercase.indexOf('.htm') && !milowercase.indexOf('.html'))) {
-                        if (meta_index.slice(-1) !== '/')
-                            meta_index += '/';
-                        meta_index += 'index.html';
-                    }
-                }
-                if (meta_index && !meta_root)
-                    meta_root = meta_index.split('/').slice(0, -1);
-                break;
-                
-            case 'script': if (node.src) {
-                var src = node.getAttribute('src'),
-                    docpos = src.indexOf('document.');
-                // it is a document. script element
-                if (docpos >= 0) {
-                    var qpos = src.indexOf('#') || src.indexOf('?');
-                    if (qpos >= 0)
-                    src.slice(qpos+1).split('&').forEach(function(param)
-                    {
-                        if (param.slice(0,5)==='root=')         param_root = param.slice(5);
-                        else if (param.slice(0,6)==='index=')   param_index = param.slice(6);
-                    });
-                    
-                    // if not an absolute path
-                    if (src.indexOf('//') < 0) {
-                        src_root = src.slice(0, docpos);
-                    }
-                }
-            }
-        }
+    var scripts_count = 0, scripts_stated = 0;
+    function check_all_scripts_ready() {
+        // document transformation start after all scripts loaded or failed
+        if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
+            $DOC.finalTransformation();
     }
     
-    var root = $DOC.root || meta_root || param_root || src_root || '',
-        index = $DOC.index || meta_index || param_index || root + 'index.html',
-        js,components;
+    // Path
+    // $DOC.root - document folder root path, preferred relative
+    // $DOC.components - codebase start path
+    
+    var root, js_root_node = document.getElementById('DOC');
+    if (js_root_node) {
+        var root_src = js_root_node.getAttribute('src');
+        if (root_src) {
+            var segs = root_src.split('/');
+            root = segs.slice(0, segs.length - 1).join('/');
+            if (root)
+                root += '/';
+        }
+    }
         
-    var current = document.currentScript;
-    if (!current) {
+    var components, bootstrapcss,
+    executing = document.currentScript;
+    if (!executing) {
         var scripts = document.getElementsByTagName('script');
         for(var i = scripts.length - 1; i >= 0; i--) {
             var script = scripts[i];
             if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
-                current = script;
+                executing = script;
         }
     }
-    var js = current && current.src;
-    if (js) {
+    if (executing && executing.src) {
         // components is always loaded from path of the executing script
-        components = js.split('/').slice(0, -1).concat(['components/']).join('/');
+        var origin = executing.src.split('/').slice(0, -1).join('/');
+        components = origin + '/components/';
+        bootstrapcss = origin + '/bootstrap.css';
     }
     
     // selected theme
@@ -11228,37 +11196,27 @@ $ENV =
         theme = localStorage.getItem('primary-theme');
         theme_confirmed = localStorage.getItem('primary-theme-confirmed');
         
-        if (hash) {
-            
-            // apply theme 'theme=' command
-            var apply_theme = hash.match(/(^|;|,|&|#)theme=(.*)$|;|,|&/);
-            if (apply_theme) {
-                apply_theme = apply_theme[2];
-                if (apply_theme !== theme) {
-                    theme = apply_theme;
-                    theme_confirmed = '';
-                }
+        // apply theme 'theme=' command
+        var params_theme = url_params.theme;
+        if (params_theme && params_theme !== theme) {
+            theme = params_theme;
+            theme_confirmed = '';
+        }
+        
+        // switch theme 'settheme=' command
+        var params_settheme = url_params.settheme;
+        if (params_settheme) {
+            if (params_settheme !== theme) {
+                theme_confirmed = '';
+                localStorage.setItem('primary-theme-confirmed', '');
             }
-
-            // switch theme 'settheme=' command
-
-            var set_theme = hash.match(/(^|;|,|&|#)settheme=(.*)$|;|,|&/);
-            if (set_theme) {
-                set_theme = set_theme[2];
-                if (set_theme !== theme) {
-                    theme_confirmed = '';
-                    localStorage.setItem('primary-theme-confirmed', '');
-                }
-                localStorage.setItem('primary-theme', apply_theme);
-                theme = apply_theme;
-            }
+            localStorage.setItem('primary-theme', params_settheme);
+            theme = params_settheme;
         }
     }
     
     Object.defineProperties($DOC, {
         root:       {value: root},
-        executing:  {value: js},
-        index:      {value: index},
         components: {value: components},
         theme: {
             get: function() { return theme; },
@@ -11267,7 +11225,10 @@ $ENV =
                     value = '';
                 if (value !== theme) {
                     if (typeof localStorage !== 'undefined') {
-                        localStorage.setItem('primary-theme', value); 
+                        if (value)
+                            localStorage.setItem('primary-theme', value); 
+                        else
+                            localStorage.removeItem('primary-theme');
                         window.location.reload();
                     }
                 }
@@ -11275,17 +11236,22 @@ $ENV =
         }
     });
     
-    if ($ENV.log_level > 0)
-        console.log('root,executing,index,components'.split(',').map(function(prop){return '>'+prop+': "'+$DOC[prop]+'"';}).join('\n'));
+    // >> head transformation
     
-                
-    $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-    if (options.icon)
-        $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+    $DOC.headTransformation = function() {
+        
+        if ($DOC.chead)
+            $DOC.chead.detachAll();
+        $DOC.chead = controls.create('head');
+        $DOC.chead.attach();
     
-    // document style
-    
-    $DOC.appendCSS('document.css',
+        $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+        if (options.icon)
+            $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+
+        // document style
+
+        $DOC.appendCSS('document.css',
 '.fixed-top-bar, .fixed-top-panel\
     { display: block; margin: 0; padding: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1030; }\
 .fixed-top-panel\
@@ -11377,41 +11343,48 @@ $ENV =
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
 
-    if (!theme) {
-        // load css on default theme
-        $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0)
-            ? '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css' // load from CDN
-            : $DOC.root + 'bootstrap.css'); // load from root
-    } else {
-        
-        // load bootstrap.css before theme loading if theme loading was error
-        if (!theme_confirmed)
-        $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0)
-            ? '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css' // load from CDN
-            : $DOC.root + 'bootstrap.css'); // load from root
+        if (!theme || !theme_confirmed) {
+            // load bootstrap.css if not theme or previous load error
+            
+            var cssloaded, bcss = document.getElementById('bootstrap.css');
+            for(var i = document.styleSheets.length - 1; i >= 0; i--)
+                if (document.styleSheets[i].ownerNode === bcss)
+                    cssloaded;
+            if (!cssloaded) {
+                var bootstrapcss_cdn = (location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
+                if (bcss)
+                    bcss.error = function() { $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); }; // load from CDN
+                else
+                    $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : bootstrapcss, function(state) {
+                        if (state < 0)  $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
+                    }, 'afterbegin');
+            }
+        }
+        if (theme) {
+            // theme loading and confirmed flag
+            $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
+                if (state < 0 && theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', '');
+                else if (state > 0 && !theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', true);
+            }, 'afterbegin');
+            $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
+        }
+    };
 
-        // theme loading and confirmed flag
-        $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
-            if (state < 0 && theme_confirmed)
-                localStorage.setItem('primary-theme-confirmed', '');
-            else if (state > 0 && !theme_confirmed)
-                localStorage.setItem('primary-theme-confirmed', true);
-        });
-        $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
-    }
+    $DOC.headTransformation();
     
     // edit mode
-    if (/(#|^|&)edit($|&)/.test(hash)) {
-        $DOC.appendScript('editor.js', $DOC.root + 'editor.js');
-        $DOC.options.edit_mode = true;
+    if (url_params.edit) {
+        if (window.self === window.top) {
+            options.edit_mode = 1; // editor
+            $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
+                if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
+            });
+        }
     }
-    
-    // load queued components
-    if (window.clq12604) {
-        var q = window.clq12604;
-        for(var i = 0, c = q.length; i < c; i++)
-            q[i]();
-    }
+    if (url_params.preview)
+        options.edit_mode = 2; // preview
     
 }).call(this);
 }
@@ -11576,7 +11549,7 @@ function Bootstrap(controls)
     DropdownItem.template = doT.template(
 '<li id="{{=it.id}}">\
 <a data-toggle="tab"{{=it.printAttributes("-id")}}>\
-{{? it.attributes.$icon }}<span class="{{=it.attributes.$icon}}"></span>&nbsp;{{?}}\
+{{? it.attributes.$icon }}<span class="glyphicon glyphicon-{{=it.attributes.$icon}}"></span>&nbsp;{{?}}\
 {{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}\
 </a></li>\n');
     controls.typeRegister('bootstrap.DropdownItem', DropdownItem);
@@ -11607,7 +11580,7 @@ function Bootstrap(controls)
     DropdownLink.template = doT.template(
 '<div{{=it.printAttributes()}}>\
 <a class="dropdown-toggle" data-toggle="dropdown" href="#">\
-{{? it.attributes.$icon }}<b class="{{=it.attributes.$icon}}"> </b>{{?}}\
+{{? it.attributes.$icon }}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
 {{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}\
 </a>\n\
 {{? (it.controls && it.controls.length > 0) }}\
@@ -11625,7 +11598,7 @@ function Bootstrap(controls)
     };
     ToggleBtn.prototype = control_prototype;
     ToggleBtn.template = doT.template(
-'<a{{=it.printAttributes()}} data-toggle="dropdown" href="#">{{? it.attributes.$icon }}<b class="{{=it.attributes.$icon}}"> </b>{{?}}{{? it.attributes.Caret }}<span class="caret"></span>{{?}}{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</a>\n\
+'<a{{=it.printAttributes()}} data-toggle="dropdown" href="#">{{? it.attributes.$icon }}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}{{? it.attributes.Caret }}<span class="caret"></span>{{?}}{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</a>\n\
 {{? (it.controls && it.controls.length > 0) }}\n\
 <ul class="dropdown-menu">\n\
 {{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\n\
@@ -11679,11 +11652,14 @@ function Bootstrap(controls)
         };
     };
     Button.prototype = control_prototype;
-    Button.template = doT.template(
-'<button{{=it.printAttributes()}}>\
-{{? it.attributes.$icon }}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"></b>&nbsp;{{?}}\
-{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}\
-</button>');
+    Button.template = function(it) {
+        var attrs = it.attributes;
+        return '<button' + it.printAttributes() + '>'
+            + (attrs.$icon ? ('<b class="glyphicon glyphicon-' + attrs.$icon + '"></b>') : '')
+            + ((attrs.$icon && attrs.$text) ? '&nbsp;' : '')
+            + (attrs.$text || '')
+            + '</button>';
+    };
     controls.typeRegister('bootstrap.Button', Button);
     
     
@@ -11697,7 +11673,7 @@ function Bootstrap(controls)
     Splitbutton.template = doT.template(
 '<div id="{{=it.id}}" class="btn-group">\
 <button type="button" class="btn btn-primary {{=it.attributes.class}}"{{=it.printAttributes("style")}}>{{=it.attributes.$text}}\
-{{? it.attributes.$icon }}<b class="{{=it.attributes.$icon}}"> </b>{{?}}\
+{{? it.attributes.$icon}}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
 </button>\
 <button type="button" class="btn btn-primary {{=it.attributes.class}} dropdown-toggle" data-toggle="dropdown">\
 <span class="caret"></span>\
@@ -11750,8 +11726,8 @@ function Bootstrap(controls)
     TabHeader.template = doT.template(
 '<li{{=it.printAttributes()}}>\
 <a href={{=it.attributes.$href}} data-toggle="tab">\
-{{? it.attributes.$icon }}<b class="{{=it.attributes.$icon}}"> </b>{{?}}\
-{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</a></li>');
+{{? it.attributes.$icon}}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
+{{? it.attributes.$text}}{{=it.attributes.$text}}{{?}}</a></li>');
     controls.typeRegister('bootstrap.TabHeader', TabHeader);
     
     
@@ -11825,28 +11801,25 @@ function Bootstrap(controls)
         controls.controlInitialize(this, 'bootstrap.ControlInput', parameters, attributes, ControlInput.template);
         this.class('form-control');
         
-        
         Object.defineProperty(this, 'value',
         {
-            get: function()
-            {
-                var element = this._element;
-                if (element)
-                    this.attributes.value = element.value;
-                
+            get: function() {
                 return this.attributes.value;
             },
-            set: function(value)
-            {
+            set: function(value) {
                 var element = this._element;
                 if (element)
                     element.value = value;
-                
-                this.attributes.value = value;
+                else
+                    this.attributes.value = value;
             }
         });
-        this.listen('element', function(element)
-        {
+        
+        this.listen('change', function() {
+            this.attributes.value = this.element.value;
+        });
+        
+        this.listen('element', function(element) {
             if (element)
                 element.value = this.attributes.value;
         });
@@ -11864,21 +11837,40 @@ function Bootstrap(controls)
     //
     function ControlSelect(parameters, attributes)
     {
-        controls.controlInitialize(this, 'bootstrap.ControlSelect', parameters, attributes, ControlSelect.template);
+        controls.controlInitialize(this, 'bootstrap.ControlSelect', parameters, attributes, ControlSelect.template, ControlSelect.inner_template);
         this.class('form-control');
         this.class('display:inline-block;');
         
-        var dao_attributes = {};
-        // $data argument
-        var $data = attributes.$data;
-        if ($data)
-        {
-            dao_attributes.$data = $data;
-            delete attributes.$data;
-        }
-        this.bind(controls.create('DataArray', dao_attributes));
+        if (attributes.hasOwnProperty('$data'))
+            this.bind(controls.create('DataArray', {$data: attributes.$data}));
+        else
+            this.bind(controls.create('DataArray'));
         
+        // chenge event routed from data object
         this.listen('data', this.refreshInner);
+        
+        Object.defineProperty(this, 'value',
+        {
+            get: function() {
+                return this.attributes.value;
+            },
+            set: function(value) {
+                var element = this._element;
+                if (element)
+                    element.value = value;
+                else
+                    this.attributes.value = value;
+            }
+        });
+        
+        this.listen('change', function() {
+            this.attributes.value = this.element.value;
+        });
+        
+        this.listen('element', function(element) {
+            if (element)
+                element.value = this.attributes.value;
+        });
     };
     ControlSelect.prototype = control_prototype;
     ControlSelect.template = doT.template(
@@ -13063,8 +13055,8 @@ if (typeof exports === 'object') {
 //     controls.js
 //     purpose: UI framework, code generation tool
 //     status: proposal, example, valid prototype, under development
-//     I need your feedback, any feedback
-//     http://aplib.github.io/controls.js/
+//     demo:   http://aplib.github.io/controls.js/
+//     issues: https://github.com/aplib/markdown-site-template/issues
 //     (c) 2013 vadim b.
 //     License: MIT
 //
@@ -13232,42 +13224,7 @@ controls.typeRegister(__type, ' + name + ');';
         Function('controls, __type, outer_template, inner_template', gencode) (controls, __type, outer_template, inner_template);
     };
   
-    // >> HTML cache
-    
-    // Caching outerHTML() innerHTML() calculations Optionally only for controls with the set HashControl prop
-    // Cache dated for one day removed
-    var _html_cache;
-    Object.defineProperty(controls, "html_cache",
-    {
-        enumerable: true, 
-        get: function()
-        {
-            if (!_html_cache)
-            try
-            {
-                // init cache
-                _html_cache = localStorage.getItem('html_cache') || {cache_date:Date.now().valueOf()};
-                _html_cache.cache_date = parseInt(cache.cache_date) || 1;
-                    setInterval(function()
-                    {
-                        if ((Date.now().valueOf() - parseInt(_html_cache.cache_date)) > 86400000)
-                        {
-                            // clear cache
-                            _html_cache = {cache_date:Date.now().valueOf()};
-                            localStorage.setItem('html_cache', _html_cache);
-                        }
 
-                        if (_html_cache.modified)
-                            localStorage.setItem('html_cache', _html_cache);
-                        
-                        _html_cache.modified = false;
-                    }, 10000);
-            }
-            catch (e) {}
-            
-            return _html_cache;
-        }
-    });
     
 // >> Events
     
@@ -13276,11 +13233,10 @@ controls.typeRegister(__type, ' + name + ');';
         var listeners = new Array();
         this.listeners = listeners;
 
-        this.raise = function(_event_data)
+        this.raise = function()
         {
-            var event_data = {event:_event_data, sender:this};
             for(var i = 0, c = listeners.length; i < c; i+=2)
-                listeners[i].call(listeners[i+1], event_data);
+                listeners[i].apply(listeners[i+1], arguments);
         };
         
 //        // revive JSON
@@ -13361,7 +13317,7 @@ controls.typeRegister(__type, ' + name + ');';
             post_events.length = 0;
         };
         
-    } , 30);
+    }, 30);
     
 // >> Data objects
     
@@ -13423,11 +13379,11 @@ controls.typeRegister(__type, ' + name + ');';
             return this;
         },
                 
-        raise: function(event_data)
+        raise: function()
         {
             var event = this.event;
             if (event)
-                event.raise(event_data);
+                event.raise.apply(this, arguments);
             
             var post_event = this.post_event;
             if (post_event)
@@ -13655,7 +13611,7 @@ controls.typeRegister(__type, ' + name + ');';
 //                    value.refresh();
                 }
                 
-                this.raise('parent', this);
+                this.raise('parent', value);
             }
         }
         Object.defineProperty(this, "parent",
@@ -13721,103 +13677,12 @@ controls.typeRegister(__type, ' + name + ');';
 
         this.innerHTML = function()
         {
-            var hash_control = this.HashControl;
-            if (hash_control)
-            {
-                // use controls.html_cache caching
-                
-                var hash_value = hash_control.outerHTML(); // Avoid excess computing in hash control, see outerHTML()
-                var html;
-                var cache_id = this.id + 'inner';
-                var cache = controls.html_cache;
-                
-                if (hash_value === this.HashValue)
-                {
-                    // hit hash, get html from cache
-                    html = cache[cache_id];
-                    if (!html)
-                    {
-                        html = this.inner_template(this);
-                        cache[cache_id] = html;
-                        cache.modified = true;
-                    }
-                }
-                else
-                {
-                    // if hash does not match then assembly html
-                    html = this.inner_template(this);
-                    cache[cache_id] = html;
-                    cache.modified = true;
-                    this.HashValue = hash_value;
-                }
-                
-                return html;
-            }
-            
             // assemble html
             return this.inner_template(this);
         };
         
         this.outerHTML = function()
         {
-            var hash_control = this.HashControl;
-            if (hash_control)
-            {
-                // HashControl attribute and that means using cache
-                
-                if (hash_control === this)
-                {
-                     // This is a hash-control!
-                     // Hash control is not cached, but is calculated once and stores its state. In order that would recalculate
-                     //  the hash control, you need to reset the state by assigning HashValue to 0 null or undefinde
-                     
-                    var hash_value = this.HashValue;
-                    
-                    if (!hash_value) // hash value in hash control calculated once
-                    {
-                        hash_value = this.outer_template(this);
-                        
-                        if (!hash_value)
-                            console.log('908FB5 Must have a non-empty value!');
-                        
-                        this.HashValue = hash_value;
-                    }
-                    
-                    return hash_value;
-                }
-                else
-                {
-                    // use controls.html_cache caching
-                
-                    var hash_value = hash_control.outerHTML(); // Avoid excess computing in hash control, see outerHTML()
-                    var html;
-                    var cache_id = this.id;
-                    var cache = controls.html_cache;
-                    
-                    if (hash_value === this.HashValue)
-                    {
-                        // hit hash, get html from cache
-                        html = cache[cache_id];
-                        if (!html)
-                        {
-                            html = this.outer_template(this);
-                            cache[cache_id] = html;
-                            cache.modified = true;
-                        }
-                    }
-                    else
-                    {
-                        // if hash does not match then assembly html
-                        html = this.outer_template(this);
-                        cache[cache_id] = html;
-                        cache.modified = true;
-                        this.HashValue = hash_value;
-                    }
-                    
-                    return html;
-                }
-            }
-            
             // assemble html
             return this.outer_template(this);
         };
@@ -14069,8 +13934,13 @@ controls.typeRegister(__type, ' + name + ');';
                             break;
                         case 3:
                             var nodeparent = node.parentNode;
-                            if (nodeparent)
-                                nodeparent.insertAfter(fragment, node);
+                            if (nodeparent) {
+                                var next_node = node.nextSibling;
+                                if (next_node)
+                                    nodeparent.insertBefore(fragment, next_node);
+                                else
+                                    nodeparent.appendChild(fragment);
+                            }
                             break;
                         default:
                             node.appendChild(fragment);
@@ -14091,7 +13961,16 @@ controls.typeRegister(__type, ' + name + ');';
                     parent_node.removeChild(element);
                 this._element = undefined;
             }
-        }
+        };
+        
+        this.deleteAll = function()
+        {
+            this.deleteElement();
+            
+            var subcontrols = this.controls;
+            for(var i = subcontrols.length - 1; i >= 0; i--)
+                subcontrols[i].deleteAll();
+        };
         
         var dom_events =
 ',change,DOMActivate,load,unload,abort,error,select,resize,scroll,blur,DOMFocusIn,DOMFocusOut,focus,focusin,focusout,\
@@ -14178,13 +14057,23 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             return this;
         };
         
-        this.raise = function(type, event_data, capture_mode)
+        this.raise = function(type)
         {
             if (!type)
                 return false;
+
+            var events = this.events;
+            if (events) {
+                var capture_event = events['#' + type],
+                    event = events[type],
+                    args = Array.prototype.slice.call(arguments, 1);
             
-            var event = force_event(this, type, capture_mode);
-            event.raise(event_data);
+                if (capture_event)
+                    capture_event.raise.apply(this, args);
+
+                if (event)
+                    event.raise.apply(this, args);
+            }
         };
         
         this.parameter = function(name, value)
@@ -14399,7 +14288,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     if (element)
                         element.style = _style;
                     
-                    this.raise('attributes', {name:'style', value:_style});
+                    this.raise('attributes', 'style', _style);
                 };
             }
             
@@ -14447,7 +14336,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     if (element)
                         element.className = _class;
                     
-                    this.raise('attributes', {name:'class', value:_class});
+                    this.raise('attributes', 'class', _class);
                 }
             }
             
@@ -14631,9 +14520,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 this.remove(controls[i]);
         };
         
-        function route_data_event(event_data)
+        function route_data_event()
         {
-            this.raise('data', event_data);
+            var args = Array.prototype.slice.call(arguments);
+            args.unshift('data');
+            this.raise.apply(this, args);
         };
         
         this.bind = function(data_object, post_mode)
@@ -14656,6 +14547,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     else
                         data_object.listen(this, route_data_event);
                 }
+                
+                route_data_event.call(this);
             }
         };
     
@@ -15609,6 +15502,7 @@ controls.typeRegister(\'controls.%%NAME%%\', %%NAME%%);\n';
     // 
     // controls.create('controls.Frame', {src: 'http://www.ibm.com'});
     // 
+    // Deprecated, for delete
     function Frame(parameters, attributes/* must have "src" */) // function-constructor
     {
         if (!attributes || !attributes.src)
@@ -16365,14 +16259,14 @@ var bootstrap = controls.bootstrap;
         this.class('collapse-panel' + (in_panel || panel_class ? ' panel ' + (panel_class || 'panel-default') : ''));
         
         // subcontrols
-        var collapse = this.add('collapse:div', {class:'panel-collapse collapse collapse-body' + (start_collapsed ? '' : ' in')});
-        var content = collapse.add('div', {class:'panel-body'});
-        var header = this.insert(0, 'header:div',
+        var collapse = this.add('collapse:div', {class:'panel-collapse collapse collapse-body' + (start_collapsed ? '' : ' in')}),
+            content = collapse.add('div', {class:'panel-body'}),
+            header = this.insert(0, 'header:div',
         {
                     class: 'panel-heading collapse-header',
             'data-toggle': 'collapse',
             'data-target': '#'+collapse.id,
-                    $text: '<a href="#" class="panel-title">' + Object.keys(parameters)[0] + '</a>'
+                    $text: '<a href="#" class="panel-title">' + (this.parameter('title') || Object.keys(parameters)[0] || '') + '</a>'
         });
         
         $DOC.processContent(content, this.text());
@@ -16573,7 +16467,7 @@ var bootstrap = controls.bootstrap;
                 out.push(
 '', // placeholder for columns
 this.text(), // additional css
-'body{margin:0 auto;', _width_, ' !important}\
+'body{margin:0 auto;', _width_, '}\
 .header-bar, .header-panel, .footer-bar, .footer-panel { padding-left:' + padding + '; padding-right:' + padding + '; }\
 .left-side-panel, .left-side-bar, .content-panel, .content-bar, .right-side-panel , .right-side-bar { display: inline-block; }');
                 if (media)
@@ -16595,7 +16489,7 @@ this.text(), // additional css
         
         function setColumnsWidths() {
             visible_columns = [];
-            var cbody = $DOC.body;
+            var cbody = $DOC.cbody;
             $DOC.columns.forEach(function(column) {
                 var ccol = cbody[column];
                 if (ccol) {
@@ -16724,22 +16618,27 @@ this.text(), // additional css
 
 (function() { "use strict";
     
-    if ($DOC.head)
+    if ($DOC.state)
         return;
-    
-    $DOC.events.load = new controls.Event();
-    $DOC.transformation = transformation;
 
-    // load user.js script:
-    if ($DOC.options.userjs)
-        $DOC.appendScript($DOC.root + $DOC.options.userjs);
+    // document transformation started after all libraries and user.js is loaded
+    $DOC.loadUserJS = function()
+    {
+        // load user.js script:
+        if (this.options.userjs)
+            this.appendScript('user.js', this.root + this.options.userjs);
+    };
+    $DOC.loadUserJS();
     
-    // These controls are are not attached, childs are attached
-    var chead = controls.create('head'),
-        cbody = controls.create('body'),
-        head = document.head;
-    $DOC.head = chead;
-    $DOC.body = cbody;
+    // load queued components
+    if (window.defercqueue) {
+        var q = window.defercqueue;
+        delete window.defercqueue;
+        for(var i = 0, c = q.length; i < c; i++)
+        try {
+            q[i]();
+        } catch (e) { console.log(e); }
+    }
     
     // Stub controls loading dispatcher
     var stubs = {};
@@ -16754,7 +16653,7 @@ this.text(), // additional css
         stublist.push(stub);
         var url = $DOC.components + original__type[0] + '/' + original__type[1] + '/' + original__type[0] + '.' + original__type[1] + '.js';
         // load component asynchronously
-        var component_js = $(head).children('script[src*="' + url +'"]:first')[0];
+        var head = document.head, component_js = $(head).children('script[src*="' + url +'"]:first')[0];
         if (!component_js) {
             var component_js = controls.extend(document.createElement('script'), {src:url, async:true});
             component_js.addEventListener('load', function() { stubs[original__type].forEach(function(stub){ stub.state = 1; }); stubs[original__type] = []; });
@@ -16784,13 +16683,13 @@ this.text(), // additional css
         if (!content)
             return;
         
-        if ($DOC.options.off) {
-            $DOC.addTextContainer(collection, content);
+        if (this.options.off) {
+            this.addTextContainer(collection, content);
             return;
         }
         
         // 1. check substitutions
-        var filters = $DOC.filters;
+        var filters = this.filters;
         for(var i in filters) {
             var subst = filters[i];
             content = content.replace(subst.regex, subst);
@@ -16825,7 +16724,7 @@ this.text(), // additional css
                             if (control) {
                                 // flush buffer
                                 if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/) {
-                                    $DOC.addTextContainer(collection, buffered_text);
+                                    this.addTextContainer(collection, buffered_text);
                                     buffered_text = '';
                                 }
 
@@ -16848,128 +16747,136 @@ this.text(), // additional css
         
         // flush buffer
         if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/)
-            $DOC.addTextContainer(collection, buffered_text);
+            this.addTextContainer(collection, buffered_text);
     };
     
 
     var sections = $DOC.sections,
         order = $DOC.order,
-        log_level = $ENV.log_level;
+        edit_mode = $DOC.options.edit_mode;
 
-    // process found sections content
-    var processed_nodes = [], head_processed;
+    $DOC.processTextNode = processTextNode;
+    function processTextNode(text_node, value) {
+        
+        if (edit_mode) {
+            // remove controls if already created for this text_node
+            for(var prop in $DOC.sections) {
+                var section = $DOC.sections[prop];
+                if (typeof section === 'object' && section.deleteAll && section.source_node === text_node) {
+                    section.deleteAll();
+                }
+            }
+        }
+        
+        var control, text = (arguments.length > 1) ? value : text_node.nodeValue, first_char = text[0], body = document.body, section_name;
+        if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
+            try {
+                if (first_char === '%') {
+                    // <--%namespace.cid#params( ... )%namespace.cid-->
+                    // \1 cid \2 #params \3 content
+                    var match = text.match(/^(%(?:[^ \t\n\(]{1,128}\.)?[^ \t\n\(]{1,128})(#[^\t\n\(]{1,512})?\(([\S\s]*)\)\1$/);
+                    if (match) {
+                        control = controls.createOrStub(match[1].slice(1) + (match[2] || ''), {$text: match[3]});
+                    }
+                } else if (first_char === '!') {
+                    // <!--!sectionname--> - section remover
+                    $DOC.removeSection(text.slice(1));
+                    var parent = text_node.parentNode;
+                    if (parent) parent.removeChild(text_node);
+                } else {
+                    // <--sectionname...-->
+                    var namelen = text.indexOf(' '),
+                        eolpos = text.indexOf('\n'),
+                        move = text.indexOf('->');
+                    if (namelen < 0 && eolpos < 0 && move < 0) {
+                        // <--sectionname-->
+                        $DOC.sectionPlaceholder(text, text_node);
+                        // Do not delete the placeholder!
+                    } else if (namelen < 0 && move > 0) {
+                        // <--sectionname->newname-->
+                        $DOC.sectionMover(text_node, text.slice(0, move), text.slice(move + 2));
+                    } else {
+                        // <--sectionname ...-->
+                        if (eolpos > 0 && (namelen < 0 || eolpos < namelen))
+                            namelen = eolpos;
+                        if (namelen > 0 && namelen < 128) {
+                            section_name = text.slice(0, namelen);
+                            var section_value = text.slice(namelen + 1);
+                            control = controls.create('div', {class:section_name});
+                            control.name = section_name;
+                            $DOC.addSection(section_name, control);
+                            control.template($ENV.default_template, $ENV.default_inner_template);
+                            $DOC.processContent(control, section_value);
+                        }
+                    }
+                }
+                if (control) {
+                    // insert control element to DOM
+
+                    /* ? if (!control._element) // element exists if placeholder ? */
+                    control.createElement(text_node, 2/*before node*/);
+                    if (edit_mode === 2) {
+                        control.source_node = text_node;
+                        control.source_section = section_name;
+                    }
+                    else {
+                        var parent = text_node.parentNode;
+                        if (parent) parent.removeChild(text_node);
+                    }
+                    if (control._element && control._element.parentNode === body)
+                        $DOC.cbody.add(control);
+
+                    // create component loader
+                    // FIX: (for orphaned control) start loading after DOM element was created
+                    if (control.isStub)
+                        new stubResLoader(control);
+                    
+                    $DOC.events.section.raise(section_name, control, text_node);
+                }
+            } catch (e) { console.log(e); }
+        }
+    }
+    
+    // process sections content
+    var head_nodes = [], head_processed, body_nodes = [];
     function processSections(process_head) {
         
-        if (!process_head && !document.body)
+        var head = document.head, body = document.body;
+        if (!process_head && !body)
             return;
         
-        var translated_sections = [];
+        // process DOM tree text nodes
         
-        // process DOM
-        // get list of the special marked text elements from the dom tree
-        // syntax:
-        // <--sectionname ... -->
-        // <--%[namespace.]cid[#parameters]( ... )%[namespace.]cid-->
-        //
-        var text_nodes = [],
-            iterator = document.createNodeIterator(process_head ? document.head : document.body, 0x80, null, false),
-            text_node = iterator.nextNode(),
-            fordelete = [];
-
+        var processed_nodes = process_head ? head_nodes : body_nodes,
+            text_nodes = [],
+            iterator = document.createNodeIterator(process_head ? head : body, 0x80, null, false),
+            text_node = iterator.nextNode();
         while(text_node) {
-            text_nodes.push(text_node);
+            if (processed_nodes.indexOf(text_node) < 0) {
+                processed_nodes.push(text_node);
+                    text_nodes.push(text_node);
+            }
             text_node = iterator.nextNode();
         }
         
         if (process_head && text_nodes.length)
             head_processed = true;
         
-        // iterate text elements and process the each of them
-        for(var i = 0, c = text_nodes.length; i < c; i++) {
-            var text_node = text_nodes[i];
-            
-            if (processed_nodes.indexOf(text_node) < 0) {
-                var control = undefined, fordel = false, text = text_node.nodeValue, first_char = text[0];
-                if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
-                    try {
-                        if (first_char === '%') {
-                            // <--%namespace.cid#params( ... )%namespace.cid-->
-                            // \1 cid \2 #params \3 content
-                            var match = text.match(/^(%(?:[^ \t\n\(]{1,128}\.)?[^ \t\n\(]{1,128})(#[^\t\n\(]{1,512})?\(([\S\s]*)\)\1$/);
-                            if (match) {
-                                // create control
-                                control = controls.createOrStub(match[1].slice(1) + (match[2] || ''), {$text: match[3]});
-                            }
-                        } else if (first_char === '!') {
-                            // <!--!sectionname--> - section remover
-                            $DOC.removeSection(text.slice(1));
-                            fordel = true;
-                        } else {
-                            // <--sectionname...-->
-                            var namelen = text.indexOf(' '),
-                                eolpos = text.indexOf('\n'),
-                                move = text.indexOf('->');
-                            if (namelen < 0 && eolpos < 0 && move < 0) {
-                                // <--sectionname-->
-                                $DOC.sectionPlaceholder(text, text_node);
-                                // Do not delete the placeholder!
-                            } else if (namelen < 0 && move > 0) {
-                                // <--sectionname->newname-->
-                                $DOC.sectionMover(text_node, text.slice(0, move), text.slice(move + 2));
-                                fordel = true;
-                            } else {
-                                // <--sectionname ...-->
-                                if (eolpos > 0 && (namelen < 0 || eolpos < namelen))
-                                    namelen = eolpos;
-                                if (namelen > 0 && namelen < 128) {
-                                    var section_name = text.slice(0, namelen),
-                                    // create section div
-                                    control = controls.create('div', {class:section_name});
-                                    control.name = section_name;
-                                    $DOC.addSection(section_name, control);
-                                    control.template($ENV.default_template, $ENV.default_inner_template);
-                                    $DOC.processContent(control, text.slice(namelen + 1));
-                                    translated_sections.push(section_name);
-                                }
-                            }
-                        }
-                        if (control) {
-                            // insert control element to DOM
-                            
-                            /* ? if (!control._element) // element exists if placeholder ? */
-                                control.createElement(text_node, 2/*before node*/);
-                            if (control._element && control._element.parentNode === document.body)
-                                cbody.add(control);
-
-                            // create component loader
-                            // FIX: (for orphaned control) start loading after DOM element was created
-                            if (control.isStub)
-                                new stubResLoader(control);
-                        }
-                    } catch (e) { console.log(e); }
-                }
-                ((fordel || control) ? fordelete : processed_nodes).push(text_node);
-            }
-        }
-        
-        // delete processed nodes
-        for( var i = fordelete.length - 1; i >= 0; i--) {
-            var node = fordelete[i], parent = node.parentNode;
-            parent.removeChild(node);
-        }
+        for(var i = 0, c = text_nodes.length; i < c; i++)
+            processTextNode(text_nodes[i]);
         
         if (process_head)
             return;
         
-        
         // check body
-        if (!cbody._element && document.body)
+        var cbody = $DOC.cbody;
+        if (!cbody._element && body)
             cbody.attachAll();
         if (!cbody._element)
             return;
         
         // process other named sections content, applied from controls or user.js
-        //
+        
         for(var name in sections)
         if (name) { // skip unnamed for compatibility
             try
@@ -16981,19 +16888,14 @@ this.text(), // additional css
                 }
                 if (typeof content === 'string') {
 
-                    if (log_level)
-                        console.log('>section ' + name);
-
                     // translate section to control object
 
-                    var section_control = cbody.add(name + ':div', {class:name});
+                    var section_control = cbody.add('div', {class:name});
+                    section_control.name = name;
                     section_control.template($ENV.default_template, $ENV.default_inner_template);
                     $DOC.processContent(section_control, content);
 
-
-                    // create dom element
-
-                    // look for element position in dom
+                    // create dom element and place in a definite order
                     
                     var created = false;
                     
@@ -17007,9 +16909,9 @@ this.text(), // additional css
                             // look element after in order
                             for(var i = in_order + 1, c = order.length; i < c; i++) {
                                 var exists_after_in_order = sections[order[i]];
-                                if (exists_after_in_order && typeof exists_after_in_order !=='string') {
+                                if (exists_after_in_order && typeof exists_after_in_order !== 'string') {
                                     // insert before
-                                    section_control.createElement(exists_after_in_order._element, 2);
+                                    section_control.createElement(exists_after_in_order.element, 2);
                                     created = true;
                                     break;
                                 }
@@ -17019,11 +16921,15 @@ this.text(), // additional css
                             // look element before in order
                             for(var i = in_order - 1; i >= 0; i--) {
                                 var exists_before_in_order = sections[order[i]];
-                                if (exists_before_in_order && typeof exists_before_in_order !=='string') {
-                                    // insert after
-                                    section_control.createElement(exists_before_in_order._element, 3);
-                                    created = true;
-                                    break;
+                                if (exists_before_in_order && typeof exists_before_in_order !== 'string') {
+                                    if (exists_before_in_order.source_node) {
+                                        // insert after source node
+                                        section_control.createElement(exists_before_in_order.source_node, 3);
+                                    } else
+                                        // insert after
+                                        section_control.createElement(exists_before_in_order.element, 3);
+                                        created = true;
+                                        break;
                                 }
                             }
                         }
@@ -17033,26 +16939,23 @@ this.text(), // additional css
                         section_control.createElement(document.body, 0);
                     
                     sections[name] = section_control;
-                    translated_sections.push(name);
                 }
             }
             catch (e) { console.log(e); }
         }
-        
-        if (translated_sections.length > 0)
-            apply_patches(translated_sections);
     }
 
     // document transformation started after all libraries and user.js is loaded
-    function transformation()
+    $DOC.finalTransformation = function()
     {
-        if ($DOC.state > 0)
+        if ($DOC.state)
             return;
-        
         $DOC.state = 1;
         
-        chead.attachAll();
-        cbody.attachAll();
+        if ($DOC.cbody)
+            $DOC.cbody.detachAll();
+        $DOC.cbody = controls.create('body');
+        $DOC.cbody.attach();
         
         var gen_flag = document.body && document.body.getAttribute('data-generator'),
         page_ready = gen_flag && gen_flag.indexOf('embed-processed') >= 0;
@@ -17083,7 +16986,6 @@ this.text(), // additional css
 
                 // raise 'load' event
                 $DOC.state = 2;
-                $DOC.isLoaded = true;
                 var load_event = $DOC.forceEvent('load');
                 load_event.raise();
                 load_event.clear();
@@ -17091,7 +16993,7 @@ this.text(), // additional css
                 onresize(); // before and after 'load' event
             });
             
-        } else {
+        } else if (edit_mode !== 1 /*page not processed in edit mode*/) {
             
             // page transformation
             
@@ -17140,7 +17042,6 @@ this.text(), // additional css
                 
                 // raise 'load' event
                 $DOC.state = 2;
-                $DOC.isLoaded = true;
                 var load_event = $DOC.forceEvent('load');
                 load_event.raise();
                 load_event.clear();
@@ -17148,14 +17049,25 @@ this.text(), // additional css
                 onresize(); // before and after 'load' event
             });
         }
-    }
+    };
+    
+    // Patches
     
     // apply js patches for dom elements on transformation progress
-    function apply_patches(translated_section) {
-
-        $('table').addClass('table table-bordered table-stripped');
-    }
+    
+    $DOC.onsection(function(name, control, source_node) {
+        if (control) {
+            var element = control.element;
+            if (element)
+                $(element).find('table').addClass('table table-bordered table-stripped');
+            else
+                for(var prop in control.controls)
+                    $(control.controls[prop].element).find('table').addClass('table table-bordered table-stripped');
+        }
+    });
+    
     // fired on 1. dom manipulation 2. css loading in progress can size effects 3. window resize after page loaded
+    
     function onresize() {
         // body padding
         var css = '', top = 0, right = 0, bottom = 0, left = 0;

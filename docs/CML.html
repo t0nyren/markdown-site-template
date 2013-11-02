@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>CML (Component Markdown Language)</title>
-    <script src="../document.min.js" id='DOC' onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
+    <script src="../document.min.js" id="DOC" onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
 </head>
 <body>
 
@@ -57,8 +57,8 @@ allowed in context of the html document and in function $DOC.parseContent() argu
 
 Template for inclusion component in the html document.
 All controls (in terms of library controls.js) are created when translation. After translation collection of the controls are accessible
-through the fields $DOC.sections, $DOC.head, $DOC.body. The path from the $DOC to the control of a named section within the nesting of
-the controls is determined by where the &lt;!--name ... --&gt; pattern was placed. For example $DOC.body.content.
+through the fields $DOC.sections, $DOC.chead, $DOC.cbody. The path from the $DOC to the control of a named section within the nesting of
+the controls is determined by where the &lt;!--name ... --&gt; pattern was placed. For example $DOC.cbody.content.
 
 example:
 

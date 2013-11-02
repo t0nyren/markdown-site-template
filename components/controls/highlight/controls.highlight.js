@@ -8,9 +8,9 @@ if (typeof $ENV !== 'undefined')
     initialize();
 else {
     // queue component for loading
-    if (!this.clq12604)
-        this.clq12604 = [];
-    this.clq12604.push(initialize);
+    if (!this.defercqueue)
+        this.defercqueue = [];
+    this.defercqueue.push(initialize);
 }
 
 //$DOC.appendCSS('bootstrap+highlight.js pre fix', ' pre { padding:0; }');

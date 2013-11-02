@@ -3,29 +3,17 @@
 //     license: MIT
 // require controls.js
 
-(function() { "use strict"; // #604 >>
-var controls;
-if (typeof module !== 'undefined' && typeof require !== 'undefined' && module.exports) {
-    controls = require('controls');
-    module.exports = true;
-} else if (typeof define === 'function' && define.amd)
-    define(['controls'], function(c) { controls = c; return true; });
-else
-    controls = this.controls;
-if (!controls) throw new TypeError('controls.js not found!');
-// << #604
-
+(function() { "use strict";
+    var controls = $ENV.controls;
 
     function PageLayout(parameters, attributes) {
         
         controls.controlInitialize(this, 'page-layout', parameters, attributes);
         
         // media selector
-        var media = this.parameter('media');
-        var visible_columns = [], columnset_hash = '', out = [];
-        var padding = this.parameter('padding'); // padding parameter
-
-
+        var media = this.parameter('media'),
+            visible_columns = [], columnset_hash = '', out = [],
+            padding = this.parameter('padding'); // padding parameter
 
         switch(this.parameter('scheme')) {
 
@@ -49,13 +37,13 @@ if (!controls) throw new TypeError('controls.js not found!');
                 out.push(
 '', // placeholder for columns
 this.text(), // additional css
-'body{margin:0 auto;', _width_, ' }\
-.header-bar, .header-panel, .footer-bar, .footer-panel { padding-left: ' + padding + '; padding-right: ' + padding + '; }\
+'body{margin:0 auto;', _width_, '}\
+.header-bar, .header-panel, .footer-bar, .footer-panel { padding-left:' + padding + '; padding-right:' + padding + '; }\
 .left-side-panel, .left-side-bar, .content-panel, .content-bar, .right-side-panel , .right-side-bar { display: inline-block; }');
                 if (media)
                     out.push('}');
 
-                break;
+            break;
             // << horizontal centered
         }
        
@@ -71,8 +59,8 @@ this.text(), // additional css
         
         function setColumnsWidths() {
             visible_columns = [];
-            var cbody = $DOC.body;
-            $DOC.COLUMNS.forEach(function(column) {
+            var cbody = $DOC.cbody;
+            $DOC.columns.forEach(function(column) {
                 var ccol = cbody[column];
                 if (ccol) {
                     var element = ccol._element;

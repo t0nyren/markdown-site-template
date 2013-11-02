@@ -1,5 +1,5 @@
 if (!$ENV) {
-    
+
 $ENV =
 {
     dot: require('dot'),
@@ -37,35 +37,25 @@ $ENV =
         return $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") );
     };
     
-    var hash = window.location.hash;
-    
-    // #log-level=?
-    var log_level_pos = hash.indexOf('log-level=');
-    if (log_level_pos >= 0) {
-        console.log('>document: "' + window.location.href + '"');
-        $ENV.log_level = parseInt(hash[log_level_pos + 10]);
-    }
-    
     // initialize $DOC
     
-    var scripts_count = 0, scripts_stated = 0, transformation_started;
-    function check_all_script() {
-        // document transformation start after the scripts loaded or failed
-        var transformation = $DOC.transformation;
-        if (scripts_count === scripts_stated && !transformation_started && transformation) {
-            transformation_started = true;
-            transformation();
-        }
-    }
-    
+    var url_params = {};
+    window.location.search.substring(1).split('&').forEach(function(seg){ if (seg) {
+        var pos = seg.indexOf('=');
+        if (pos < 0)
+            url_params[seg] = true;
+        else
+            url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
+    }});
+                
     var options = $DOC.options;
     $DOC =
     {
         options: options,
+        urlParams: url_params,
                 
         // State
         state: 0, // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
-        isLoaded: false,
                 
         // Document events - 'load'
         events: {},
@@ -75,7 +65,10 @@ $ENV =
                 events[name] = new controls.Event();
             return events[name];
         },
-        onload: function(handler) { this.forceEvent('load').addListener(handler); },
+        // Document transformation completed event
+        onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
+        // Section control created event
+        onsection: function(handler) { this.forceEvent('section').addListener(handler); },
                 
         // Document named sections content
         sections: {},
@@ -91,7 +84,6 @@ $ENV =
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
             if (exists) {
-                if ($ENV.log_level) console.log('>' + name + ' overriden!');
                 if (exists._element)
                     exists.deleteElement();
             }
@@ -229,27 +221,27 @@ $ENV =
             if (id)
                 script.id = id;
             script.src = src;
-            script.async = true; // no affects?
+            script.async = true;
             script.addEventListener('load', function() {
                 if (callback)
                     callback(+1);
                 scripts_stated++;
-                check_all_script();
+                check_all_scripts_ready();
             });
             script.addEventListener('error', function() {
                 if (callback)
                     callback(-1);
                 scripts_stated++;
-                check_all_script();
+                check_all_scripts_ready();
             });
             document.head.appendChild(script);
         },
-        appendCSS: function(id, css, callback) {
-            var exists = document.getElementById(id),
+        appendCSS: function(id, css, callback, position) {
+            var head = document.head, exists = document.getElementById(id),
                 israwcss = (css.indexOf('{') >= 0);
             if (!exists) {
                 if (israwcss) {
-                    document.head.insertAdjacentHTML('beforeend', '<style id="' + id + '" auto="true">' + css + '</style>');
+                    head.insertAdjacentHTML(position || 'beforeend', '<style id="' + id + '" auto="true">' + css + '</style>');
                 } else {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
@@ -261,7 +253,16 @@ $ENV =
                         link.addEventListener('load', function() { callback(1); });
                         link.addEventListener('error', function() { callback(-1); });
                     }
-                    document.head.appendChild(link);
+                    switch(position) {
+                        case 'afterbegin':
+                            if (head.firstChild)
+                                head.insertBefore(link, head.firstChild);
+                            else
+                                head.appendChild(link);
+                        break;
+                        default:
+                            head.appendChild(link);
+                    }
                 }
             } else if (israwcss) {
                 if (exists.innerHTML !== css)
@@ -303,76 +304,43 @@ $ENV =
         }
     };
     
-    
-    // Path
-    // root - document folder root path, preferred relative
-    // executing - document.js path
-    // index - document index file
-    // components - codebase start path
-    
-    
-    var nodes = document.head.childNodes, meta_root, meta_index, param_root, param_index, src_root, src_index;
-    for(var i = 0, c = nodes.length; i < c && !meta_root; i++) {
-        var node = nodes[i];
-        if (node.nodeType === 1)
-        switch(node.tagName.toLowerCase()) {
-            
-            case 'meta':
-                meta_root = node.getAttribute('root');
-                meta_index = node.getAttribute('index');
-                
-                if (meta_index) {
-                    var milowercase = meta_index.toLowerCase();
-                    if ((meta_index.slice(-1) === '/' || meta_index === meta_root)
-                    && (!milowercase.indexOf('.php') && !milowercase.indexOf('.htm') && !milowercase.indexOf('.html'))) {
-                        if (meta_index.slice(-1) !== '/')
-                            meta_index += '/';
-                        meta_index += 'index.html';
-                    }
-                }
-                if (meta_index && !meta_root)
-                    meta_root = meta_index.split('/').slice(0, -1);
-                break;
-                
-            case 'script': if (node.src) {
-                var src = node.getAttribute('src'),
-                    docpos = src.indexOf('document.');
-                // it is a document. script element
-                if (docpos >= 0) {
-                    var qpos = src.indexOf('#') || src.indexOf('?');
-                    if (qpos >= 0)
-                    src.slice(qpos+1).split('&').forEach(function(param)
-                    {
-                        if (param.slice(0,5)==='root=')         param_root = param.slice(5);
-                        else if (param.slice(0,6)==='index=')   param_index = param.slice(6);
-                    });
-                    
-                    // if not an absolute path
-                    if (src.indexOf('//') < 0) {
-                        src_root = src.slice(0, docpos);
-                    }
-                }
-            }
-        }
+    var scripts_count = 0, scripts_stated = 0;
+    function check_all_scripts_ready() {
+        // document transformation start after all scripts loaded or failed
+        if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
+            $DOC.finalTransformation();
     }
     
-    var root = $DOC.root || meta_root || param_root || src_root || '',
-        index = $DOC.index || meta_index || param_index || root + 'index.html',
-        js,components;
+    // Path
+    // $DOC.root - document folder root path, preferred relative
+    // $DOC.components - codebase start path
+    
+    var root, js_root_node = document.getElementById('DOC');
+    if (js_root_node) {
+        var root_src = js_root_node.getAttribute('src');
+        if (root_src) {
+            var segs = root_src.split('/');
+            root = segs.slice(0, segs.length - 1).join('/');
+            if (root)
+                root += '/';
+        }
+    }
         
-    var current = document.currentScript;
-    if (!current) {
+    var components, bootstrapcss,
+    executing = document.currentScript;
+    if (!executing) {
         var scripts = document.getElementsByTagName('script');
         for(var i = scripts.length - 1; i >= 0; i--) {
             var script = scripts[i];
             if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
-                current = script;
+                executing = script;
         }
     }
-    var js = current && current.src;
-    if (js) {
+    if (executing && executing.src) {
         // components is always loaded from path of the executing script
-        components = js.split('/').slice(0, -1).concat(['components/']).join('/');
+        var origin = executing.src.split('/').slice(0, -1).join('/');
+        components = origin + '/components/';
+        bootstrapcss = origin + '/bootstrap.css';
     }
     
     // selected theme
@@ -382,37 +350,27 @@ $ENV =
         theme = localStorage.getItem('primary-theme');
         theme_confirmed = localStorage.getItem('primary-theme-confirmed');
         
-        if (hash) {
-            
-            // apply theme 'theme=' command
-            var apply_theme = hash.match(/(^|;|,|&|#)theme=(.*)$|;|,|&/);
-            if (apply_theme) {
-                apply_theme = apply_theme[2];
-                if (apply_theme !== theme) {
-                    theme = apply_theme;
-                    theme_confirmed = '';
-                }
+        // apply theme 'theme=' command
+        var params_theme = url_params.theme;
+        if (params_theme && params_theme !== theme) {
+            theme = params_theme;
+            theme_confirmed = '';
+        }
+        
+        // switch theme 'settheme=' command
+        var params_settheme = url_params.settheme;
+        if (params_settheme) {
+            if (params_settheme !== theme) {
+                theme_confirmed = '';
+                localStorage.setItem('primary-theme-confirmed', '');
             }
-
-            // switch theme 'settheme=' command
-
-            var set_theme = hash.match(/(^|;|,|&|#)settheme=(.*)$|;|,|&/);
-            if (set_theme) {
-                set_theme = set_theme[2];
-                if (set_theme !== theme) {
-                    theme_confirmed = '';
-                    localStorage.setItem('primary-theme-confirmed', '');
-                }
-                localStorage.setItem('primary-theme', apply_theme);
-                theme = apply_theme;
-            }
+            localStorage.setItem('primary-theme', params_settheme);
+            theme = params_settheme;
         }
     }
     
     Object.defineProperties($DOC, {
         root:       {value: root},
-        executing:  {value: js},
-        index:      {value: index},
         components: {value: components},
         theme: {
             get: function() { return theme; },
@@ -421,7 +379,10 @@ $ENV =
                     value = '';
                 if (value !== theme) {
                     if (typeof localStorage !== 'undefined') {
-                        localStorage.setItem('primary-theme', value); 
+                        if (value)
+                            localStorage.setItem('primary-theme', value); 
+                        else
+                            localStorage.removeItem('primary-theme');
                         window.location.reload();
                     }
                 }
@@ -429,17 +390,22 @@ $ENV =
         }
     });
     
-    if ($ENV.log_level > 0)
-        console.log('root,executing,index,components'.split(',').map(function(prop){return '>'+prop+': "'+$DOC[prop]+'"';}).join('\n'));
+    // >> head transformation
     
-                
-    $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-    if (options.icon)
-        $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+    $DOC.headTransformation = function() {
+        
+        if ($DOC.chead)
+            $DOC.chead.detachAll();
+        $DOC.chead = controls.create('head');
+        $DOC.chead.attach();
     
-    // document style
-    
-    $DOC.appendCSS('document.css',
+        $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+        if (options.icon)
+            $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+
+        // document style
+
+        $DOC.appendCSS('document.css',
 '.fixed-top-bar, .fixed-top-panel\
     { display: block; margin: 0; padding: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1030; }\
 .fixed-top-panel\
@@ -531,41 +497,48 @@ $ENV =
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
 
-    if (!theme) {
-        // load css on default theme
-        $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0)
-            ? '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css' // load from CDN
-            : $DOC.root + 'bootstrap.css'); // load from root
-    } else {
-        
-        // load bootstrap.css before theme loading if theme loading was error
-        if (!theme_confirmed)
-        $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0)
-            ? '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css' // load from CDN
-            : $DOC.root + 'bootstrap.css'); // load from root
+        if (!theme || !theme_confirmed) {
+            // load bootstrap.css if not theme or previous load error
+            
+            var cssloaded, bcss = document.getElementById('bootstrap.css');
+            for(var i = document.styleSheets.length - 1; i >= 0; i--)
+                if (document.styleSheets[i].ownerNode === bcss)
+                    cssloaded;
+            if (!cssloaded) {
+                var bootstrapcss_cdn = (location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
+                if (bcss)
+                    bcss.error = function() { $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); }; // load from CDN
+                else
+                    $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : bootstrapcss, function(state) {
+                        if (state < 0)  $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
+                    }, 'afterbegin');
+            }
+        }
+        if (theme) {
+            // theme loading and confirmed flag
+            $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
+                if (state < 0 && theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', '');
+                else if (state > 0 && !theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', true);
+            }, 'afterbegin');
+            $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
+        }
+    };
 
-        // theme loading and confirmed flag
-        $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
-            if (state < 0 && theme_confirmed)
-                localStorage.setItem('primary-theme-confirmed', '');
-            else if (state > 0 && !theme_confirmed)
-                localStorage.setItem('primary-theme-confirmed', true);
-        });
-        $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
-    }
+    $DOC.headTransformation();
     
     // edit mode
-    if (/(#|^|&)edit($|&)/.test(hash)) {
-        $DOC.appendScript('editor.js', $DOC.root + 'editor.js');
-        $DOC.options.edit_mode = true;
+    if (url_params.edit) {
+        if (window.self === window.top) {
+            options.edit_mode = 1; // editor
+            $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
+                if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
+            });
+        }
     }
-    
-    // load queued components
-    if (window.clq12604) {
-        var q = window.clq12604;
-        for(var i = 0, c = q.length; i < c; i++)
-            q[i]();
-    }
+    if (url_params.preview)
+        options.edit_mode = 2; // preview
     
 }).call(this);
 }

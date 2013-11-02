@@ -1,27 +1,15 @@
 //     controls.navbar.js Boostrap-compatible navigation bar
 //     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
-// require controls.js
 
-(function() { "use strict"; // #604 >>
-var controls;
-if (typeof module !== 'undefined' && typeof require !== 'undefined' && module.exports) {
-    controls = require('controls');
-    module.exports = true;
-} else if (typeof define === 'function' && define.amd)
-    define(['controls'], function(c) { controls = c; return true; });
-else
-    controls = this.controls;
-if (!controls) throw new TypeError('controls.js not found!');
-// << #604
+(function() { "use strict";
 
-
+    var controls = $ENV.controls;
 
     function NavBar(parameters, attributes) {
         
-        controls.controlInitialize(this, 'navbar', parameters, attributes);
+        controls.controlInitialize(this, 'navbar', parameters, attributes, nav_template, $ENV.default_inner_template);
         this.class('navbar navbar-default');
-        this.template(nav_template, $ENV.default_inner_template);
 
         // text contains two parts separated by '***', first part non togglable, second part is togglable
         var parts = (this.text() || '').split(/^\*\*\*/m);

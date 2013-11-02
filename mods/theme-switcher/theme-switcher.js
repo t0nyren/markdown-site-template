@@ -23,9 +23,6 @@
     
     // check the browser support localStorage
     if (typeof localStorage !== 'undefined') {
-        if ($DOC.isLoaded)
-            create_mods_dropdown();
-        else
             $DOC.onload(create_mods_dropdown);
     }
     

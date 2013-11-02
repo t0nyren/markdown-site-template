@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>sitemap.xml</title>
-    <script src="document.min.js" id='DOC' onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
+    <script src="document.min.js" id="DOC" onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
 </head>
 <body>
 <!--header-panel # sitemap.xml generator -->
@@ -18,7 +18,7 @@
         // Create input form
         
         var input;
-        $DOC.body['content-panel'].add('form:bootstrap.Form', {class:'form-horizontal'}, function(form) {
+        $DOC.cbody['content-panel'].add('form:bootstrap.Form', {class:'form-horizontal'}, function(form) {
             form.add('bootstrap.FormGroup', function(group) {
                 
                 group.add('bootstrap.ControlLabel', {$text: 'Site url:', class:'col-sm-2'});
@@ -37,8 +37,9 @@
             input.value = localStorage.getItem('rootpath');
         } catch (e) {}
         
-        $DOC.body['content-panel'].refresh();
-
+        $DOC.cbody['content-panel'].refresh();
+        
+        // Create sitemap button click handler
         function create_sitemap(event) {
             
             var rootpath = input.value;
@@ -89,9 +90,6 @@
         }
     });    
 </script>
-
-
-
 
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>

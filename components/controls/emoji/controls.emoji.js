@@ -12,9 +12,9 @@ if (typeof $ENV !== 'undefined')
     initialize();
 else {
     // queue component for loading
-    if (!this.clq12604)
-        this.clq12604 = [];
-    this.clq12604.push(initialize);
+    if (!this.defercqueue)
+        this.defercqueue = [];
+    this.defercqueue.push(initialize);
 }
 
 var control_folder, type = 'jpg', size = 20, tsize = '20', template;
