@@ -43,7 +43,7 @@
                     .listen('click', function(event)
                     {
                         $DOC.theme = theme;
-                        event.event.preventDefault();
+                        event.preventDefault();
                     });
                 });
                 

@@ -450,14 +450,19 @@
             var doc = this.element && this.element.contentDocument,
                 $doc = this.$DOC;
             if (doc && $doc) {
+
                 var html = doc.getElementsByTagName('html')[0];
                 if (html) {
                     // full clear $DOC document
-                    $doc.chead.detachAll();
-                    $doc.chead = null;
-                    $doc.cbody.detachAll();
-                    $doc.cbody = null;
-                    $doc.state = 0;
+                    if ($doc.chead) {
+                        $doc.chead.detachAll();
+                        $doc.chead = null;
+                    }
+                    if ($doc.cbody) {
+                        $doc.cbody.detachAll();
+                        $doc.cbody = null;
+                        $doc.state = 0;
+                    }
                     Object.keys($doc.sections).forEach(function(key) { delete $doc.sections[key]; });
                     // update html
                     html.innerHTML = inner_html;
@@ -478,19 +483,23 @@
         };
         
         preview.listen('load', function() {
-            // check if navigated out the current location
-            try {
-                if (this.element.contentWindow.location.pathname !== window.location.pathname)
+            
+            // on window.load event preforms final transformation
+            setTimeout(function() {
+                // check if navigated out the current location
+                try {
+                    if (this.element.contentWindow.location.pathname !== window.location.pathname)
+                        this.deleteElement();
+                } catch (e) {
                     this.deleteElement();
-            } catch (e) {
-                this.deleteElement();
-            }
-            
-            this.$DOC = this.element && preview.element.contentWindow.$DOC;
-            
-            // update html
-            if (update_inner_html !== undefined)
-                this.updateInnerHtml(update_inner_html, sections_keys);
+                }
+
+                this.$DOC = this.element && preview.element.contentWindow.$DOC;
+
+                // update html
+                if (update_inner_html !== undefined)
+                    this.updateInnerHtml(update_inner_html, sections_keys);
+            }.bind(preview), 0);
         });
 
         preview.updateNamedSection = function(name, text, updated_inner_html) {

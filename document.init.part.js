@@ -47,11 +47,16 @@ $ENV =
         else
             url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
     }});
-                
-    var options = $DOC.options;
+    // edit mode
+    if (url_params.edit && window.self === window.top)
+        $DOC.options.edit_mode = 1; // editor
+    if (url_params.preview)
+        $DOC.options.edit_mode = 2; // preview
+    
+    var default_options = $DOC.options, scripts_count = 0, scripts_stated = 0;
     $DOC =
     {
-        options: options,
+        options: default_options,
         urlParams: url_params,
                 
         // State
@@ -226,15 +231,20 @@ $ENV =
                 if (callback)
                     callback(+1);
                 scripts_stated++;
-                check_all_scripts_ready();
+                $DOC.check_all_scripts_ready();
             });
             script.addEventListener('error', function() {
                 if (callback)
                     callback(-1);
                 scripts_stated++;
-                check_all_scripts_ready();
+                $DOC.check_all_scripts_ready();
             });
             document.head.appendChild(script);
+        },
+        check_all_scripts_ready: function() {
+            // document transformation start after all scripts loaded or failed
+            if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
+                $DOC.finalTransformation();
         },
         appendCSS: function(id, css, callback, position) {
             var head = document.head, exists = document.getElementById(id),
@@ -304,13 +314,6 @@ $ENV =
         }
     };
     
-    var scripts_count = 0, scripts_stated = 0;
-    function check_all_scripts_ready() {
-        // document transformation start after all scripts loaded or failed
-        if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
-            $DOC.finalTransformation();
-    }
-    
     // Path
     // $DOC.root - document folder root path, preferred relative
     // $DOC.components - codebase start path
@@ -336,11 +339,21 @@ $ENV =
                 executing = script;
         }
     }
-    if (executing && executing.src) {
-        // components is always loaded from path of the executing script
-        var origin = executing.src.split('/').slice(0, -1).join('/');
-        components = origin + '/components/';
-        bootstrapcss = origin + '/bootstrap.css';
+    if (executing) {
+        if (executing.src) {
+            // components is always loaded from path of the executing script
+            var origin = executing.src.split('/').slice(0, -1).join('/');
+            components = origin + '/components/';
+            bootstrapcss = origin + '/bootstrap.css';
+        }
+        // >> Options
+        var userjs = executing.getAttribute('userjs');
+        if (userjs)
+            $DOC.options.userjs = userjs;
+        var icon = executing.getAttribute('userjs');
+        if (icon)
+            $DOC.options.icon = icon;
+        // << Options
     }
     
     // selected theme
@@ -375,16 +388,15 @@ $ENV =
         theme: {
             get: function() { return theme; },
             set: function(value) {
-                if (!value && value !== '')
-                    value = '';
-                if (value !== theme) {
-                    if (typeof localStorage !== 'undefined') {
-                        if (value)
-                            localStorage.setItem('primary-theme', value); 
-                        else
-                            localStorage.removeItem('primary-theme');
-                        window.location.reload();
+                value = value || '';
+                if (value !== theme && typeof localStorage !== 'undefined') {
+                    if (value)
+                        localStorage.setItem('primary-theme', value); 
+                    else {
+                        localStorage.removeItem('primary-theme');
+                        localStorage.removeItem('primary-theme-confirmed');
                     }
+                    window.location.reload();
                 }
             }
         }
@@ -400,8 +412,8 @@ $ENV =
         $DOC.chead.attach();
     
         $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-        if (options.icon)
-            $DOC.appendElement('link', {rel:'shortcut icon', href:options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+        if ($DOC.options.icon)
+            $DOC.appendElement('link', {rel:'shortcut icon', href:$DOC.options.icon.replace('{{=$DOC.root}}', $DOC.root)});
 
         // document style
 
@@ -496,10 +508,19 @@ $ENV =
 .padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
-
+        
+        if (theme) {
+            // theme loading and confirmed flag
+            $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
+                if (state < 0 && theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', '');
+                else if (state > 0 && !theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', true);
+            }, 'afterbegin');
+            $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
+        }
+        // load bootstrap.css if not theme or previous load error
         if (!theme || !theme_confirmed) {
-            // load bootstrap.css if not theme or previous load error
-            
             var cssloaded, bcss = document.getElementById('bootstrap.css');
             for(var i = document.styleSheets.length - 1; i >= 0; i--)
                 if (document.styleSheets[i].ownerNode === bcss)
@@ -514,31 +535,14 @@ $ENV =
                     }, 'afterbegin');
             }
         }
-        if (theme) {
-            // theme loading and confirmed flag
-            $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
-                if (state < 0 && theme_confirmed)
-                    localStorage.setItem('primary-theme-confirmed', '');
-                else if (state > 0 && !theme_confirmed)
-                    localStorage.setItem('primary-theme-confirmed', true);
-            }, 'afterbegin');
-            $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
-        }
+        
+        // open editor
+        if ($DOC.options.edit_mode === 1)
+        $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
+            if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
+        });
     };
-
     $DOC.headTransformation();
-    
-    // edit mode
-    if (url_params.edit) {
-        if (window.self === window.top) {
-            options.edit_mode = 1; // editor
-            $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
-                if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
-            });
-        }
-    }
-    if (url_params.preview)
-        options.edit_mode = 2; // preview
     
 }).call(this);
 }

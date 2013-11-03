@@ -371,9 +371,10 @@
 
                 if (dom_loaded_handler)
                     dom_loaded_handler();
-
-                // raise 'load' event
+                
                 $DOC.state = 2;
+                
+                // raise 'load' event
                 var load_event = $DOC.forceEvent('load');
                 load_event.raise();
                 load_event.clear();
@@ -410,14 +411,16 @@
             window.addEventListener('DOMContentLoaded', function() {
                 if (dom_loaded_handler)
                     dom_loaded_handler();
-            }, false);
-        
-            window.addEventListener('load', function() {
+            });
+            
+            var window_load_handler = function() {
 
                 clearInterval(timer); // off timer after css loaded
 
                 if (dom_loaded_handler)
                     dom_loaded_handler();
+                
+                $DOC.state = 2;
                 
                 // scroll to hash element
                 // scroll down if fixtop cover element
@@ -429,15 +432,20 @@
                 }
                 
                 // raise 'load' event
-                $DOC.state = 2;
                 var load_event = $DOC.forceEvent('load');
                 load_event.raise();
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
-            });
+            };
+            
+            if (edit_mode === 2/*preview*/)
+                setTimeout(window_load_handler, 0);
+            else
+                window.addEventListener('load', window_load_handler);
         }
     };
+    window.addEventListener('DOMContentLoaded', $DOC.check_all_scripts_ready.bind($DOC));
     
     // Patches
     

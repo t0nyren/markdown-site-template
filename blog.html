@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Blog</title>
-    <script src="document.min.js" id="DOC" onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
+    <script src="document.min.js" userjs="user.js" icon="favicon.ico" id="DOC" onerror="var l=document.createElement('link'),s=document.createElement('script');l.rel='stylesheet';l.href='http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';l.id='bootstrap.css';l.auto='1';document.head.insertBefore(l,document.getElementById('DOC'));s.src='http://aplib.github.io/document.min.js';document.head.appendChild(s);"></script>
 </head>
 <body>
 
@@ -13,6 +13,9 @@
 ## Blog
 
 %panel#success;New features(
+
+#### 2013/11/02
+Page editor started in beta mode, supported IE>10, Chrome, Firefox, Opera. ?edit parameter to open editor.
 
 #### 2013/10/16
 Code highlighting component started
@@ -43,6 +46,11 @@ To generate a sitemap template added a special page sitemap.html
 )%panel
 
 %panel#danger;Last breaking changes(
+
+#### 2013/11/02 user.js now is optional due to security issue 
+
+Default loading user.js disabled. user.js option is now in the html code as the 'user.js' attribute, example:<br>
+&lt;script src="document.min.js" userjs="user.js" icon="favicon.ico" ...
 
 #### 2013/10/16 Renamed defer initialization queue:
 
