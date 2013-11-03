@@ -468,10 +468,14 @@
                     html.innerHTML = inner_html;
                     // reproduce document
                     $doc.headTransformation();
-                    $doc.loadUserJS();
-                    setTimeout(function(){
-                        $doc.finalTransformation();
-                    },0);
+                    if ($doc.options.userjs) {
+                        $doc.loadUserJS();
+                        // final transformation started after script loaded
+                    } else {
+                        setTimeout(function(){
+                            $doc.finalTransformation();
+                        },0);
+                    }
                 }
             }
         };
