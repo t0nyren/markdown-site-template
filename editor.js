@@ -484,14 +484,14 @@
         
         preview.listen('load', function() {
             
-            // on window.load event preforms final transformation
+            // window.load event handlers preforms final transformation
             setTimeout(function() {
                 // check if navigated out the current location
                 try {
                     if (this.element.contentWindow.location.pathname !== window.location.pathname)
-                        this.deleteElement();
+                        this.reload();
                 } catch (e) {
-                    this.deleteElement();
+                    this.reload();
                 }
 
                 this.$DOC = this.element && preview.element.contentWindow.$DOC;
@@ -507,9 +507,6 @@
             var doc = this.$DOC;
             var doc_section = doc.sections[name];
             if (typeof doc_section === 'object' && doc_section.source_node) {
-                // ??
-//                if (!doc_section.element)
-//                    doc_section.attach();
                 doc.processTextNode(doc_section.source_node, name + '\n' + text);
             }
         };
@@ -687,14 +684,15 @@
     Parser.prototype = controls.create('DataObject');
     
     
-    // IndexedDB adapter
+    
+    
+    
+    
+    
+    // Database engine adapter
+    // If not supported both indexedDB and webSQL no call ready callback and error message
     function DB(pageid, onready) {
-        var db = this, modified, dbhandle;
-        
-        if (!window.indexedDB) {
-            NoIDBError();
-            return;
-        }
+        var db = this, modified, indexeddb, websqldb, restored/*dataobject is restored*/;
         
         // dataobject attribute 'data' contains stored data object
         var dataobject = db.dataobject = controls.create('DataObject');
@@ -709,91 +707,210 @@
         }, 25);
         
         
-        try {
-            var request = window.indexedDB.open('markdown-webdocs.editor.db', 1.0); // duplication?
-        
-            request.onsuccess = function(event) { 
-                dbhandle = event.target.result;
-                onready();
-            };
-            
-            request.onupgradeneeded = function(event) {
-                dbhandle = event.target.result;
-                dbhandle.createObjectStore('drafts', {keyPath: 'key'});
-                onready();
-            };
-            
-            request.onerror = function(event) {
-                errorMessage('<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error');
-                console.log(event);
-            };
-            
-            request.onblocked = function(event) {
-                errorMessage('<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked');
-                console.log(event);
-            };
-            
-        } catch(e) {
-            NoIDBError();
-            return;
-        }
-        
-        var restored; // dataobject is restored
-        this.restore = function(callback) {
+        if (window.indexedDB) {
+
             try {
-                var request = dbhandle.transaction(['drafts'], 'readonly').objectStore('drafts').get(pageid);
-                request.onsuccess = function(event) {
-                    var data = dataobject.data;
-                    controls.extend(data, event.target.result);
-                    
-                    // validate restored data
-                    data.key = pageid;
-                    if (!Array.isArray(data.history))
-                        data.history = [];
-                    if (typeof data.sections !== 'object')
-                        data.sections = {};
-                    
-                    restored = true;
-                    modified = false;
-                    if (callback)
-                        callback();
+                var request = window.indexedDB.open('markdown-webdocs.editor.db', 1.0); // duplication?
+
+                request.onsuccess = function(event) { 
+                    indexeddb = event.target.result;
+                    onready();
                 };
+
+                request.onupgradeneeded = function(event) {
+                    indexeddb = event.target.result;
+                    indexeddb.createObjectStore('drafts', {keyPath: 'key'});
+                    onready();
+                };
+
                 request.onerror = function(event) {
+                    errorMessage('<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error');
                     console.log(event);
                 };
-            } catch (e) {
-                // db scheme error
-                // todo
+
+                request.onblocked = function(event) {
+                    errorMessage('<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked');
+                    console.log(event);
+                };
+
+            } catch(e) {
+                NoIDBError();
+                return;
             }
-        };
         
-        this.write = function() {
-            
-            if (restored)
-            
-            try {
-                var store = dbhandle.transaction(['drafts'], 'readwrite').objectStore('drafts'),
-                data = dataobject.data;
-                
-                if (data.delete) {
-                    delete data.delete;
-                    store.delete(pageid);
+            db.restore = function(callback) {
+                try {
+                    var request = indexeddb.transaction(['drafts'], 'readonly').objectStore('drafts').get(pageid);
+                    request.onsuccess = function(event) {
+                        var data = dataobject.data;
+                        controls.extend(data, event.target.result);
+
+                        // validate restored data
+                        data.key = pageid;
+                        if (!Array.isArray(data.history))
+                            data.history = [];
+                        if (typeof data.sections !== 'object')
+                            data.sections = {};
+
+                        restored = true;
+                        modified = false;
+                        if (callback)
+                            callback();
+                    };
+                    request.onerror = function(event) {
+                        console.log(event);
+                    };
+                } catch (e) {
+                    // db scheme error
+                    // todo
                 }
-                else
-                    store.put(data);
-                
-                modified = false;
-            } catch (e) {
-                console.log(e);
-                // db scheme error
-                // todo
-            }
-        };
+            };
+        
+            db.write = function() {
+
+                if (restored)
+
+                try {
+                    var store = indexeddb.transaction(['drafts'], 'readwrite').objectStore('drafts'),
+                    data = dataobject.data;
+
+                    if (data.delete) {
+                        delete data.delete;
+                        store.delete(pageid);
+                    }
+                    else
+                        store.put(data);
+
+                    modified = false;
+                } catch (e) {
+                    console.log(e);
+                    // db scheme error
+                    // todo
+                }
+            };
+        
+        
+        } else if (!window.openDatabase) {
+            NoIDBError();
+            return;
+        } else {
             
+            
+            // web SQL engine
+            try {
+                var websqldb = window.openDatabase('markdown-webdocs.editor.db', '1.0', 'markdow webdocs drafts', 0);
+                if (!websqldb) {
+                    NoIDBError();
+                    return;
+                }
+                
+                // check table
+                websqldb.transaction(
+                    function(tx){
+                        tx.executeSql(
+                            "CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",
+                            [], null/*onsuccess*/, NoIDBError/*onerror*/);
+                    },
+                    NoIDBError/*onerror*/,
+                    onready/*onreadytransaction*/
+                );
+            } catch(e) {
+                NoIDBError();
+                return;
+            }
+            
+            db.restore = function(callback) {
+                try {
+                    websqldb.transaction(
+                        function(tx){
+                            tx.executeSql(
+                                "SELECT value FROM drafts WHERE key = ? LIMIT 1",
+                                [pageid],
+                                /*onsuccess*/function(tx, result) {
+                                    var data = dataobject.data;
+                                    
+                                    if (result.rows.length) {
+                                        try {
+                                            controls.extend(data, JSON.parse(result.rows.item(0).value));
+                                        } catch (e) {}
+                                    }
+
+                                    // validate restored data
+                                    if (!Array.isArray(data.history))
+                                        data.history = [];
+                                    if (typeof data.sections !== 'object')
+                                        data.sections = {};
+
+                                    restored = true;
+                                    modified = false;
+                                    if (callback)
+                                        callback();
+                                },
+                                /*onerror*/function(event){
+                                    console.log(event);
+                                });
+                        },
+                        /*onerror*/function(){
+                            console.log(event);
+                        },
+                        /*onreadytransaction*/function(){
+                        }
+                    );
+                } catch (e) {
+                    // db scheme error
+                    // todo
+                }
+            };
+            
+            db.write = function() {
+                if (restored)
+                try {
+                    websqldb.transaction(
+                        function(tx){
+                            var data = dataobject.data;
+                            if (data.delete) {
+                                delete data.delete;
+                                tx.executeSql(
+                                "DELETE FROM drafts WHERE key = ?",
+                                [pageid],
+                                /*onsuccess*/function(tx, result) {
+                                    
+                                },
+                                /*onerror*/function(event){
+                                    console.log(event);
+                                });
+                            }
+                            else {
+                                tx.executeSql(
+                                "INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",
+                                [pageid, JSON.stringify(data)],
+                                /*onsuccess*/function(tx, result) {
+                                    
+                                },
+                                /*onerror*/function(event){
+                                    console.log(event);
+                                });
+                            }
+                        },
+                        /*onerror*/function(){
+                            console.log(event);
+                        },
+                        /*onreadytransaction*/function(){
+                        }
+                    );
+                    modified = false;
+                } catch (e) {
+                    console.log(e);
+                    // db scheme error
+                    // todo
+                }
+            };
+        }
+        
         function NoIDBError() { errorMessage('<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.'); }
     }
     
-    
+
     // utilites panel
     function Utilities(attributes, parameters) {
         controls.controlInitialize(this, 'editor.utilites', parameters, attributes, List.template);

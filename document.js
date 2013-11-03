@@ -10916,6 +10916,13 @@ $ENV =
                 events[name] = new controls.Event();
             return events[name];
         },
+        // on DOMContentLoaded or simulated if DOMContentLoaded is already raised
+        onready: function(handler) {
+            if (this.state === 2 || document.readyState === undefined || ' interactive complete'.indexOf(document.readyState) > 0)
+                handler();
+            else
+                window.addEventListener('DOMContentLoaded', handler);
+        },
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
         // Section control created event
@@ -11354,8 +11361,9 @@ $ENV =
 .padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
+        var edit_mode = $DOC.options.edit_mode;
         
-        if (theme) {
+        if (theme && edit_mode !== 1) {
             // theme loading and confirmed flag
             $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
                 if (state < 0 && theme_confirmed)
@@ -11366,7 +11374,7 @@ $ENV =
             $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
         }
         // load bootstrap.css if not theme or previous load error
-        if (!theme || !theme_confirmed) {
+        if (!theme || !theme_confirmed || edit_mode === 1) {
             var cssloaded, bcss = document.getElementById('bootstrap.css');
             for(var i = document.styleSheets.length - 1; i >= 0; i--)
                 if (document.styleSheets[i].ownerNode === bcss)
@@ -11383,7 +11391,7 @@ $ENV =
         }
         
         // open editor
-        if ($DOC.options.edit_mode === 1)
+        if (edit_mode === 1)
         $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
             if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
         });
@@ -13076,7 +13084,7 @@ function Controls(doT)
     
     var IDENTIFIERS = ',add,attach,attributes,class,data,element,first,id,__type,controls,last,name,forEach,parameters,parent,remove,style,';
     var HTML_TAGS = 'A,Abbr,Address,Article,Aside,B,Base,Bdi,Bdo,Blockquote,Button,Canvas,Cite,Code,Col,Colgroup,Command,Datalist,Dd,Del,Details,\
-Dfn,Div,Dl,Dt,Em,Embed,Fieldset,Figcaption,Figure,Footer,Form,Gnome,Header,I,IFrame,Img,Input,Ins,Kbd,Keygen,Label,Legend,Li,Link,Map,Mark,Menu,Meter,Nav,\
+Dfn,Div,Dl,Dt,Em,Embed,Fieldset,Figcaption,Figure,Footer,Form,Gnome,H1,H2,H3,H4,H5,H6,Header,I,IFrame,Img,Input,Ins,Kbd,Keygen,Label,Legend,Li,Link,Map,Mark,Menu,Meter,Nav,\
 Noscript,Object,Ol,Optgroup,Option,Output,P,Pre,Progress,Ruby,Rt,Rp,S,Samp,Script,Section,Select,Small,Span,Strong,Style,Sub,Summary,Sup,\
 Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr';
     var ENCODE_HTML_MATCH = /&(?!#?\w+;)|<|>|"|'|\//g;
@@ -15461,63 +15469,6 @@ controls.typeRegister(\'controls.%%NAME%%\', %%NAME%%);\n';
     controls.createTemplatedControl('controls.Source',      '<source{{=it.printAttributes()}}>' );
     controls.createTemplatedControl('controls.Track',       '<track{{=it.printAttributes()}}>'  );
     
-    
-    // Html tags
-    
-    
-    // Heading,H1,H2,H3,H4,H5,H6
-    // 
-    // Parameters
-    //  level - hading level
-    // Attributes
-    //  $text - inner text
-    // 
-    function Heading(parameters/*level*/, attributes/*$text*/) // function-constructor
-    {
-        this.level = '1';
-        controls.controlInitialize(this, 'controls.Heading', parameters, attributes, Heading.template);
-        
-        this.listen('type', function()
-        {
-            var level = '1'; 
-           var parameters = this.parameters;
-            for(var prop in parameters)
-            if (prop === 'level' || prop === '/level')
-                level = parameters[prop];
-            
-            this.level = level;
-        });
-    };
-    Heading.prototype = controls.control_prototype;
-    Heading.template = doT.template(
-'<h{{=it.level}}{{=it.printAttributes()}}>\
-{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\
-</h{{=it.level}}>');
-    controls.typeRegister('controls.Heading', Heading);
-    controls.typeAlias('controls.H1', 'controls.Heading#level=1');
-    controls.typeAlias('controls.H2', 'controls.Heading#level=2');
-    controls.typeAlias('controls.H3', 'controls.Heading#level=3');
-    controls.typeAlias('controls.H4', 'controls.Heading#level=4');
-    controls.typeAlias('controls.H5', 'controls.Heading#level=5');
-    controls.typeAlias('controls.H6', 'controls.Heading#level=6');
-    
-    
-    // Frame <iframe src=...></iframe>
-    // 
-    // controls.create('controls.Frame', {src: 'http://www.ibm.com'});
-    // 
-    // Deprecated, for delete
-    function Frame(parameters, attributes/* must have "src" */) // function-constructor
-    {
-        if (!attributes || !attributes.src)
-            throw new TypeError('controls.Frame: Must be defined "src" attribute!');
-        
-        controls.controlInitialize(this, 'controls.Frame', parameters, attributes, Frame.template);
-    };
-    Frame.prototype = controls.control_prototype;
-    Frame.template = doT.template('<iframe{{=it.printAttributes()}}></iframe>');
-    controls.typeRegister('controls.Frame', Frame);
-    
 
     // Layouts /////////////////////////////////////////////////////////////////
 
@@ -16968,25 +16919,20 @@ this.text(), // additional css
             // page already generated
             
             var timer = setInterval(function() { onresize(); }, 25);
-            var dom_loaded_handler = function() {
+            
+            $DOC.onready(function() {
                 cbody.attachAll();
                 onresize();
                 $(window).on('resize', onresize);
-                dom_loaded_handler = undefined;
-            };
-
-            // can be fired
-            window.addEventListener('DOMContentLoaded', function() {
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
-            }, false);
-        
-            window.addEventListener('load', function() {
-
+            });
+            
+            var window_load_handled = false,
+            onwindowload = function() {
+                if (window_load_handled)
+                    return;
+                window_load_handled = true;
+                
                 clearInterval(timer); // off timer after css loaded
-
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
                 
                 $DOC.state = 2;
                 
@@ -16996,7 +16942,13 @@ this.text(), // additional css
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
-            });
+            };
+            
+            // be sure to call
+            if (document.readyState === 'complete')
+                onwindowload();
+            else
+                window.addEventListener('load', onwindowload);
             
         } else if (edit_mode !== 1 /*page not processed in edit mode*/) {
             
@@ -17012,30 +16964,24 @@ this.text(), // additional css
                 processSections(); // sections may be inserted by components
                 onresize();
             }, 25);
-        
-            var dom_loaded_handler = function() {
+            
+            $DOC.onready(function() {
                 if (!head_processed)
                     processSections(true);
                 processSections();
                 document.body.setAttribute('data-generator', 'MST/embed-processed');
                 onresize();
                 $(window).on('resize', onresize);
-                dom_loaded_handler = undefined;
-            };
-
-            // can be fired
-            window.addEventListener('DOMContentLoaded', function() {
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
             });
             
-            var window_load_handler = function() {
-
+            var window_load_handled = false,
+            onwindowload = function() {
+                if (window_load_handled)
+                    return;
+                window_load_handled = true;
+                
                 clearInterval(timer); // off timer after css loaded
 
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
-                
                 $DOC.state = 2;
                 
                 // scroll to hash element
@@ -17055,13 +17001,14 @@ this.text(), // additional css
                 onresize(); // before and after 'load' event
             };
             
-            if (edit_mode === 2/*preview*/)
-                setTimeout(window_load_handler, 0);
+            // be sure to call
+            if (document.readyState === 'complete')
+                onwindowload();
             else
-                window.addEventListener('load', window_load_handler);
+                window.addEventListener('load', onwindowload);
         }
     };
-    window.addEventListener('DOMContentLoaded', $DOC.check_all_scripts_ready.bind($DOC));
+    
     
     // Patches
     
@@ -17102,4 +17049,7 @@ this.text(), // additional css
         $DOC.appendCSS('document#onresize', css);
     }
     
+    
+    // check for start document transformation
+    $DOC.onready($DOC.check_all_scripts_ready.bind($DOC));
 })();

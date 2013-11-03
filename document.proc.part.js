@@ -352,25 +352,20 @@
             // page already generated
             
             var timer = setInterval(function() { onresize(); }, 25);
-            var dom_loaded_handler = function() {
+            
+            $DOC.onready(function() {
                 cbody.attachAll();
                 onresize();
                 $(window).on('resize', onresize);
-                dom_loaded_handler = undefined;
-            };
-
-            // can be fired
-            window.addEventListener('DOMContentLoaded', function() {
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
-            }, false);
-        
-            window.addEventListener('load', function() {
-
+            });
+            
+            var window_load_handled = false,
+            onwindowload = function() {
+                if (window_load_handled)
+                    return;
+                window_load_handled = true;
+                
                 clearInterval(timer); // off timer after css loaded
-
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
                 
                 $DOC.state = 2;
                 
@@ -380,7 +375,13 @@
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
-            });
+            };
+            
+            // be sure to call
+            if (document.readyState === 'complete')
+                onwindowload();
+            else
+                window.addEventListener('load', onwindowload);
             
         } else if (edit_mode !== 1 /*page not processed in edit mode*/) {
             
@@ -396,30 +397,24 @@
                 processSections(); // sections may be inserted by components
                 onresize();
             }, 25);
-        
-            var dom_loaded_handler = function() {
+            
+            $DOC.onready(function() {
                 if (!head_processed)
                     processSections(true);
                 processSections();
                 document.body.setAttribute('data-generator', 'MST/embed-processed');
                 onresize();
                 $(window).on('resize', onresize);
-                dom_loaded_handler = undefined;
-            };
-
-            // can be fired
-            window.addEventListener('DOMContentLoaded', function() {
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
             });
             
-            var window_load_handler = function() {
-
+            var window_load_handled = false,
+            onwindowload = function() {
+                if (window_load_handled)
+                    return;
+                window_load_handled = true;
+                
                 clearInterval(timer); // off timer after css loaded
 
-                if (dom_loaded_handler)
-                    dom_loaded_handler();
-                
                 $DOC.state = 2;
                 
                 // scroll to hash element
@@ -439,13 +434,14 @@
                 onresize(); // before and after 'load' event
             };
             
-            if (edit_mode === 2/*preview*/)
-                setTimeout(window_load_handler, 0);
+            // be sure to call
+            if (document.readyState === 'complete')
+                onwindowload();
             else
-                window.addEventListener('load', window_load_handler);
+                window.addEventListener('load', onwindowload);
         }
     };
-    window.addEventListener('DOMContentLoaded', $DOC.check_all_scripts_ready.bind($DOC));
+    
     
     // Patches
     
@@ -486,4 +482,7 @@
         $DOC.appendCSS('document#onresize', css);
     }
     
+    
+    // check for start document transformation
+    $DOC.onready($DOC.check_all_scripts_ready.bind($DOC));
 })();

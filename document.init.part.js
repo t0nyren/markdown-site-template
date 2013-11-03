@@ -70,6 +70,13 @@ $ENV =
                 events[name] = new controls.Event();
             return events[name];
         },
+        // on DOMContentLoaded or simulated if DOMContentLoaded is already raised
+        onready: function(handler) {
+            if (this.state === 2 || document.readyState === undefined || ' interactive complete'.indexOf(document.readyState) > 0)
+                handler();
+            else
+                window.addEventListener('DOMContentLoaded', handler);
+        },
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
         // Section control created event
@@ -508,8 +515,9 @@ $ENV =
 .padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
+        var edit_mode = $DOC.options.edit_mode;
         
-        if (theme) {
+        if (theme && edit_mode !== 1) {
             // theme loading and confirmed flag
             $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
                 if (state < 0 && theme_confirmed)
@@ -520,7 +528,7 @@ $ENV =
             $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
         }
         // load bootstrap.css if not theme or previous load error
-        if (!theme || !theme_confirmed) {
+        if (!theme || !theme_confirmed || edit_mode === 1) {
             var cssloaded, bcss = document.getElementById('bootstrap.css');
             for(var i = document.styleSheets.length - 1; i >= 0; i--)
                 if (document.styleSheets[i].ownerNode === bcss)
@@ -537,7 +545,7 @@ $ENV =
         }
         
         // open editor
-        if ($DOC.options.edit_mode === 1)
+        if (edit_mode === 1)
         $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
             if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
         });
