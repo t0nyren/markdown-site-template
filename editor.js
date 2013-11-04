@@ -45,7 +45,7 @@
                         controller.revert();
                     });
                 // save button
-                var save = save_group.add('save:a', { download: (location.pathname.split('/').slice(-1)[0] || 'document.html'), target:'blank',
+                var save = save_group.add('save:a', { download: (location.pathname.split('/').slice(-1)[0] || 'document.html'),
                     class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download edited document'});
                     save.listen('mousedown', function() { save.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML()); });
                     save.listen('focus', function() { save.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML()); });
