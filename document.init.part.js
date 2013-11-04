@@ -53,6 +53,7 @@ $ENV =
     if (url_params.preview)
         $DOC.options.edit_mode = 2; // preview
     
+    
     var default_options = $DOC.options, scripts_count = 0, scripts_stated = 0;
     $DOC =
     {
@@ -238,17 +239,26 @@ $ENV =
                 if (callback)
                     callback(+1);
                 scripts_stated++;
-                $DOC.check_all_scripts_ready();
+                $DOC.checkAllScriptsReady();
             });
             script.addEventListener('error', function() {
                 if (callback)
                     callback(-1);
                 scripts_stated++;
-                $DOC.check_all_scripts_ready();
+                $DOC.checkAllScriptsReady();
             });
             document.head.appendChild(script);
         },
-        check_all_scripts_ready: function() {
+        // load user.js scripts
+        loadUserJS: function() {
+            var userjs = this.options.userjs;
+            if (userjs) {
+                userjs = userjs.split(',');
+                for(var i = 0, c = userjs.length; i < c; i++)
+                    this.appendScript('user.js/' + i, this.root + userjs[i]);
+            }
+        },
+        checkAllScriptsReady: function() {
             // document transformation start after all scripts loaded or failed
             if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
                 $DOC.finalTransformation();
@@ -354,12 +364,13 @@ $ENV =
             bootstrapcss = origin + '/bootstrap.css';
         }
         // >> Options
-        var userjs = executing.getAttribute('userjs');
-        if (userjs)
-            $DOC.options.userjs = userjs;
-        var icon = executing.getAttribute('userjs');
-        if (icon)
-            $DOC.options.icon = icon;
+        var options = $DOC.options, userjs = executing.getAttribute('userjs'), icon = executing.getAttribute('icon'), readonly = executing.getAttribute('readonly');
+        if (userjs !== undefined)
+            options.userjs = userjs;
+        if (icon !== undefined)
+            options.icon = icon;
+        if (readonly !== undefined)
+            options.readonly = readonly;
         // << Options
     }
     
@@ -545,10 +556,28 @@ $ENV =
         }
         
         // open editor
-        if (edit_mode === 1)
-        $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
-            if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
-        });
+        if (!$DOC.options.readonly) {
+            if (edit_mode === 1)
+                openEditor();
+            if (window.top === window.self)
+            window.addEventListener('keydown', function(event) {
+                if (event.keyIdentifier === 'F12' && !event.altKey && event.ctrlKey) {
+                    if (edit_mode) {
+                        var url = location.href, pos = url.lastIndexOf('edit');
+                        if (url.slice(-5) === '?edit')
+                            window.location = url.slice(0, url.length-5);
+                        else if (pos > 0)
+                            window.location = url.slice(0, pos) + url.slice(pos + 4);
+                    } else
+                        window.location = window.location.href + ((window.location.search) ? '&edit' : '?edit');
+                }
+            });
+        }
+        function openEditor() {
+            $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
+                if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
+            });
+        }
     };
     $DOC.headTransformation();
     

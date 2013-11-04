@@ -39,20 +39,21 @@
             // buttons
             
             toolbar.add('save_group:bootstrap.BtnGroup', {class:'mar5'}, function(save_group) {
-                //toolbar.save_group.add('download:bootstrap.Button', {$icon:'font',      'data-original-title':'Formatting toolbar'});
+                //toolbar.save_group.add('formatting:bootstrap.Button', {$icon:'font',      'data-original-title':'Formatting toolbar'});
                 save_group.add('revert:bootstrap.Button',   {$icon:'backward',  'data-original-title':'Revert'})
                     .listen('click', function() {
                         controller.revert();
                     });
-                save_group.add('save:a', {class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download edited document'})
-                    .listen('click', function() {
-                        this.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML());
-                        this.element.download = location.pathname.split('/').slice(-1)[0] || 'document.html';
-                    });
+                // save button
+                var save = save_group.add('save:a', { download: (location.pathname.split('/').slice(-1)[0] || 'document.html'), target:'blank',
+                    class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download edited document'});
+                    save.listen('mousedown', function() { save.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML()); });
+                    save.listen('focus', function() { save.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML()); });
             });
             
             toolbar.add('controls_group:bootstrap.BtnGroup', {class:'mar5 fright'}, function(controls_group) {
-                controls_group.add('bootstrap.Button', {$icon:'th-large', 'data-original-title':'Window managing'});
+//                controls_group.add('bootstrap.Button', {$icon:'resize-horizontal', 'data-original-title':'Flip left-right'});
+//                controls_group.add('bootstrap.Button', {$icon:'resize-vertical', 'data-original-title':'Flip top-bottom'});
                 controls_group.add('bootstrap.Button', {$icon:'remove', 'data-original-title':'Close editor'})
                     .listen('click', function() {
                         window.location = window.location.origin + window.location.pathname;
@@ -74,143 +75,7 @@
             
             
             // app controller
-            controller = new function() {
-                var source_html;
-                
-                parser.listen(function() {
-                    
-                    controller.edit_html = parser.html;
-                    
-                    // update tabheaders
-                    var keys = Object.keys(parser.sections),
-                        data = tabheaders.data;
-                    data.length = 2 + keys.length;
-                    for(var i = 0, c = keys.length; i < c; i++)
-                        data[i + 2] = {text:keys[i]};
-                    data.raise();
-                    
-                    // update preview
-                    preview.updateInnerHtml(parser.chtml.innerHTML(), Object.keys(parser.sections));
-                });
-                
-                // edited html
-                var edit_html;
-                Object.defineProperty(this, 'edit_html',
-                {
-                    get: function() { return edit_html; },
-                    set: function(value) {
-                        if (value !== edit_html) {
-                            edit_html = value;
-                            parser.html = edit_html;
-                        }
-                    }
-                });
-                
-                function activity() {
-                    if (controller.modified)
-                        controller.modified = 25;
-                }
-                
-                // On tab header selected
-                tabheaders.listen('selected', function() {
-                    // check unsaved changes
-                    code_edit.save();
-                    // update code_edit
-                    controller.updateCodeEdit();
-                    controller.modified = 5;
-                    options.visible = (tabheaders.selectedIndex === 0);
-                });
-                
-                this.updateCodeEdit = function() {
-                    code_edit.mode = tabheaders.selectedIndex;
-                    switch(code_edit.mode) {
-                        case 1: // html
-                            code_edit.text = controller.edit_html;
-                            break;
-                        case 2: // sections
-                            var selected = tabheaders.selected;
-                            if (selected) {
-                                // set selected section name and text to edit
-                                code_edit.section = selected.text;
-                                code_edit.text = parser.sections[selected.text];
-                            } else
-                                code_edit.text = '';
-                            break;
-                        default:
-                            code_edit.text = '';
-                    }
-                };
-                // On code editor data
-                code_edit.listen('text', function(edit_value) {
-                    switch(code_edit.mode) {
-                        case 1: // html edited
-                            controller.edit_html = edit_value;
-                            controller.modified = 25;
-                            break;
-                            
-                        case 2: // section code edited
-                            controller.updateNamedSection(code_edit.section,  code_edit.text);
-                            controller.modified = 25;
-                            break;
-                    }
-                });
-                
-                // update one section when the text section edited
-                this.updateNamedSection = function(name, value) {
-                    parser.updateNamedSection(name, value);
-                    edit_html = parser.buildHTML();
-                    preview.updateNamedSection(name, value, parser.chtml.innerHTML());
-                };
-                
-                // save()
-                this.save = function() {
-                    var data = db.dataobject.data;
-                    
-                    data.selected = tabheaders.selected && tabheaders.selected.text;
-                    data.html = this.edit_html;
-                    if (data.html === source_html)
-                        data.delete = true;
-                    
-                    db.dataobject.raise();
-                    
-                    this.modified = 0;
-                };
-                
-                   
-                // revert()
-                this.revert = function() {
-                    this.edit_html = source_html;
-                    this.updateCodeEdit();
-                    this.modified = 2;
-                    setTimeout(function() { window.location.reload(); }, 300);
-                };
-                
-                this.buildHTML = function() {
-                    code_edit.save();
-                    return parser.buildHTML();
-                };
-
-                db.restore(function() {
-                    var xmlhttp = new XMLHttpRequest();
-                    xmlhttp.open('GET', location.href, false);
-                    xmlhttp.onload = function(event) {
-                        source_html = event.target.response.replace(/\r/g, '');
-                        controller.edit_html = db.dataobject.data.html || source_html;
-                        tabheaders.selected = db.dataobject.data.selected;
-                        tabheaders.checkSelection();
-                    };
-                    xmlhttp.send();
-                });
-            };
-           
-            setInterval(function() {
-                if (controller.modified)
-                if (--controller.modified < 2) {
-                    controller.modified = 0;
-                    controller.save();
-                }
-            }, 25);
-
+            controller = new Controller();
         } // onDbReady()
  
     } //initialize()
@@ -240,6 +105,7 @@
         
         return options;
     }
+
 
     function CodeEditor() { // mode, text, section
         
@@ -434,13 +300,13 @@
     function Preview() {
         var update_inner_html, sections_keys;
         
+        // set preview mode to url
         var url = location.href;
             url = url.slice(0, url.length - location.hash.length);
             if (url.indexOf('?') > 0)
                 url += '&preview';
             else
                 url += '?preview';
-        
         preview = controls.create('iframe', {sandbox:'', src:url, style:'position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;'});
         
         preview.updateInnerHtml = function(inner_html, _sections_keys) {
@@ -514,7 +380,13 @@
                 doc.processTextNode(doc_section.source_node, name + '\n' + text);
             }
         };
-
+        
+        // preview layout
+        
+        var position, hpadding, vpadding;
+        preview.layout = function(pos, padding) {
+        };
+        
         return preview;
     }
     
@@ -687,11 +559,176 @@
     }
     Parser.prototype = controls.create('DataObject');
     
-    
-    
-    
-    
-    
+    function Controller() {
+        var source_html;
+                
+        parser.listen(function() {
+
+            controller.edit_html = parser.html;
+
+            // update tabheaders
+            var keys = Object.keys(parser.sections),
+                data = tabheaders.data;
+            data.length = 2 + keys.length;
+            for(var i = 0, c = keys.length; i < c; i++)
+                data[i + 2] = {text:keys[i]};
+            data.raise();
+
+            // update preview
+            preview.updateInnerHtml(parser.chtml.innerHTML(), Object.keys(parser.sections));
+        });
+
+        // edited html
+        var edit_html;
+        Object.defineProperty(this, 'edit_html',
+        {
+            get: function() { return edit_html; },
+            set: function(value) {
+                if (value !== edit_html) {
+                    edit_html = value;
+                    parser.html = edit_html;
+                }
+            }
+        });
+
+        function activity() {
+            if (controller.modified)
+                controller.modified = 25;
+        }
+
+        // On tab header selected
+        tabheaders.listen('selected', function() {
+            // check unsaved changes
+            code_edit.save();
+            // update code_edit
+            controller.updateCodeEdit();
+            controller.modified = 5;
+            options.visible = (tabheaders.selectedIndex === 0);
+        });
+
+        this.updateCodeEdit = function() {
+            code_edit.mode = tabheaders.selectedIndex;
+            switch(code_edit.mode) {
+                case 1: // html
+                    code_edit.text = controller.edit_html;
+                    break;
+                case 2: // sections
+                    var selected = tabheaders.selected;
+                    if (selected) {
+                        // set selected section name and text to edit
+                        code_edit.section = selected.text;
+                        code_edit.text = parser.sections[selected.text];
+                    } else
+                        code_edit.text = '';
+                    break;
+                default:
+                    code_edit.text = '';
+            }
+        };
+        // On code editor data
+        code_edit.listen('text', function(edit_value) {
+            switch(code_edit.mode) {
+                case 1: // html edited
+                    controller.edit_html = edit_value;
+                    controller.modified = 25;
+                    break;
+
+                case 2: // section code edited
+                    controller.updateNamedSection(code_edit.section,  code_edit.text);
+                    controller.modified = 25;
+                    break;
+            }
+        });
+
+        // update one section when the text section edited
+        this.updateNamedSection = function(name, value) {
+            parser.updateNamedSection(name, value);
+            edit_html = parser.buildHTML();
+            preview.updateNamedSection(name, value, parser.chtml.innerHTML());
+        };
+
+        // save()
+        this.save = function() {
+            var data = db.dataobject.data;
+
+            data.selected = tabheaders.selected && tabheaders.selected.text;
+            data.html = this.edit_html;
+            if (data.html === source_html)
+                data.delete = true;
+
+            db.dataobject.raise();
+
+            this.modified = 0;
+        };
+
+
+        // revert()
+        this.revert = function() {
+            this.edit_html = source_html;
+            this.updateCodeEdit();
+            this.modified = 2;
+            setTimeout(function() { window.location.reload(); }, 300);
+        };
+
+        this.buildHTML = function() {
+            code_edit.save();
+            return parser.buildHTML();
+        };
+
+        // >> form layout
+
+        var mode = 0, position = 0, hpadding = 600, vpadding = 500;
+
+        // 0 - preview full window, editor overlaps the preview window, 1 - nonoverlapping preview and editor panels
+        Object.defineProperty(this, 'mode', {
+            get: function() { return mode; },
+            set: function(value) {
+            }
+        });
+
+        // 0 - right, 1 - left, 2 - top, 3 - bottom
+        Object.defineProperty(this, 'position', {
+            get: function() { return position; },
+            set: function(value) {
+            }
+        });
+
+        this.saveLayout = function() {
+            if (typeof localStorage !== 'undefined')
+                localStorage.setItem('editor layout', [mode, position, hpadding, vpadding].join(';'));
+        };
+
+        if (typeof localStorage !== 'undefined') {
+            try {
+                var vars = localStorage.getItem('editor layout').split(';');
+                mode = parseInt(vars[0]); position = parseInt(vars[1]); hpadding = parseInt(vars[2]); vpadding = parseInt(vars[3]);
+                preview.layout(position, !mode ? 0 : (position <= 1 ? hpadding : vpadding));
+            } catch(e) {}
+        }
+
+        // << form layout
+
+
+        // initialize
+        db.restore(function() {
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open('GET', location.href, false);
+            xmlhttp.onload = function(event) {
+                source_html = event.target.response.replace(/\r/g, '');
+                controller.edit_html = db.dataobject.data.html || source_html;
+                tabheaders.selected = db.dataobject.data.selected;
+                tabheaders.checkSelection();
+            };
+            xmlhttp.send();
+        });
+        
+        setInterval(function() {
+            if (this.modified && --this.modified < 2) {
+                this.modified = 0;
+                this.save();
+            }
+        }.bind(this), 25);
+    }
     
     // Database engine adapter
     // If not supported both indexedDB and webSQL no call ready callback and error message
@@ -937,5 +974,6 @@
         $DOC.cbody.unshift('alert:div', {$text:message, class:'mar20 alert alert-warning col1-sm-offset-3 col-sm-6', style:'z-index:1200;'});
         $DOC.cbody.alert.createElement();
     }
+    
     
 }).call(this);

@@ -10,12 +10,6 @@
         return;
 
     // document transformation started after all libraries and user.js is loaded
-    $DOC.loadUserJS = function()
-    {
-        // load user.js script:
-        if (this.options.userjs)
-            this.appendScript('user.js', this.root + this.options.userjs);
-    };
     $DOC.loadUserJS();
     
     // load queued components
@@ -359,15 +353,12 @@
                 $(window).on('resize', onresize);
             });
             
-            var window_load_handled = false,
-            onwindowload = function() {
-                if (window_load_handled)
+            var onwindowload = function() {
+                if ($DOC.state > 1)
                     return;
-                window_load_handled = true;
+                $DOC.state = 2;
                 
                 clearInterval(timer); // off timer after css loaded
-                
-                $DOC.state = 2;
                 
                 // raise 'load' event
                 var load_event = $DOC.forceEvent('load');
@@ -407,15 +398,12 @@
                 $(window).on('resize', onresize);
             });
             
-            var window_load_handled = false,
-            onwindowload = function() {
-                if (window_load_handled)
+            var onwindowload = function() {
+                if ($DOC.state > 1)
                     return;
-                window_load_handled = true;
+                $DOC.state = 2;
                 
                 clearInterval(timer); // off timer after css loaded
-
-                $DOC.state = 2;
                 
                 // scroll to hash element
                 // scroll down if fixtop cover element
@@ -484,5 +472,5 @@
     
     
     // check for start document transformation
-    $DOC.onready($DOC.check_all_scripts_ready.bind($DOC));
+    $DOC.onready($DOC.checkAllScriptsReady.bind($DOC));
 })();
