@@ -89,15 +89,6 @@ $ENV =
             bootstrapcss = origin + '/bootstrap.css';
         }
         var document_options = {userjs: executing.getAttribute('userjs'), icon: executing.getAttribute('icon'), readonly: executing.getAttribute('readonly')};
-//        // >> Options
-//        var page_options = {, userjs = executing.getAttribute('userjs'), icon = executing.getAttribute('icon'), readonly = executing.getAttribute('readonly');
-//        if (userjs !== undefined)
-//            options.userjs = userjs;
-//        if (icon !== undefined)
-//            options.icon = icon;
-//        if (readonly !== undefined)
-//            options.readonly = readonly;
-//        // << Options
     }
     
     
@@ -212,55 +203,28 @@ $ENV =
                 }
             }
         },
-        
-        // parse content values from text or from function text
-        parseContent:
-            function(name /*name optional*/, content) {
-
-                if (!name)
-                    return;
-
-                var found_content = false;
-
-                if (arguments.length === 1) {
-                    var frags = name.toString().split(/(<!--\S+\s+)|(-->)/gm);
-                    for(var i = 0, c = frags.length; i < c; i+=1) {
-                        var test = frags[i];
-                        if (test && test.substr(0,4) === '<!--') {
-                            // first '$' - var else section
-                            if (test[4] === '$') {
-                                // as var
-                                var varname = test.substr(4).trim();
-                                this.vars[varname] = frags[i+2];
-                            } else {
-                                // as section
-                                var section = test.substr(4).trim();
-                                this.addSection(section, frags[i+2]);
-                            }
-                            found_content = true;
-                            i += 2;
+        // parse sections values from text or from function text
+        parseContent: function(content) {
+            if (content) {
+                var frags = content.toString().split(/(<!--\S+\s+)|(-->)/gm);
+                for(var i = 0, c = frags.length; i < c; i+=1) {
+                    var test = frags[i];
+                    if (test && test.substr(0,4) === '<!--') {
+                        // first '$' - var else section
+                        if (test[4] === '$') {
+                            // as var
+                            var varname = test.substr(4).trim();
+                            this.vars[varname] = frags[i+2];
+                        } else {
+                            // as section
+                            var section = test.substr(4).trim();
+                            this.addSection(section, frags[i+2]);
                         }
+                        i += 2;
                     }
                 }
-                // for delete
-//                else if (arguments.length > 1) {
-//
-//                    if (typeof(content) === 'function') {
-//                        var content = content.toString(), asterpos = content.indexOf('*'), lastpos = content.lastIndexOf('*');
-//                        content = content.substr(asterpos + 1, lastpos - asterpos - 1);
-//                    }
-//                    // first '$' - var else section
-//                    if (name[0] === '$')
-//                        this.vars[name] = content;
-//                    else
-//                        this.addSection(name, content);
-//
-//                    found_content = true;
-//                }
-                return found_content;
-            },
-
-        
+            }
+        },
         
         // append to head
         appendElement: function(id, tag, attributes) {
@@ -283,17 +247,15 @@ $ENV =
             if (element && element.parentNode === document.head)
                 document.head.removeChild(element);
         },
-        // only sync scripts(?)
+        
         appendScript: function(id, src, callback) {
             if (arguments.length === 1 || typeof src === 'function') { callback = src; src = id; id = undefined; }
-            
             if (id && document.getElementById(id)) {
                 // script already loaded
                 if (callback)
                     callback(+1);
                 return;
             }
-            
             scripts_count++;
             var script = document.createElement('script');
             if (id)
@@ -323,11 +285,12 @@ $ENV =
                     this.appendScript('user.js/' + i, this.root + userjs[i]);
             }
         },
+        // document transformation start after all scripts loaded or failed
         checkAllScriptsReady: function() {
-            // document transformation start after all scripts loaded or failed
             if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
                 $DOC.finalTransformation();
         },
+        
         appendCSS: function(id, css, callback, position) {
             var head = document.head, exists = document.getElementById(id),
                 israwcss = (css.indexOf('{') >= 0);

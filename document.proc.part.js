@@ -9,9 +9,6 @@
     if ($DOC.state)
         return;
 
-    // document transformation started after all libraries and user.js is loaded
-    $DOC.loadUserJS();
-    
     // load queued components
     if (window.defercqueue) {
         var q = window.defercqueue;
@@ -21,6 +18,9 @@
             q[i]();
         } catch (e) { console.log(e); }
     }
+
+    // document transformation started after all libraries and user.js is loaded
+    $DOC.loadUserJS();
     
     // Stub controls loading dispatcher
     var stubs = {};

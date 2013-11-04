@@ -29,7 +29,7 @@
             
             // toolbar
             
-            table = $DOC.cbody.add('div', {style:'overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; width:50%; z-index:1101; border: silver solid 1px; background-color:white;'});
+            table = $DOC.cbody.add('div', {style:'overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;'});
             toolbar = table.add('toolbar:div', {class:'clearfix', style:'z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;'});
             toolbar.listen('element', function(element) {
                 if (element)
@@ -52,8 +52,18 @@
             });
             
             toolbar.add('controls_group:bootstrap.BtnGroup', {class:'mar5 fright'}, function(controls_group) {
-//                controls_group.add('bootstrap.Button', {$icon:'resize-horizontal', 'data-original-title':'Flip left-right'});
-//                controls_group.add('bootstrap.Button', {$icon:'resize-vertical', 'data-original-title':'Flip top-bottom'});
+                controls_group.add('bootstrap.Button', {$icon:'fullscreen', 'data-original-title':'Flip left-right'})
+                    .listen('click', function() {
+                        //controller.position = (controller.position) ? 0 : 1;
+                        controller.mode = (controller.mode) ? 0 : 1;
+                    });
+                controls_group.add('bootstrap.Button', {$icon:'th-large', 'data-original-title':'Flip top-bottom'})
+                    .listen('click', function() {
+                        //controller.position = (controller.position === 3) ? 2 : 3;
+                        controller.position++;
+                        if (controller.position > 3)
+                            controller.position = 0;
+                    });
                 controls_group.add('bootstrap.Button', {$icon:'remove', 'data-original-title':'Close editor'})
                     .listen('click', function() {
                         window.location = (window.location.protocol || '') + '/' + window.location.pathname;
@@ -73,10 +83,10 @@
             // create form
             table.createElement();
             
-            
             // app controller
             controller = new Controller();
-        } // onDbReady()
+            
+        } // openEditor()
  
     } //initialize()
     
@@ -380,7 +390,7 @@
     }
     
     
-    // Parser and builder. Parse html and create html builder tree.
+    // Parser and builder. Parse html and create html build tree.
     // 
     // html - parsed html
     // chtml - html builder root control
@@ -548,9 +558,11 @@
     }
     Parser.prototype = controls.create('DataObject');
     
+    
     function Controller() {
         var source_html;
-                
+        
+        // on parser update html
         parser.listen(function() {
 
             controller.edit_html = parser.html;
@@ -585,7 +597,7 @@
                 controller.modified = 25;
         }
 
-        // On tab header selected
+        // on tab header selected
         tabheaders.listen('selected', function() {
             // check unsaved changes
             code_edit.save();
@@ -594,7 +606,8 @@
             controller.modified = 5;
             options.visible = (tabheaders.selectedIndex === 0);
         });
-
+        
+        // update edit area
         this.updateCodeEdit = function() {
             code_edit.mode = tabheaders.selectedIndex;
             switch(code_edit.mode) {
@@ -614,7 +627,7 @@
                     code_edit.text = '';
             }
         };
-        // On code editor data
+        // on code editor data
         code_edit.listen('text', function(edit_value) {
             switch(code_edit.mode) {
                 case 1: // html edited
@@ -629,7 +642,7 @@
             }
         });
 
-        // update one section when the text section edited
+        // update one section when the value of section edited
         this.updateNamedSection = function(name, value) {
             parser.updateNamedSection(name, value);
             edit_html = parser.buildHTML();
@@ -667,11 +680,54 @@
         // >> form layout
 
         var mode = 0, position = 0, hpadding = 600, vpadding = 500;
-
-        // 0 - preview full window, editor overlaps the preview window, 1 - nonoverlapping preview and editor panels
+        
+        function relayout() {
+            if (mode) {
+                switch(position) {
+                    case 1:
+                        controls.extend(preview.element.style, {width:'100%', height:'100%'});
+                        controls.extend(table.element.style, {top:'20px', bottom:'auto', left:'20px', right:'auto', width:'50%', height:'50%'});
+                        break;
+                    case 2:
+                        controls.extend(preview.element.style, {width:'100%', height:'100%'});
+                        controls.extend(table.element.style, {top:'auto', bottom:'20px', left:'20px', right:'auto', width:'50%', height:'50%'});
+                        break;
+                    case 3:
+                        controls.extend(preview.element.style, {width:'100%', height:'100%'});
+                        controls.extend(table.element.style, {top:'auto', bottom:'20px', left:'auto', right:'20px', width:'50%', height:'50%'});
+                        break;
+                    default:
+                        controls.extend(preview.element.style, {width:'100%', height:'100%'});
+                        controls.extend(table.element.style, {top:'20px', bottom:'auto', left:'auto', right:'20px', width:'50%', height:'50%'});
+                }
+            } else {
+                switch(position) {
+                    case 1:
+                        controls.extend(preview.element.style, {top:'0', right:'0', bottom:'0', left:'auto', width:'50%', height:'100%'});
+                        controls.extend(table.element.style, {top:'0', right:'auto', bottom:'0', left:'0', width:'50%', height:'100%'});
+                        break;
+                    case 2:
+                        controls.extend(preview.element.style, {top:'auto', right:'0', bottom:'0', left:'0', width:'100%', height:'50%'});
+                        controls.extend(table.element.style, {top:'0', right:'0', bottom:'auto', left:'0', width:'100%', height:'50%'});
+                        break;
+                    case 3:
+                        controls.extend(preview.element.style, {top:'0', right:'0', bottom:'auto', left:'0', width:'100%', height:'50%'});
+                        controls.extend(table.element.style, {top:'auto', right:'0', bottom:'0', left:'0', width:'100%', height:'50%'});
+                        break;
+                    default:
+                        controls.extend(preview.element.style, {top:'0', right:'auto', bottom:'0', left:'0', width:'50%', height:'100%'});
+                        controls.extend(table.element.style, {top:'0', right:'0', bottom:'0', left:'auto', width:'50%', height:'100%'});
+                }
+            }
+        }
+        
+        // 0 - nonoverlapping preview and editor panels, 1 - preview full window, editor overlaps the preview window, 2 - preview in separate window
         Object.defineProperty(this, 'mode', {
             get: function() { return mode; },
             set: function(value) {
+                mode = value;
+                relayout();
+                controller.saveLayout();
             }
         });
 
@@ -679,6 +735,9 @@
         Object.defineProperty(this, 'position', {
             get: function() { return position; },
             set: function(value) {
+                position = value;
+                relayout();
+                controller.saveLayout();
             }
         });
 
@@ -691,8 +750,8 @@
             try {
                 var vars = localStorage.getItem('editor layout').split(';');
                 mode = parseInt(vars[0]); position = parseInt(vars[1]); hpadding = parseInt(vars[2]); vpadding = parseInt(vars[3]);
-                preview.layout(position, !mode ? 0 : (position <= 1 ? hpadding : vpadding));
             } catch(e) {}
+            relayout();
         }
 
         // << form layout
