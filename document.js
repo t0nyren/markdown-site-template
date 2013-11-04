@@ -10857,6 +10857,8 @@ $ENV =
 
 (function() { 'use strict';
     
+    var extend = $ENV.controls.extend;
+    
     // initialize $ENV
     
     // marked patches
@@ -10901,17 +10903,96 @@ $ENV =
         $DOC.options.edit_mode = 2; // preview
     
     
+    // Path
+    // $DOC.root - document folder root path, preferred relative
+    // $DOC.components - codebase start path
+    
+    var root, js_root_node = document.getElementById('DOC');
+    if (js_root_node) {
+        var root_src = js_root_node.getAttribute('src');
+        if (root_src) {
+            var segs = root_src.split('/');
+            root = segs.slice(0, segs.length - 1).join('/');
+            if (root)
+                root += '/';
+        }
+    }
+        
+    var components, bootstrapcss,
+    executing = document.currentScript;
+    if (!executing) {
+        var scripts = document.getElementsByTagName('script');
+        for(var i = scripts.length - 1; i >= 0; i--) {
+            var script = scripts[i];
+            if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
+                executing = script;
+        }
+    }
+    if (executing) {
+        if (executing.src) {
+            // components is always loaded from path of the executing script
+            var origin = executing.src.split('/').slice(0, -1).join('/');
+            components = origin + '/components/';
+            bootstrapcss = origin + '/bootstrap.css';
+        }
+        var document_options = {userjs: executing.getAttribute('userjs'), icon: executing.getAttribute('icon'), readonly: executing.getAttribute('readonly')};
+//        // >> Options
+//        var page_options = {, userjs = executing.getAttribute('userjs'), icon = executing.getAttribute('icon'), readonly = executing.getAttribute('readonly');
+//        if (userjs !== undefined)
+//            options.userjs = userjs;
+//        if (icon !== undefined)
+//            options.icon = icon;
+//        if (readonly !== undefined)
+//            options.readonly = readonly;
+//        // << Options
+    }
+    
+    
     var default_options = $DOC.options, scripts_count = 0, scripts_stated = 0;
     $DOC =
     {
-        options: default_options,
-        urlParams: url_params,
-                
-        // State
-        state: 0, // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
-                
-        // Document events - 'load'
-        events: {},
+        initialize: function() {
+            this.urlParams = extend({}, url_params);
+            this.options = extend(extend({}, default_options), document_options);
+            
+            // State
+            this.state = 0; // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
+            
+            // Events
+            this.events = {};
+                    
+            // Sections
+            this.sections = {};
+            
+            // Sections view order
+            this.order = ['fixed-top-bar', 'fixed-top-panel',
+                'header-bar', 'header-panel',
+                'left-side-bar', 'left-side-panel',
+                'content-bar', 'content-panel',
+                'right-side-panel', 'right-side-bar',
+                'footer-panel', 'footer-bar',
+                'fixed-bottom-panel', 'fixed-bottom-bar'];
+            
+            this.columns = ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'];
+            
+            // Texts and templates
+            this.vars = {};
+            
+            this.filters = [];
+            
+            this.mods = {};
+            
+            // clear controls tree
+            if (this.chead)
+                this.chead.detachAll();
+            this.chead = controls.create('head');
+            this.chead.attach();
+            
+            if (this.cbody)
+                this.cbody.detachAll();
+            this.cbody = controls.create('body');
+        },
+        
         forceEvent: function(name) {
             var events = this.events;
             if (!events.hasOwnProperty(name))
@@ -10930,17 +11011,6 @@ $ENV =
         // Section control created event
         onsection: function(handler) { this.forceEvent('section').addListener(handler); },
                 
-        // Document named sections content
-        sections: {},
-        // Sections constants
-        order: ['fixed-top-bar', 'fixed-top-panel',
-            'header-bar', 'header-panel',
-            'left-side-bar', 'left-side-panel',
-            'content-bar', 'content-panel',
-            'right-side-panel', 'right-side-bar',
-            'footer-panel', 'footer-bar',
-            'fixed-bottom-panel', 'fixed-bottom-bar'],
-        columns: ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'],
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
             if (exists) {
@@ -10959,8 +11029,7 @@ $ENV =
         },
         // move section to placeholder location
         sectionPlaceholder: function(name, text_node) {
-            var sections = this.sections,
-                exists = sections[name];
+            var sections = this.sections, exists = sections[name];
             // move exists node
             if (exists) {
                 if (exists.__type) {
@@ -10975,8 +11044,7 @@ $ENV =
         },
         // move section to other location
         sectionMover: function(text_node, oldname, newname) {
-            var sections = this.sections,
-                exists = sections[oldname];
+            var sections = this.sections, exists = sections[oldname];
             if (typeof exists === 'string') {
                 sections[newname] = exists;
                 delete sections[oldname];
@@ -10991,10 +11059,7 @@ $ENV =
                 }
             }
         },
-        // Texts and templates
-        vars: {},
-        // Document data access
-
+        
         // parse content values from text or from function text
         parseContent:
             function(name /*name optional*/, content) {
@@ -11042,7 +11107,7 @@ $ENV =
                 return found_content;
             },
 
-        filters: [],
+        
         
         // append to head
         appendElement: function(id, tag, attributes) {
@@ -11145,7 +11210,6 @@ $ENV =
                 exists.href = css;
         },
         
-        mods: {},
         mod: function(group, names) {
             if (arguments.length === 1)
                 names = group;
@@ -11177,50 +11241,9 @@ $ENV =
             }
         }
     };
+    $DOC.initialize();
     
-    // Path
-    // $DOC.root - document folder root path, preferred relative
-    // $DOC.components - codebase start path
-    
-    var root, js_root_node = document.getElementById('DOC');
-    if (js_root_node) {
-        var root_src = js_root_node.getAttribute('src');
-        if (root_src) {
-            var segs = root_src.split('/');
-            root = segs.slice(0, segs.length - 1).join('/');
-            if (root)
-                root += '/';
-        }
-    }
-        
-    var components, bootstrapcss,
-    executing = document.currentScript;
-    if (!executing) {
-        var scripts = document.getElementsByTagName('script');
-        for(var i = scripts.length - 1; i >= 0; i--) {
-            var script = scripts[i];
-            if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
-                executing = script;
-        }
-    }
-    if (executing) {
-        if (executing.src) {
-            // components is always loaded from path of the executing script
-            var origin = executing.src.split('/').slice(0, -1).join('/');
-            components = origin + '/components/';
-            bootstrapcss = origin + '/bootstrap.css';
-        }
-        // >> Options
-        var options = $DOC.options, userjs = executing.getAttribute('userjs'), icon = executing.getAttribute('icon'), readonly = executing.getAttribute('readonly');
-        if (userjs !== undefined)
-            options.userjs = userjs;
-        if (icon !== undefined)
-            options.icon = icon;
-        if (readonly !== undefined)
-            options.readonly = readonly;
-        // << Options
-    }
-    
+
     // selected theme
     var theme = '', theme_confirmed;
     if (typeof localStorage !== 'undefined') {
@@ -11270,11 +11293,6 @@ $ENV =
     // >> head transformation
     
     $DOC.headTransformation = function() {
-        
-        if ($DOC.chead)
-            $DOC.chead.detachAll();
-        $DOC.chead = controls.create('head');
-        $DOC.chead.attach();
     
         $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
         if ($DOC.options.icon)
@@ -11416,7 +11434,7 @@ $ENV =
                         else if (pos > 0)
                             window.location = url.slice(0, pos) + url.slice(pos + 4);
                     } else
-                        window.location = window.location.href + ((window.location.search) ? '&edit' : '?edit');
+                        window.location = window.location.origin + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
                 }
             });
         }
@@ -16729,13 +16747,9 @@ this.text(), // additional css
             this.addTextContainer(collection, buffered_text);
     };
     
-
-    var sections = $DOC.sections,
-        order = $DOC.order,
-        edit_mode = $DOC.options.edit_mode;
-
     $DOC.processTextNode = processTextNode;
     function processTextNode(text_node, value) {
+        var sections = $DOC.sections, edit_mode = $DOC.options.edit_mode;
         
         if (edit_mode) {
             // remove controls if already created for this text_node
@@ -16817,17 +16831,17 @@ this.text(), // additional css
     }
     
     // process sections content
-    var head_nodes = [], head_processed, body_nodes = [];
-    function processSections(process_head) {
+    function processSections(process_head, processed_nodes) {
         
         var head = document.head, body = document.body;
         if (!process_head && !body)
             return;
         
+        var sections = $DOC.sections, order = $DOC.order;
+
         // process DOM tree text nodes
         
-        var processed_nodes = process_head ? head_nodes : body_nodes,
-            text_nodes = [],
+        var text_nodes = [],
             iterator = document.createNodeIterator(process_head ? head : body, 0x80, null, false),
             text_node = iterator.nextNode();
         while(text_node) {
@@ -16837,9 +16851,6 @@ this.text(), // additional css
             }
             text_node = iterator.nextNode();
         }
-        
-        if (process_head && text_nodes.length)
-            head_processed = true;
         
         for(var i = 0, c = text_nodes.length; i < c; i++)
             processTextNode(text_nodes[i]);
@@ -16929,12 +16940,14 @@ this.text(), // additional css
     {
         if ($DOC.state)
             return;
-        $DOC.state = 1;
         
-        if ($DOC.cbody)
-            $DOC.cbody.detachAll();
-        $DOC.cbody = controls.create('body');
+        var edit_mode = $DOC.options.edit_mode;
+        
+        $DOC.state = 1;
         $DOC.cbody.attach();
+        $DOC.onsection(patches);
+        
+        var processed_nodes = [];
         
         var gen_flag = document.body && document.body.getAttribute('data-generator'),
         page_ready = gen_flag && gen_flag.indexOf('embed-processed') >= 0;
@@ -16951,6 +16964,7 @@ this.text(), // additional css
             });
             
             var onwindowload = function() {
+                window.removeEventListener('load', onwindowload);
                 if ($DOC.state > 1)
                     return;
                 $DOC.state = 2;
@@ -16975,32 +16989,31 @@ this.text(), // additional css
             
             // page transformation
             
-            processSections(true);
-            processSections();
-            
             // delay first transformation -> timer
             var timer = setInterval(function() {
-                if (!head_processed)
-                    processSections(true);
-                processSections(); // sections may be inserted by components
+                processSections(false, processed_nodes); // sections may be inserted by components
                 onresize();
             }, 25);
             
             $DOC.onready(function() {
-                if (!head_processed)
-                    processSections(true);
-                processSections();
+                processSections(true, processed_nodes);
+                processSections(false, processed_nodes);
                 document.body.setAttribute('data-generator', 'MST/embed-processed');
                 onresize();
                 $(window).on('resize', onresize);
             });
             
             var onwindowload = function() {
+                
+                window.removeEventListener('load', onwindowload);
+                clearInterval(timer); // off timer after css loaded
+                
                 if ($DOC.state > 1)
                     return;
-                $DOC.state = 2;
                 
-                clearInterval(timer); // off timer after css loaded
+                processSections(false, processed_nodes);
+                
+                $DOC.state = 2;
                 
                 // scroll to hash element
                 // scroll down if fixtop cover element
@@ -17032,7 +17045,7 @@ this.text(), // additional css
     
     // apply js patches for dom elements on transformation progress
     
-    $DOC.onsection(function(name, control, source_node) {
+    function patches(name, control, source_node) {
         if (control) {
             var element = control.element;
             if (element)
@@ -17041,7 +17054,7 @@ this.text(), // additional css
                 for(var prop in control.controls)
                     $(control.controls[prop].element).find('table').addClass('table table-bordered table-stripped');
         }
-    });
+    }
     
     // fired on 1. dom manipulation 2. css loading in progress can size effects 3. window resize after page loaded
     

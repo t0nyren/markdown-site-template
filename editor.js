@@ -56,7 +56,7 @@
 //                controls_group.add('bootstrap.Button', {$icon:'resize-vertical', 'data-original-title':'Flip top-bottom'});
                 controls_group.add('bootstrap.Button', {$icon:'remove', 'data-original-title':'Close editor'})
                     .listen('click', function() {
-                        window.location = window.location.origin + window.location.pathname;
+                        window.location = (window.location.protocol || '') + '/' + window.location.pathname;
                     });
             });
             
@@ -319,24 +319,13 @@
 
                 var html = doc.getElementsByTagName('html')[0];
                 if (html) {
-                    // full clear $DOC document
-                    if ($doc.chead) {
-                        $doc.chead.detachAll();
-                        $doc.chead = null;
-                    }
-                    if ($doc.cbody) {
-                        $doc.cbody.detachAll();
-                        $doc.cbody = null;
-                        $doc.state = 0;
-                    }
-                    Object.keys($doc.sections).forEach(function(key) { delete $doc.sections[key]; });
+                    $doc.initialize();
                     // update html
                     html.innerHTML = inner_html;
                     // reproduce document
                     $doc.headTransformation();
                     if ($doc.options.userjs) {
-                        $doc.loadUserJS();
-                        // final transformation started after script loaded
+                        $doc.loadUserJS(); // final transformation started after script loaded
                     } else {
                         setTimeout(function(){
                             $doc.finalTransformation();

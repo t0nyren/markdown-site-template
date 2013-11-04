@@ -132,13 +132,9 @@
             this.addTextContainer(collection, buffered_text);
     };
     
-
-    var sections = $DOC.sections,
-        order = $DOC.order,
-        edit_mode = $DOC.options.edit_mode;
-
     $DOC.processTextNode = processTextNode;
     function processTextNode(text_node, value) {
+        var sections = $DOC.sections, edit_mode = $DOC.options.edit_mode;
         
         if (edit_mode) {
             // remove controls if already created for this text_node
@@ -220,17 +216,17 @@
     }
     
     // process sections content
-    var head_nodes = [], head_processed, body_nodes = [];
-    function processSections(process_head) {
+    function processSections(process_head, processed_nodes) {
         
         var head = document.head, body = document.body;
         if (!process_head && !body)
             return;
         
+        var sections = $DOC.sections, order = $DOC.order;
+
         // process DOM tree text nodes
         
-        var processed_nodes = process_head ? head_nodes : body_nodes,
-            text_nodes = [],
+        var text_nodes = [],
             iterator = document.createNodeIterator(process_head ? head : body, 0x80, null, false),
             text_node = iterator.nextNode();
         while(text_node) {
@@ -240,9 +236,6 @@
             }
             text_node = iterator.nextNode();
         }
-        
-        if (process_head && text_nodes.length)
-            head_processed = true;
         
         for(var i = 0, c = text_nodes.length; i < c; i++)
             processTextNode(text_nodes[i]);
@@ -332,12 +325,14 @@
     {
         if ($DOC.state)
             return;
-        $DOC.state = 1;
         
-        if ($DOC.cbody)
-            $DOC.cbody.detachAll();
-        $DOC.cbody = controls.create('body');
+        var edit_mode = $DOC.options.edit_mode;
+        
+        $DOC.state = 1;
         $DOC.cbody.attach();
+        $DOC.onsection(patches);
+        
+        var processed_nodes = [];
         
         var gen_flag = document.body && document.body.getAttribute('data-generator'),
         page_ready = gen_flag && gen_flag.indexOf('embed-processed') >= 0;
@@ -354,6 +349,7 @@
             });
             
             var onwindowload = function() {
+                window.removeEventListener('load', onwindowload);
                 if ($DOC.state > 1)
                     return;
                 $DOC.state = 2;
@@ -378,32 +374,31 @@
             
             // page transformation
             
-            processSections(true);
-            processSections();
-            
             // delay first transformation -> timer
             var timer = setInterval(function() {
-                if (!head_processed)
-                    processSections(true);
-                processSections(); // sections may be inserted by components
+                processSections(false, processed_nodes); // sections may be inserted by components
                 onresize();
             }, 25);
             
             $DOC.onready(function() {
-                if (!head_processed)
-                    processSections(true);
-                processSections();
+                processSections(true, processed_nodes);
+                processSections(false, processed_nodes);
                 document.body.setAttribute('data-generator', 'MST/embed-processed');
                 onresize();
                 $(window).on('resize', onresize);
             });
             
             var onwindowload = function() {
+                
+                window.removeEventListener('load', onwindowload);
+                clearInterval(timer); // off timer after css loaded
+                
                 if ($DOC.state > 1)
                     return;
-                $DOC.state = 2;
                 
-                clearInterval(timer); // off timer after css loaded
+                processSections(false, processed_nodes);
+                
+                $DOC.state = 2;
                 
                 // scroll to hash element
                 // scroll down if fixtop cover element
@@ -435,7 +430,7 @@
     
     // apply js patches for dom elements on transformation progress
     
-    $DOC.onsection(function(name, control, source_node) {
+    function patches(name, control, source_node) {
         if (control) {
             var element = control.element;
             if (element)
@@ -444,7 +439,7 @@
                 for(var prop in control.controls)
                     $(control.controls[prop].element).find('table').addClass('table table-bordered table-stripped');
         }
-    });
+    }
     
     // fired on 1. dom manipulation 2. css loading in progress can size effects 3. window resize after page loaded
     
