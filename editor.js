@@ -47,8 +47,23 @@
                 // save button
                 var save = save_group.add('save:a', { download: (location.pathname.split('/').slice(-1)[0] || 'document.html'),
                     class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download edited document'});
-                    save.listen('mousedown', function() { save.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML()); });
-                    save.listen('focus', function() { save.element.href = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML()); });
+                    function setDataUrl() {
+                        // download data:link chrome+ firefox+ opera+ ie- safari-
+                        // context menu 'Save link as...'. 
+                        save.element.href = (window.navigator.appName.indexOf('etscape') > 0 ? 'data:unknown'/*Safari*/ : 'data:application'/*other*/) + '/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML());
+                    }
+                    // donkey
+                    save.listen('mousedown', setDataUrl);
+                    save.listen('focus', setDataUrl);
+                    save.listen('click', function(event) {
+                        try {
+                            // IE
+                            var blob = new Blob([controller.buildHTML()]);
+                            window.navigator.msSaveOrOpenBlob(blob, (location.pathname.split('/').slice(-1)[0] || 'document.html'));
+                            event.preventDefault();
+                            return;
+                        } catch(e) {}
+                    });
             });
             
             toolbar.add('controls_group:bootstrap.BtnGroup', {class:'mar5 fright'}, function(controls_group) {
@@ -119,7 +134,7 @@
 
     function CodeEditor() { // mode, text, section
         
-        var code_edit = controls.create('textarea', {class:'form-control', style:'font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; '});
+        var code_edit = controls.create('textarea', {class:'form-control', style:'font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; '});
         function code_edit_resize() {
             code_edit.element.style.height = ($(table.element).height() - $(toolbar.element).height()) + 'px';
         }
@@ -378,12 +393,6 @@
             if (typeof doc_section === 'object' && doc_section.source_node) {
                 doc.processTextNode(doc_section.source_node, name + '\n' + text);
             }
-        };
-        
-        // preview layout
-        
-        var position, hpadding, vpadding;
-        preview.layout = function(pos, padding) {
         };
         
         return preview;

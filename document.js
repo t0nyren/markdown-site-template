@@ -10896,56 +10896,65 @@ $ENV =
         else
             url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
     }});
-    // edit mode
-    if (url_params.edit && window.self === window.top)
-        $DOC.options.edit_mode = 1; // editor
-    if (url_params.preview)
-        $DOC.options.edit_mode = 2; // preview
-    
-    
-    // Path
-    // $DOC.root - document folder root path, preferred relative
-    // $DOC.components - codebase start path
-    
-    var root, js_root_node = document.getElementById('DOC');
-    if (js_root_node) {
-        var root_src = js_root_node.getAttribute('src');
-        if (root_src) {
-            var segs = root_src.split('/');
-            root = segs.slice(0, segs.length - 1).join('/');
-            if (root)
-                root += '/';
-        }
-    }
-        
-    var components, bootstrapcss,
-    executing = document.currentScript;
-    if (!executing) {
-        var scripts = document.getElementsByTagName('script');
-        for(var i = scripts.length - 1; i >= 0; i--) {
-            var script = scripts[i];
-            if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
-                executing = script;
-        }
-    }
-    if (executing) {
-        if (executing.src) {
-            // components is always loaded from path of the executing script
-            var origin = executing.src.split('/').slice(0, -1).join('/');
-            components = origin + '/components/';
-            bootstrapcss = origin + '/bootstrap.css';
-        }
-        var document_options = {userjs: executing.getAttribute('userjs'), icon: executing.getAttribute('icon'), readonly: executing.getAttribute('readonly')};
-    }
-    
     
     var default_options = $DOC.options, scripts_count = 0, scripts_stated = 0;
     $DOC =
     {
         initialize: function() {
-            this.urlParams = extend({}, url_params);
-            this.options = extend(extend({}, default_options), document_options);
             
+            this.urlParams = extend({}, url_params);
+            this.options = extend({}, default_options);
+            var options = this.options;
+            
+            // edit mode
+            if (url_params.edit && window.self === window.top)
+                options.edit_mode = 1; // editor
+            if (url_params.preview)
+                options.edit_mode = 2; // preview
+            
+            
+            // "DOC" script element source for: root, script options
+
+            var root = '', js_root_node = document.getElementById('DOC');
+            if (js_root_node) {
+                var attrs = js_root_node.attributes;
+                if (attrs.hasOwnProperty('root'))
+                    root = js_root_node.getAttribute('root');
+                else {
+                    var src = js_root_node.getAttribute('src');
+                    if (src) {
+                        var segs = src.split('/');
+                        root = segs.slice(0, segs.length - 1).join('/');
+                        if (root)
+                            root += '/';
+                    }
+                }
+            }
+            this.root = root;
+            
+            // real executing script element source for: codebase
+            
+            var executing = document.currentScript;
+            if (!executing) {
+                var scripts = document.getElementsByTagName('script');
+                for(var i = scripts.length - 1; i >= 0; i--) {
+                    var script = scripts[i];
+                    if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
+                        executing = script;
+                }
+            }
+            if (executing) {
+                if (executing.src) {
+                    // components is always loaded from path of the executing script
+                    var origin = executing.src.split('/').slice(0, -1).join('/');
+                    this.codebase = origin;
+                    this.components = origin + '/components/';
+                }
+                options.userjs = executing.getAttribute('userjs') || options.userjs;
+                options.icon = executing.getAttribute('icon') || options.icon;
+                options.readonly = executing.getAttribute('readonly') || options.readonly;
+            }
+
             // State
             this.state = 0; // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
             
@@ -11233,22 +11242,18 @@ $ENV =
         }
     }
     
-    Object.defineProperties($DOC, {
-        root:       {value: root},
-        components: {value: components},
-        theme: {
-            get: function() { return theme; },
-            set: function(value) {
-                value = value || '';
-                if (value !== theme && typeof localStorage !== 'undefined') {
-                    if (value)
-                        localStorage.setItem('primary-theme', value); 
-                    else {
-                        localStorage.removeItem('primary-theme');
-                        localStorage.removeItem('primary-theme-confirmed');
-                    }
-                    window.location.reload();
+    Object.defineProperty($DOC, 'theme', {
+        get: function() { return theme; },
+        set: function(value) {
+            value = value || '';
+            if (value !== theme && typeof localStorage !== 'undefined') {
+                if (value)
+                    localStorage.setItem('primary-theme', value); 
+                else {
+                    localStorage.removeItem('primary-theme');
+                    localStorage.removeItem('primary-theme-confirmed');
                 }
+                window.location.reload();
             }
         }
     });
@@ -11368,18 +11373,23 @@ $ENV =
         }
         // load bootstrap.css if not theme or previous load error
         if (!theme || !theme_confirmed || edit_mode === 1) {
-            var cssloaded, bcss = document.getElementById('bootstrap.css');
-            for(var i = document.styleSheets.length - 1; i >= 0; i--)
-                if (document.styleSheets[i].ownerNode === bcss)
-                    cssloaded;
-            if (!cssloaded) {
-                var bootstrapcss_cdn = (location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
-                if (bcss)
-                    bcss.error = function() { $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); }; // load from CDN
-                else
-                    $DOC.appendCSS('bootstrap.css', ($DOC.root.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : bootstrapcss, function(state) {
+            var bcss = document.getElementById('bootstrap.css');
+            if (!bcss) {
+                // check boostrap.css load
+                var links = document.getElementsByTagName('link');
+                for(var i = links.length - 1; i >= 0; i--) {
+                    var href = links[i].href;
+                    if (href.indexOf('bootstrap.css') >= 0 || href.indexOf('bootstrap.min.css') >= 0) {
+                        bcss = true;
+                        break;
+                    }
+                }
+                if (!bcss) {
+                    var bootstrapcss_cdn = (location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
+                    $DOC.appendCSS('bootstrap.css', ($DOC.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : ($DOC.codebase + '/bootstrap.css'), function(state) {
                         if (state < 0)  $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
                     }, 'afterbegin');
+                }
             }
         }
         
@@ -11389,7 +11399,7 @@ $ENV =
                 openEditor();
             if (window.top === window.self)
             window.addEventListener('keydown', function(event) {
-                if (event.keyIdentifier === 'F12' && !event.altKey && event.ctrlKey) {
+                if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
                     if (edit_mode) {
                         var url = location.href, pos = url.lastIndexOf('edit');
                         if (url.slice(-5) === '?edit')
@@ -11397,7 +11407,7 @@ $ENV =
                         else if (pos > 0)
                             window.location = url.slice(0, pos) + url.slice(pos + 4);
                     } else
-                        window.location = window.location.origin + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
+                        window.location = (window.location.protocol || '') + '/' + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
                 }
             });
         }
