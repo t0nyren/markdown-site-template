@@ -81,7 +81,10 @@
                     });
                 controls_group.add('bootstrap.Button', {$icon:'remove', 'data-original-title':'Close editor'})
                     .listen('click', function() {
-                        window.location = (window.location.protocol || '') + '/' + window.location.host + window.location.pathname;
+                        var url = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname;
+                        if (window.location.search && window.location.search !== '?edit')
+                            url += window.location.search.replace('edit', '');
+                        window.location = url;
                     });
             });
             

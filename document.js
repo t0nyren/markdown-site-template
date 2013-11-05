@@ -11407,13 +11407,13 @@ $ENV =
                         else if (pos > 0)
                             window.location = url.slice(0, pos) + url.slice(pos + 4);
                     } else
-                        window.location = (window.location.protocol || '') + '/' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
+                        window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
                 }
             });
         }
         function openEditor() {
             $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
-                if (state < 0) $DOC.appendScript('aplib.github.io/editor.min.js', 'http://aplib.github.io/editor.min.js');
+                if (state < 0) $DOC.appendScript('aplib.github.io/editor.js', 'http://aplib.github.io/editor.min.js');
             });
         }
     };
