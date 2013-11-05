@@ -81,7 +81,7 @@
                     });
                 controls_group.add('bootstrap.Button', {$icon:'remove', 'data-original-title':'Close editor'})
                     .listen('click', function() {
-                        window.location = (window.location.protocol || '') + '/' + window.location.pathname;
+                        window.location = (window.location.protocol || '') + '/' + window.location.host + window.location.pathname;
                     });
             });
             

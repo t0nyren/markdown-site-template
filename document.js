@@ -11385,7 +11385,7 @@ $ENV =
                     }
                 }
                 if (!bcss) {
-                    var bootstrapcss_cdn = (location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
+                    var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
                     $DOC.appendCSS('bootstrap.css', ($DOC.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : ($DOC.codebase + '/bootstrap.css'), function(state) {
                         if (state < 0)  $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
                     }, 'afterbegin');
@@ -11407,7 +11407,7 @@ $ENV =
                         else if (pos > 0)
                             window.location = url.slice(0, pos) + url.slice(pos + 4);
                     } else
-                        window.location = (window.location.protocol || '') + '/' + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
+                        window.location = (window.location.protocol || '') + '/' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
                 }
             });
         }
