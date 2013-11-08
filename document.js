@@ -13156,37 +13156,15 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr';
     //
     controls.typeRegister = function(type, constructor, revive)
     {
-        var key_parameters = {};
-        var __type = parse_type(type, key_parameters) .toLowerCase();
-        
+        controls.factoryRegister(type, constructor);
         constructor.is_constructor = true;
         constructor.revive = revive;
-        
-        if (__type.length < type.length) // type is subtype with parameters, register to controls.subtypes
-        {
-            var subtypes_array = controls.subtypes[__type];
-            if (!subtypes_array)
-            {
-                subtypes_array = [];
-                controls.subtypes[__type] = subtypes_array;
-            }
-            key_parameters.__ctr = constructor;
-            subtypes_array.push(key_parameters);
-        }
-        else
-        {
-            // check name conflict
-            if (controls[__type])
-                throw new TypeError('Type ' + type + ' already registered!');
-            
-            controls[__type] = constructor;
-        }
     };
     
     controls.factoryRegister = function(type, factory_method)
     {
-        var key_parameters = {};
-        var __type = parse_type(type, key_parameters) .toLowerCase();
+        var key_parameters = {},
+            __type = parse_type(type, key_parameters) .toLowerCase();
         
         if (__type.length < type.length) // type is subtype with parameters, register to controls.subtypes
         {
@@ -13216,10 +13194,9 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr';
     //
     controls.typeAlias = function(alias, type)
     {
-        var parameters = {};
-        var __type = parse_type(type, parameters) .toLowerCase();
-        
-        var constructor = resolve_ctr(__type, parameters);
+        var parameters = {},
+            __type = parse_type(type, parameters) .toLowerCase(),
+            constructor = resolve_ctr(__type, parameters);
         if (!constructor)
             throw new TypeError('Type ' + __type + ' not registered!');
             
@@ -13229,8 +13206,8 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr';
     //
     controls.createTemplatedControl = function(__type, outer_template, inner_template)
     {
-        var name = __type;
-        var dotpos = name.indexOf('.');
+        var name = __type,
+            dotpos = name.indexOf('.');
         if (dotpos >= 0)
             name = __type.substr(dotpos + 1);
         outer_template = (typeof(outer_template) === "string") ? doT.template(outer_template) : outer_template;
@@ -13293,8 +13270,8 @@ controls.typeRegister(__type, ' + name + ');';
 
         removeListener: function(listener)
         {
-            var listeners = this.listeners;
-            var index = listeners.indexOf(listener);
+            var listeners = this.listeners,
+                index = listeners.indexOf(listener);
             if (index >= 0)
                 listeners.splice(index, 2);
         },
@@ -13492,10 +13469,8 @@ controls.typeRegister(__type, ' + name + ');';
             // $data
             var data = attributes.$data;
             if (data)
-            {
                 for(var i = 0, c = data.length; i < c; i++)
                     array[i] = data[i];
-            }
         }
         
         for(var prop in data_object_common)
@@ -13600,13 +13575,12 @@ controls.typeRegister(__type, ' + name + ');';
             if (value !== parent)
             {
                 this._parent = value;
-                
                 var name = this._name;
                 
                 if (parent)
                 {
-                    var parent_controls = parent.controls;
-                    var index = parent_controls.indexOf(this);
+                    var parent_controls = parent.controls,
+                        index = parent_controls.indexOf(this);
                     if (index >= 0)
                         parent_controls.splice(index, 1);
                     
@@ -13629,8 +13603,6 @@ controls.typeRegister(__type, ' + name + ');';
                     
                     if (name)
                         value[name] = this;
-                    
-//                    value.refresh();
                 }
                 
                 this.raise('parent', value);
@@ -13825,19 +13797,7 @@ controls.typeRegister(__type, ' + name + ');';
         // Attach to DOM element
         this.attach = function(something)
         {
-            if (!something)
-            {
-                this.element = document.getElementById(this.id);
-            }
-            else if (typeof(something) === 'string')
-            {
-                this.element = document.getElementById(something);
-            }
-            else if (typeof(something) === 'object')
-            {
-                var control_element = something._element;
-                this.element = (control_element) ? control_element : something;
-            }
+            this.element = (typeof(something) === 'object') ? (something._element || something) : document.getElementById(something || this.id);
         };
         
         // Attach this and all nested controls to DOM by id
@@ -13846,9 +13806,8 @@ controls.typeRegister(__type, ' + name + ');';
             if (!this._element)
                 this.element = document.getElementById(this.id);
             
-            var subcontrols = this.controls;
-            for(var i = subcontrols.length - 1; i >= 0; i--)
-                subcontrols[i].attachAll();
+            for(var ctrls = this.controls, i = 0, c = ctrls.length; i < c; i++)
+                ctrls[i].attachAll();
         };
         
         // Detach from DOM
@@ -13861,10 +13820,8 @@ controls.typeRegister(__type, ' + name + ');';
         this.detachAll = function()
         {
             this.element = undefined;
-            
-            var subcontrols = this.controls;
-            for(var i = subcontrols.length - 1; i >= 0; i--)
-                subcontrols[i].detachAll();
+            for(var ctrls = this.controls, i = 0, c = ctrls.length; i < c; i++)
+                ctrls[i].detachAll();
         };
         
         // Replace control in the hierarchy tree
@@ -14284,25 +14241,25 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         
         this.printControls = function()
         {
-            var result = [], subcontrols = this.controls;
-            for(var i = 0, c = subcontrols.length; i < c; i++)
-                result.push(subcontrols[i].wrappedHTML());
+            var result = [];
+            for(var ctrls = this.controls, i = 0, c = ctrls.length; i < c; i++)
+                result.push(ctrls[i].wrappedHTML());
             return result.join('');
         };
         
         // Set .$text attribute on this object and refresh DOM element.outerHTML
         this.text = function(_text)
         {
+            var attributes = this.attributes;
             if (arguments.length)
             {
-                var attributes = this.attributes, text = attributes.$text;
-                if (_text !== text)
+                if (_text !== attributes.$text)
                 {
                     attributes.$text = _text;
                     this.refresh();
                 }
             }
-            return this.attributes.$text;
+            return attributes.$text;
         };
         
         this.style = function(_style)
@@ -14530,7 +14487,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         //
         this.remove = function(control)
         {
-            if (arguments.length === 0)
+            if (!arguments.length)
             {
                 // .remove() without arguments removes this control from parent .controls collection
                 this.parent = undefined;
@@ -14545,10 +14502,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         //
         this.removeAll = function()
         {
-            var controls = this.controls;
-            
-            for(var i = controls.length - 1; i >= 0; i--)
-                this.remove(controls[i]);
+            for(var ctrls = this.controls, i = ctrls.length - 1; i >= 0; i--)
+                this.remove(ctrls[i]);
         };
         
         function route_data_event()
@@ -14736,7 +14691,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         // after parse and before ctr resolve apply alias
         
         var constructor;
-        __type = __type.toLowerCase();
+            __type = __type.toLowerCase();
         
         // map __type -> subtypes array
         var subtypes_array = controls.subtypes[__type]; 
@@ -14847,8 +14802,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 }
         }
         
-        var __type = parse_type(type, parameters);
-        var constructor = resolve_ctr(__type, parameters);
+        var __type = parse_type(type, parameters),
+            constructor = resolve_ctr(__type, parameters);
         
         if (!constructor)
         {
@@ -14899,9 +14854,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             return type;
         
         var colonpos = type.indexOf(':'),
-        dotpos = type.indexOf('.'),
-        slashpos = type.indexOf('/'),
-        numberpos = type.indexOf('#');
+            dotpos = type.indexOf('.'),
+            slashpos = type.indexOf('/'),
+            numberpos = type.indexOf('#');
         
         if ((~dotpos && colonpos > dotpos) || (~slashpos && colonpos > slashpos) || (~numberpos && colonpos > numberpos))
             colonpos = -1;
@@ -15212,8 +15167,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         if (typeof(value) === 'object' && value !== null && value.hasOwnProperty('__type'))
         {
             var parameters = {},
-            __type = parse_type(value.__type, parameters),
-            constructor = resolve_ctr(__type, parameters);
+                __type = parse_type(value.__type, parameters),
+                constructor = resolve_ctr(__type, parameters);
             
             if (!constructor)
                 throw new TypeError('controls.reviverJSON(): ' + __type + ' constructor not registered!');
@@ -15427,12 +15382,11 @@ controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
     //
     function Head(parameters, attributes)
     {
-        controls.controlInitialize(this, 'controls.Head', parameters, attributes, Head.template);
+        controls.controlInitialize(this, 'controls.Head', parameters, attributes, function(it) { return '<head>' + (it.attributes.$text || '') + it.printControls() + '</head>'; });
         this.attach    = function() { Head.prototype.attach.call(this, document.head); };
         this.attachAll = function() { Head.prototype.attach.call(this, document.head); Head.prototype.attachAll.call(this); };
     };
     Head.prototype = controls.control_prototype;
-    Head.template = function(it) { return '<head>' + (it.attributes.$text || '') + it.printControls() + '</head>'; };
     controls.typeRegister('controls.Head', Head);
     
     // controls.Body <BODY></BODY>
@@ -15440,15 +15394,14 @@ controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
     // 
     function Body(parameters, attributes)
     {
-        controls.controlInitialize(this, 'controls.Body', parameters, attributes, Body.template);
-        this.attach    = function(force_body)
+        controls.controlInitialize(this, 'controls.Body', parameters, attributes, function(it) { return '<body' + it.printAttributes('-id') + '>' + (it.attributes.$text || '') + it.printControls() + '</body>'; });
+        this.attach = function(force_body)
         {
             Body.prototype.attach.call(this, document.body);
         };
         this.attachAll = function() { Body.prototype.attach.call(this, document.body); Body.prototype.attachAll.call(this); };
     };
     Body.prototype = controls.control_prototype;
-    Body.template = function(it) { return '<body' + it.printAttributes('-id') + '>' + (it.attributes.$text || '') + it.printControls() + '</body>'; };
     controls.typeRegister('controls.Body', Body);
     
 
@@ -15470,9 +15423,9 @@ controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
         this.cellSet = new Container();
         this.cellSet.listen('attributes', this, function(event)
         {
-            var attr_name = event.name;
-            var attr_value = event.value;
-            var remove = (attr_value === undefined || attr_value === null);
+            var attr_name = event.name,
+                attr_value = event.value,
+                remove = (attr_value === undefined || attr_value === null);
             
             var element = this._element;
             if (element)
@@ -15491,8 +15444,8 @@ controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
         
         this.listen('type', function()
         {
-            var parameters = this.parameters;
-            var floatvalue;
+            var parameters = this.parameters,
+                floatvalue;
             
             for(var prop in parameters)
             if (prop === 'float' || prop === '/float')
@@ -15545,8 +15498,7 @@ controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
 </ul>');
     controls.typeRegister('controls.List', List);
     
-    
-    
+   
 };
 
 
@@ -16911,6 +16863,7 @@ this.text(), // additional css
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
+                setTimeout(onresize, 200); // resized after css applying
             };
             
             // be sure to call
@@ -16964,6 +16917,7 @@ this.text(), // additional css
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
+                setTimeout(onresize, 200); // resized after css applying
             };
             
             // be sure to call
@@ -16994,24 +16948,21 @@ this.text(), // additional css
     
     function onresize() {
         // body padding
-        var css = '', top = 0, right = 0, bottom = 0, left = 0;
+        var top = 0, right = 0, bottom = 0, left = 0;
         function calc(classname, prop) {
-            var result = 0;
-            for(var i = 0, elements = document.getElementsByClassName(classname), c = elements.length; i < c; i++)
-                result += elements[i][prop];
-            return result;
+            var el = document.querySelector(classname);
+            return (el) ? el[prop] : 0;
         }
-        top += calc('fixed-top-bar', 'clientHeight');
-        top += calc('fixed-top-panel', 'clientHeight');
-        right += calc('fixed-right-side-bar', 'clientWidth');
-        right += calc('fixed-right-side-panel', 'clientWidth');
-        bottom += calc('fixed-bottom-bar', 'clientHeight');
-        bottom += calc('fixed-bottom-panel', 'clientHeight');
-        left += calc('fixed-left-side-bar', 'clientWidth');
-        left += calc('fixed-left-side-panel', 'clientWidth');
+        top += calc('.fixed-top-bar', 'clientHeight');
+        top += calc('.fixed-top-panel', 'clientHeight');
+        right += calc('.fixed-right-side-bar', 'clientWidth');
+        right += calc('.fixed-right-side-panel', 'clientWidth');
+        bottom += calc('.fixed-bottom-bar', 'clientHeight');
+        bottom += calc('.fixed-bottom-panel', 'clientHeight');
+        left += calc('.fixed-left-side-bar', 'clientWidth');
+        left += calc('.fixed-left-side-panel', 'clientWidth');
         
-        css += 'body{padding: ' + top + 'px ' + right + 'px ' + bottom + 'px ' + left + 'px;}';
-        $DOC.appendCSS('document#onresize', css);
+        $DOC.appendCSS('document#onresize', 'body{padding: ' + top + 'px ' + right + 'px ' + bottom + 'px ' + left + 'px;}');
     }
     
     

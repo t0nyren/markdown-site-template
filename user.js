@@ -15,6 +15,7 @@ $DOC.parseContent(function(){/*
  * [Components overview]({{=$DOC.root}}docs/components.html)
  * [URL parameters]({{=$DOC.root}}docs/url-parameters.html)
  * [API]({{=$DOC.root}}docs/api.html)
+ * [Editor]({{=$DOC.root}}docs/editor.html?edit)
 * [Components]({{=$DOC.root}}index.html)
  * [CSS]({{=$DOC.root}}components/controls.css.html)
  * [Alert]({{=$DOC.root}}components/controls.alert.html)

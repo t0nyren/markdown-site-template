@@ -362,6 +362,7 @@
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
+                setTimeout(onresize, 200); // resized after css applying
             };
             
             // be sure to call
@@ -415,6 +416,7 @@
                 load_event.clear();
 
                 onresize(); // before and after 'load' event
+                setTimeout(onresize, 200); // resized after css applying
             };
             
             // be sure to call
@@ -445,24 +447,21 @@
     
     function onresize() {
         // body padding
-        var css = '', top = 0, right = 0, bottom = 0, left = 0;
+        var top = 0, right = 0, bottom = 0, left = 0;
         function calc(classname, prop) {
-            var result = 0;
-            for(var i = 0, elements = document.getElementsByClassName(classname), c = elements.length; i < c; i++)
-                result += elements[i][prop];
-            return result;
+            var el = document.querySelector(classname);
+            return (el) ? el[prop] : 0;
         }
-        top += calc('fixed-top-bar', 'clientHeight');
-        top += calc('fixed-top-panel', 'clientHeight');
-        right += calc('fixed-right-side-bar', 'clientWidth');
-        right += calc('fixed-right-side-panel', 'clientWidth');
-        bottom += calc('fixed-bottom-bar', 'clientHeight');
-        bottom += calc('fixed-bottom-panel', 'clientHeight');
-        left += calc('fixed-left-side-bar', 'clientWidth');
-        left += calc('fixed-left-side-panel', 'clientWidth');
+        top += calc('.fixed-top-bar', 'clientHeight');
+        top += calc('.fixed-top-panel', 'clientHeight');
+        right += calc('.fixed-right-side-bar', 'clientWidth');
+        right += calc('.fixed-right-side-panel', 'clientWidth');
+        bottom += calc('.fixed-bottom-bar', 'clientHeight');
+        bottom += calc('.fixed-bottom-panel', 'clientHeight');
+        left += calc('.fixed-left-side-bar', 'clientWidth');
+        left += calc('.fixed-left-side-panel', 'clientWidth');
         
-        css += 'body{padding: ' + top + 'px ' + right + 'px ' + bottom + 'px ' + left + 'px;}';
-        $DOC.appendCSS('document#onresize', css);
+        $DOC.appendCSS('document#onresize', 'body{padding: ' + top + 'px ' + right + 'px ' + bottom + 'px ' + left + 'px;}');
     }
     
     
