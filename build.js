@@ -22,9 +22,9 @@ copy('../tmp/controls.js',          '../node_modules/controls/controls.js');
 
 // -> DOCUMENT.API.JS
 var bfy = spawn('browserify.cmd', ['document.init.part.js', '-o', 'document.api.js']);
-bfy.stderr.on('data', function (data) { console.log('\n! 1>' + data); });
-bfy.stdout.on('data', function (data) { console.log('1>' + data); });
-bfy.on('exit', function ()
+bfy.stderr.on('data', function(data) { console.log('\n! 1>' + data); });
+bfy.stdout.on('data', function(data) { console.log('1>' + data); });
+bfy.on('exit', function()
 {
     
     // --> BUG FIXES
@@ -36,7 +36,11 @@ bfy.on('exit', function ()
     replace('document.api.js', /\(function\(\)\{ return this \|\| \(0,eval\)\('this'\); \}\(\)\).doT = doT;/, 'this.doT=doT;');
     // <-- BUG FIXES
     
-    
+    // Include editor.js
+    replace('document.api.js', '/*include editor*/', fs.readFileSync('editor.min.js', 'utf-8')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, '\\\'')
+            .replace(/\r\n/g, '\\n\\\r\n'));
     
     // -> DOCUMENT.LESS.JS
     concat([
@@ -64,7 +68,7 @@ bfy.on('exit', function ()
         'document.js');
     // << output
     
-    // remove #604
+    // patch remove #604
     replace('document.js', /\/\/ #604 >>[^>]*(?=\/\/ << #604)/g, 'var controls = $ENV.controls;');
     replace('document.js', /\/\/ << #604.*/g, '');    
 
@@ -74,15 +78,16 @@ bfy.on('exit', function ()
     ufy.stdout.on('data', function (data) { console.log('2>' + data); });
     ufy.on('exit', function ()
     {
-        // add options
+        // add options to head files:
         // -> DOCUMENT.API.JS
         // -> DOCUMENT.LESS.JS
         // -> DOCUMENT.JS
         // -> DOCUMENT.MIN.JS
         var options = 
 'var $ENV, $DOC = { options: {\n\
-    userjs: \'user.js\',\n\
-    icon: \'favicon.ico\'\n\
+    userjs: "",\n\
+    icon: "",\n\
+    editable: true\n\
 }};\n\n';
         fs.writeFileSync('document.api.js',  options + fs.readFileSync('document.api.js'));
         fs.writeFileSync('document.less.js', options + fs.readFileSync('document.less.js'));

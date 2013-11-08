@@ -105,7 +105,8 @@ $ENV =
                 }
                 options.userjs = executing.getAttribute('userjs') || options.userjs;
                 options.icon = executing.getAttribute('icon') || options.icon;
-                options.readonly = executing.getAttribute('readonly') || options.readonly;
+                var editable = executing.getAttribute('editable') || options.editable;
+                options.editable = (editable === 'false') ? false : editable;
             }
 
             // State
@@ -547,26 +548,22 @@ $ENV =
         }
         
         // open editor
-        if (!$DOC.options.readonly) {
-            if (edit_mode === 1)
-                openEditor();
-            if (window.top === window.self)
+        if ($DOC.options.editable) {
+            if (edit_mode === 1 && window.top === window.self)
+                eval('/*include editor*/');
+            
             window.addEventListener('keydown', function(event) {
                 if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
                     if (edit_mode) {
-                        var url = location.href, pos = url.lastIndexOf('edit');
-                        if (url.slice(-5) === '?edit')
-                            window.location = url.slice(0, url.length-5);
-                        else if (pos > 0)
-                            window.location = url.slice(0, pos) + url.slice(pos + 4);
+                        var url = location.href, pos = url.lastIndexOf('edit'), len = 4;
+                        if (url[pos-1] === '?') {
+                            pos--;
+                            len++;
+                        }
+                        window.location = url.slice(0, pos) + url.slice(pos + len);
                     } else
                         window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
                 }
-            });
-        }
-        function openEditor() {
-            $DOC.appendScript('editor.js', $DOC.root + 'editor.js', function(state) {
-                if (state < 0) $DOC.appendScript('aplib.github.io/editor.js', 'http://aplib.github.io/editor.min.js');
             });
         }
     };
