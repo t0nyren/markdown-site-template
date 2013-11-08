@@ -11738,10 +11738,7 @@ function Bootstrap(controls)
         this.class('nav nav-tabs tabpanel-header');
     };
     TabPanelHeader.prototype = control_prototype;
-    TabPanelHeader.template = doT.template(
-'<ul{{=it.printAttributes()}}>\
-{{? it.attributes.$text}}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\
-</ul>');
+    TabPanelHeader.template = function(it) { return '<ul' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</ul>'; };
     controls.typeRegister('bootstrap.TabPanelHeader', TabPanelHeader);
     
     
@@ -11791,10 +11788,7 @@ function Bootstrap(controls)
         attributes.role = 'form';
     };
     Form.prototype = control_prototype;
-    Form.template = doT.template(
-'<form{{=it.printAttributes()}}>\
-{{? (it.controls && it.controls.length > 0) }}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}{{?}}\
-</form>');
+    Form.template = function(it) { return '<form' + it.printAttributes() + '>' + it.printControls() + '</form>'; };
     controls.typeRegister('bootstrap.Form', Form);
     
     
@@ -11819,8 +11813,7 @@ function Bootstrap(controls)
         this.class('control-label');
     };
     ControlLabel.prototype = control_prototype;
-    ControlLabel.template = doT.template(
-'<label{{=it.printAttributes()}}>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</label>');
+    ControlLabel.template = function(it) { return '<label' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</label>'; };
     controls.typeRegister('bootstrap.ControlLabel', ControlLabel);
     
     
@@ -11855,8 +11848,7 @@ function Bootstrap(controls)
         });
     };
     ControlInput.prototype = control_prototype;
-    ControlInput.template = doT.template(
-'<input{{=it.printAttributes()}}>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</input>');
+    ControlInput.template = function(it) { return '<input' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</input>'; };
     controls.typeRegister('bootstrap.ControlInput', ControlInput);
     
     
@@ -13674,7 +13666,7 @@ controls.typeRegister(__type, ' + name + ');';
                     {
                         var value_controls = value.controls;
 
-    // profiling: very expensive operation
+    // profiling: indexOf very expensive operation
     //                    var index = value_controls.indexOf(this);
     //                    if (index >= 0)
     //                        wrapper_controls.splice(index, 1);
@@ -13692,12 +13684,15 @@ controls.typeRegister(__type, ' + name + ');';
         Object.defineProperty(this, 'last',   { enumerable: true, get: function() { return this.controls[this.controls.length-1]; } });
         
         // default html template
-        this.outer_template = doT.template('<div{{=it.printAttributes()}}>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}</div>');
+        this.outer_template = function(it) { return '<div' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</div>'; };
+        controls.default_outer_template = this.outer_template;
         // default inner html template
-        this.inner_template = doT.template('{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}');
+        this.inner_template = function(it) { return (it.attributes.$text || '') + it.printControls(); };
+        controls.default_inner_template = this.inner_template;
         // default inline template
-        this.outer_inline_template = doT.template('<span{{=it.printAttributes()}}>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}</span>');
-                
+        this.outer_inline_template = function(it) { return '<span' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</span>'; };
+        controls.default_outer_inline_template = this.outer_inline_template;
+
         // snippets:
         // 
         // {{? it.attributes.$icon }}<span class="{{=it.attributes.$icon}}"></span>&nbsp;{{?}}
@@ -13879,10 +13874,7 @@ controls.typeRegister(__type, ' + name + ');';
 
             // .controls may be a DataArray
             for(var i = controls.length - 1; i >= 0; i--)
-            {
-                var totransfer = controls.shift();
-                control.add(totransfer);
-            }
+                control.add(controls.shift());
             
             var parent = this.parent;
             if (!parent)
@@ -14244,11 +14236,15 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             if (filter)
             {
+                // TODO: temporary inserted this checking:
+                if (filter.indexOf(',') >= 0)
+                    console.log('printAttributes() Use a space to separate of identifiers');
+                
                 if (filter[0] === '-')
                 {
                     // exclusion defined
 
-                    var exclude = filter.substr(1).split(/ |,|;/g);
+                    var exclude = filter.substr(1).split(' ');
                     for(var prop in this.attributes)
                     if (prop[0] !== '$' && exclude.indexOf(prop) < 0)
                     {
@@ -14261,7 +14257,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 {
                     // list of attributes
                     
-                    var attrs = filter.split(/ |,|;/g);
+                    var attrs = filter.split(' ');
                     for(var i = 0, c = attrs.length; i < c; i++)
                     {
                         var key = attrs[i];
@@ -14273,7 +14269,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             else
             {
-                // unconditional, out all attributes
+                // unconditional out all attributes
                 for(var prop in attributes)
                 if (prop[0] !== '$')
                 {
@@ -14283,17 +14279,23 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 }
             }
             
-            return (result.length === 0) ? '' : (' '+ result.join(' '));
+            return (result.length) ? (' '+ result.join(' ')) : '';
+        };
+        
+        this.printControls = function()
+        {
+            var result = [], subcontrols = this.controls;
+            for(var i = 0, c = subcontrols.length; i < c; i++)
+                result.push(subcontrols[i].wrappedHTML());
+            return result.join('');
         };
         
         // Set .$text attribute on this object and refresh DOM element.outerHTML
         this.text = function(_text)
         {
-            if (arguments.length > 0)
+            if (arguments.length)
             {
-                var attributes = this.attributes;
-                var text = attributes.$text;
-
+                var attributes = this.attributes, text = attributes.$text;
                 if (_text !== text)
                 {
                     attributes.$text = _text;
@@ -14307,8 +14309,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         {
             if (arguments.length)
             {
-                var attributes = this.attributes;
-                var style = attributes.style;
+                var attributes = this.attributes, style = attributes.style;
 
                 if (_style !== style)
                 {
@@ -14336,7 +14337,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 
                 if (remove)
                 {
-                    remove = remove.split(/\s|,|;/g);
+                    remove = remove.split(' ');
                     for(var i = 0, c = remove.length; i < c; i++)
                     {
                         var remove_class = remove[i];
@@ -14348,7 +14349,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 
                 if (set)
                 {
-                    set = set.split(/\s|,|;/g);
+                    set = set.split(' ');
                     for(var i = 0, c = set.length; i < c; i++)
                     {
                         var set_class = set[i];
@@ -14897,10 +14898,10 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         if (typeof type !== 'string')
             return type;
         
-        var colonpos = type.indexOf(':');
-        var dotpos = type.indexOf('.');
-        var slashpos = type.indexOf('/');
-        var numberpos = type.indexOf('#');
+        var colonpos = type.indexOf(':'),
+        dotpos = type.indexOf('.'),
+        slashpos = type.indexOf('/'),
+        numberpos = type.indexOf('#');
         
         if ((~dotpos && colonpos > dotpos) || (~slashpos && colonpos > slashpos) || (~numberpos && colonpos > numberpos))
             colonpos = -1;
@@ -15210,9 +15211,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     {
         if (typeof(value) === 'object' && value !== null && value.hasOwnProperty('__type'))
         {
-            var parameters = {};
-            var __type = parse_type(value.__type, parameters);
-            var constructor = resolve_ctr(__type, parameters);
+            var parameters = {},
+            __type = parse_type(value.__type, parameters),
+            constructor = resolve_ctr(__type, parameters);
             
             if (!constructor)
                 throw new TypeError('controls.reviverJSON(): ' + __type + ' constructor not registered!');
@@ -15303,19 +15304,42 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         return setTimeout(function() { return func.apply(null, Array.prototype.slice.call(arguments, 2)); }, delay);
     };
     
+    
+    (function(){
+        
+        // Elementals //////////////////////////////////////////////////////////////
+        
+        function getgentemplate(tagname) {
+            return 'function c' + tagname + '(p, a) { controls.controlInitialize(this, \'controls.' + tagname + '\', p, a, c' + tagname + '.outer_template); }\
+c' + tagname + '.prototype = controls.control_prototype;\
+c' + tagname + '.outer_template = function(it) { return \'<' + tagname + '\' + it.printAttributes() + \'>\' + (it.attributes.$text || \'\') + it.printControls() + \'</' + tagname + '>\'; };\
+controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
+        }
+        Function('controls', HTML_TAGS.split(',').map(function(tagname) { return getgentemplate(tagname.toLowerCase()); }).join(''))(controls);
+    
+        // Templated ///////////////////////////////////////////////////////////////
+
+        controls.createTemplatedControl('controls.Area',    function(it){ return '<area'    + it.printAttributes() + '>'; });
+        controls.createTemplatedControl('controls.Hr',      function(it){ return '<hr'      + it.printAttributes() + '>'; });
+        controls.createTemplatedControl('controls.Meta',    function(it){ return '<meta'    + it.printAttributes() + '>'; });
+        controls.createTemplatedControl('controls.Param',   function(it){ return '<param'   + it.printAttributes() + '>'; });
+        controls.createTemplatedControl('controls.Source',  function(it){ return '<source'  + it.printAttributes() + '>'; });
+        controls.createTemplatedControl('controls.Track',   function(it){ return '<track'   + it.printAttributes() + '>'; });
+    })();
+    
+    
     // Special /////////////////////////////////////////////////////////////////
-    
-    
+
+            
     // Container
     // 
     // without own html
     // 
     function Container(parameters, attributes)
     {
-        controls.controlInitialize(this, 'controls.Container', parameters, attributes, Container.template);
+        controls.controlInitialize(this, 'controls.Container', parameters, attributes, controls.default_inner_template);
     };
     Container.prototype = controls.control_prototype;
-    Container.template = doT.template('{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}');
     controls.typeRegister('controls.Container', Container);
     
     // Custom
@@ -15324,30 +15348,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     // 
     function Custom(parameters, attributes)
     {
-        var outer_template, inner_template;
-        // $template
-        var $template = attributes.$template;
-        if ($template)
-        {
-            outer_template = $template;
-            delete attributes.$template;
-        }
-        // $outer_template
-        var $outer_template = attributes.$outer_template;
-        if ($outer_template)
-        {
-            outer_template = $outer_template;
-            delete attributes.$outer_template;
-        }
-        // $inner_template
-        var $inner_template = attributes.$inner_template;
-        if ($inner_template)
-        {
-            inner_template = $inner_template;
-            delete attributes.$inner_template;
-        }
-        
-        controls.controlInitialize(this, 'controls.Custom', parameters, attributes, outer_template, inner_template);
+        controls.controlInitialize(this, 'controls.Custom', parameters, attributes,
+            attributes.$template || attributes.$outer_template,
+            attributes.$inner_template);
     };
     Custom.prototype = controls.control_prototype;
     controls.typeRegister('controls.Custom', Custom);
@@ -15418,7 +15421,6 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         };
     };
     Stub.prototype = controls.control_prototype;
-    Stub.template = doT.template('<div{{=it.printAttributes()}}>{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}</div>');
     controls.typeRegister('controls.Stub', Stub);
     
     // Head
@@ -15430,7 +15432,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.attachAll = function() { Head.prototype.attach.call(this, document.head); Head.prototype.attachAll.call(this); };
     };
     Head.prototype = controls.control_prototype;
-    Head.template = doT.template('<head>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}</head>');
+    Head.template = function(it) { return '<head>' + (it.attributes.$text || '') + it.printControls() + '</head>'; };
     controls.typeRegister('controls.Head', Head);
     
     // controls.Body <BODY></BODY>
@@ -15446,42 +15448,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.attachAll = function() { Body.prototype.attach.call(this, document.body); Body.prototype.attachAll.call(this); };
     };
     Body.prototype = controls.control_prototype;
-    Body.template = doT.template('<body{{=it.printAttributes("-id")}}>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}</body>');
+    Body.template = function(it) { return '<body' + it.printAttributes('-id') + '>' + (it.attributes.$text || '') + it.printControls() + '</body>'; };
     controls.typeRegister('controls.Body', Body);
-    
-    
-    // Elementals //////////////////////////////////////////////////////////////
-    
-    
-    var gencode = '';
-    var genplate =
-'function %%NAME%%(p, a)\
-{\
-    controls.controlInitialize(this, \'controls.%%NAME%%\', p, a, %%NAME%%.outer_template);\
-};\
-%%NAME%%.prototype = controls.control_prototype;\
-%%NAME%%.outer_template = doT.template(\'%%OPENTAG%%{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}%%CLOSETAG%%\');\
-controls.typeRegister(\'controls.%%NAME%%\', %%NAME%%);\n';
-
-    HTML_TAGS.split(',').forEach(function(tag)
-    {
-        var taglowercase = tag.toLowerCase();
-        gencode += genplate
-                .replace(/%%NAME%%/g, tag)
-                .replace(/%%OPENTAG%%/g, '<'+taglowercase+'{{=it.printAttributes()}}>')
-                .replace(/%%CLOSETAG%%/g, '</'+taglowercase+'>');
-    });
-    Function('doT,controls', gencode)(doT,controls);
-    
-    
-    // Templated ///////////////////////////////////////////////////////////////
-    
-    controls.createTemplatedControl('controls.Area',        '<area{{=it.printAttributes()}}>'   );
-    controls.createTemplatedControl('controls.Hr',          '<hr{{=it.printAttributes()}}>'     );
-    controls.createTemplatedControl('controls.Meta',        '<meta{{=it.printAttributes()}}>'   );
-    controls.createTemplatedControl('controls.Param',       '<param{{=it.printAttributes()}}>'  );
-    controls.createTemplatedControl('controls.Source',      '<source{{=it.printAttributes()}}>' );
-    controls.createTemplatedControl('controls.Track',       '<track{{=it.printAttributes()}}>'  );
     
 
     // Layouts /////////////////////////////////////////////////////////////////
