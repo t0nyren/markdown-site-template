@@ -1,7 +1,6 @@
 if (!$ENV) {
 
-$ENV =
-{
+$ENV = {
     dot: require('dot'),
     controls: require('controls'),
     marked: require('./temp/marked'),
@@ -20,24 +19,19 @@ $ENV =
     marked.setOptions({
       gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
     });
+    // todo: delete $ENV.markedPostProcess()
     $ENV.markedPostProcess = function(text, options) {
         var formatted = marked(text, options);
         return formatted;
     };
     
     // default control templates
-    $ENV.default_template = function(it)
-    {
-        return '<div' + it.printAttributes() + '>' + $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</div>';
-    };
-    $ENV.default_inline_template = function(it)
-    {
-        return '<span' + it.printAttributes() + '>' + $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</span>';
-    };
-    $ENV.default_inner_template = function(it)
-    {
-        return $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") );
-    };
+    $ENV.default_template = function(it) {
+        return '<div' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</div>'; };
+    $ENV.default_inline_template = function(it) {
+        return '<span' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</span>'; };
+    $ENV.default_inner_template = function(it) {
+        return $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ); };
     
     // initialize $DOC
     
@@ -51,8 +45,7 @@ $ENV =
     }});
     
     var default_options = $DOC.options, scripts_count = 0, scripts_stated = 0;
-    $DOC =
-    {
+    $DOC = {
         initialize: function() {
             
             this.urlParams = extend({}, url_params);
