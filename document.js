@@ -11003,7 +11003,8 @@ $ENV = {
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
         // Section control created event
-        onsection: function(handler) { this.forceEvent('section').addListener(handler); },
+        listen: function(type, handler, capture) { this.forceEvent(type).addListener(handler); },
+        raise: function(type, capture) { var event = this.events[type]; if (event) event.raise(); },
                 
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
@@ -11126,17 +11127,27 @@ $ENV = {
             });
             document.head.appendChild(script);
         },
+        // get the url relative to the root
+        getRootUrl: function(url) {
+            if (url[0] === '/') {
+                if (url[1] !== '/')
+                    url = this.root + url;
+            } else if (url.indexOf(':') < 0 && url[0] !== '.')
+                url = this.root + url;
+            return url.replace('{{=$DOC.root}}', this.root);
+        },
         // load user.js scripts
         loadUserJS: function() {
             var userjs = this.options.userjs;
             if (userjs) {
                 userjs = userjs.split(',');
                 for(var i = 0, c = userjs.length; i < c; i++)
-                    this.appendScript('user.js/' + i, this.root + userjs[i]);
+                    this.appendScript('user.js/' + i, this.getRootUrl(userjs[i]));
             }
         },
         // document transformation start after all scripts loaded or failed
         checkAllScriptsReady: function() {
+            /*this undefined*/
             if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
                 $DOC.finalTransformation();
         },
@@ -11186,7 +11197,7 @@ $ENV = {
             }
             names.split(/ ,;/g).forEach(function(name) {
                 if (mod_group.indexOf(name) < 0) {
-                    var path = $DOC.root + 'mods/' + name + '/' + name;
+                    var path = $DOC.getRootUrl('mods/' + name + '/' + name);
                     $DOC.appendCSS(group + '-' + name + '-css', path + '.css');
                     $DOC.appendScript(group + '-' + name + '-js', path + '.js');
                     mod_group.push(name);
@@ -11256,13 +11267,13 @@ $ENV = {
     
     $DOC.headTransformation = function() {
     
-        $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-        if ($DOC.options.icon)
-            $DOC.appendElement('link', {rel:'shortcut icon', href:$DOC.options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+        this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+        if (this.options.icon)
+            this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl(this.options.icon)});
 
         // document style
 
-        $DOC.appendCSS('document.css',
+        this.appendCSS('document.css',
 '.fixed-top-bar, .fixed-top-panel\
     { display: block; margin: 0; padding: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1030; }\
 .fixed-top-panel\
@@ -11353,17 +11364,17 @@ $ENV = {
 .padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
-        var edit_mode = $DOC.options.edit_mode;
+        var edit_mode = this.options.edit_mode;
         
         if (theme && edit_mode !== 1) {
             // theme loading and confirmed flag
-            $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
+            this.appendCSS('theme.css', this.getRootUrl('mods/' + theme + '/' + theme + '.css'), function(state) {
                 if (state < 0 && theme_confirmed)
                     localStorage.setItem('primary-theme-confirmed', '');
                 else if (state > 0 && !theme_confirmed)
                     localStorage.setItem('primary-theme-confirmed', true);
             }, 'afterbegin');
-            $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
+            this.appendScript('theme.js', this.getRootUrl('mods/' + theme + '/' + theme + '.js'));
         }
         // load bootstrap.css if not theme or previous load error
         if (!theme || !theme_confirmed || edit_mode === 1) {
@@ -11380,15 +11391,15 @@ $ENV = {
                 }
                 if (!bcss) {
                     var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
-                    $DOC.appendCSS('bootstrap.css', ($DOC.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : ($DOC.codebase + '/bootstrap.css'), function(state) {
-                        if (state < 0)  $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
+                    this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + '/bootstrap.css'), function(state) {
+                        if (state < 0)  this.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
                     }, 'afterbegin');
                 }
             }
         }
         
         // open editor
-        if ($DOC.options.editable) {
+        if (this.options.editable) {
             if (edit_mode === 1 && window.top === window.self)
                 eval('(function(){"use strict";function t(){function t(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),g=new a,$DOC.cbody.add(b=new i),b.createElement(),h=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),u=h.add("toolbar:div",{"class":"clearfix",style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}),u.listen("element",function(t){t&&$(t).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),u.add("save_group:bootstrap.BtnGroup",{"class":"mar5"},function(t){function e(){n.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(d.buildHTML())}t.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){d.revert()});var n=t.add("save:a",{download:location.pathname.split("/").slice(-1)[0]||"document.html","class":"btn btn-default",$text:\'<b class="glyphicon glyphicon-save"></b>\',"data-original-title":"Download edited document"});n.listen("mousedown",e),n.listen("focus",e),n.listen("click",function(t){try{var e=new Blob([d.buildHTML()]);return window.navigator.msSaveOrOpenBlob(e,location.pathname.split("/").slice(-1)[0]||"document.html"),t.preventDefault(),void 0}catch(n){}})}),u.add("controls_group:bootstrap.BtnGroup",{"class":"mar5 fright"},function(t){t.add("bootstrap.Button",{$icon:"fullscreen","data-original-title":"Over-nonoverlapped"}).listen("click",function(){d.mode=d.mode?0:1}),t.add("bootstrap.Button",{$icon:"th-large","data-original-title":"Left-right-top-bottom"}).listen("click",function(){d.position++,d.position>3&&(d.position=0)}),t.add("bootstrap.Button",{$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var t=location.href,e=t.lastIndexOf("edit"),n=4;"?"===t[e-1]&&(e--,n++),window.location=t.slice(0,e)+t.slice(e+n)})}),u.add(f=new o),f.data.push({text:"",hint:"Page options",icon:"check"},{text:"HTML",hint:"Edit as HTML"}),h.add(p=new n),h.add(m=new e),h.createElement(),d=new r}$(window).load(function(){c=new l(location.origin+location.pathname,t)})}function e(){var t=controls.create("div",{"class":"pad20"}),e=!0;Object.defineProperty(t,"visible",{get:function(){return e},set:function(n){e=n,t.element&&(t.element.style.display=e?"block":"none")}}),t.listen("element",function(t){t&&(t.style.display=e?"block":"none")});var n=t.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){g.title=n.title_edit.value}),g.listen(function(){g.title!==n.title_edit.value&&(n.title_edit.value=g.title)}),t}function n(){function t(){n.element.style.height=$(h.element).height()-$(u.element).height()+"px"}function e(){if(n.mode){var t=n._element;t&&t.value!==i&&(n.modified=25,i=t.value)}}var n=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});$(window).on("resize",function(){t()});var o=0;Object.defineProperty(n,"mode",{get:function(){return o},set:function(e){e>2&&(e=2),e!==o&&(o=e,this.element&&(n.element.style.display=o?"block":"none"),t())}});var i;return n.listen("element",function(e){e&&(e.value=i),t()}),Object.defineProperty(n,"text",{get:function(){return this.element?this.element.value:i},set:function(t){i=t||"",this.element&&(this.element.value=i),this.modified=0}}),n.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",i))},n.listen("change",e,!0),setInterval(function(){e(),n.modified&&--n.modified<2&&(n.modified=0,n.raise("text",i))},25),n}function o(){var t,e,n,o=u.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.listen("data",function(){for(var e=o.controls,n=this.data,i=e.length,a=n.length;a>i;i++)o.add("bootstrap.TabHeader").listen("click",function(){o.selectedIndex=o.controls.indexOf(this)});for(var i=e.length-1,a=n.length;i>=a;i--){var r=e[i];r.deleteAll(),o.remove(r)}for(var i=0,a=n.length;a>i;i++){var l=n[i];l.id=e[i].id;var r=e[i];r.attributes["data-original-title"]=l.hint,r.attributes.$icon=l.icon,r.text(l.text),l===t?r.class("active"):r.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return e},set:function(t){this.selected=t}}),Object.defineProperty(o,"selected",{get:function(){return t},set:function(o){var i=this.data;if("string"!=typeof o){if("number"==typeof o)return o>=0&&o<i.length&&o!==e?this.selected=i[o]:-1===o&&(this.selected=void 0),void 0;var a=i.indexOf(o);if(a>=0){var r=i[a];r!==t&&(n=t)}if(o!==t||a!==e){for(var l=this.controls,s=0,c=l.length;c>s;s++)s===a?l[s].class("active"):l[s].class(null,"active");this.raise("selected",t=o?o:void 0,e=a)}}else{for(var s=0,c=i.length;c>s;s++){var r=i[s];if(r.id===o)return this.selected=r,void 0}for(var s=0,c=i.length;c>s;s++){var r=i[s];if(r.text===o)return this.selected=r,void 0}}}}),o.checkSelection=function(){var i=this.data;i.length?(!t||0>e||e>=i.length)&&(this.selected=n,t||(o.selectedIndex=!e||0>e?0:i.length-1)):(e>=0||t)&&(this.selected=-1)},o}function i(){var t,e,n=location.href;return n=n.slice(0,n.length-location.hash.length),n+=n.indexOf("?")>0?"&preview":"?preview",b=controls.create("iframe",{sandbox:"",src:n,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),b.updateInnerHtml=function(n,o){t=n,e=o;var i=this.element&&this.element.contentDocument,a=this.$DOC;if(i&&a){var r=i.getElementsByTagName("html")[0];r&&(a.initialize(),r.innerHTML=n,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},b.reload=function(){this.element&&this.deleteAll(),this.createElement()},b.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(n){this.reload()}this.$DOC=this.element&&b.element.contentWindow.$DOC,void 0!==t&&this.updateInnerHtml(t,e)}.bind(b),0)}),b.updateNamedSection=function(e,n,o){t=o;var i=this.$DOC,a=i.sections[e];"object"==typeof a&&a.source_node&&i.processTextNode(a.source_node,e+"\\n"+n)},b}function a(){function t(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(t){return t.outerHTML()}).join("")+(this.closetag||"")}var e,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(a){if(o=a,!i){if(!n)return;i=n.add("div"),i.template(t)}i.controls.length=0,i.opentag="<title>"+a+"</title>",i.closetag="",e=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return e},set:function(a){if(a!==e){e=a;var r={},l={},s=document.implementation.createHTMLDocument(""),c=s.documentElement;c.innerHTML=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(e)[1];for(var d=controls.create("div"),h=[],u=[],f=s.createNodeIterator(c,65535,null,!1),m=f.nextNode();m;){var p=m===c?d:controls.create("div");p.template(t),h.push(m),u.push(p);var g=h.indexOf(m.parentNode);if(g>=0&&u[g].add(p),8===m.nodeType){var b=m.nodeValue,v=b[0];if(p.opentag="<!--"+m.nodeValue+"-->","%"===v);else if("!"===v);else{var y=b.indexOf(" "),x=b.indexOf("\\n"),w=b.indexOf("->");if(0>y&&0>x&&0>w);else if(0>y&&w>0);else if(x>0&&(0>y||y>x)&&(y=x),y>0&&128>y){var O=b.slice(0,y);r[O]=b.slice(y+1),l[O]=p}}}else if(m===c)p.opentag="<!DOCTYPE html>\\n"+/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(e)[1]+"\\n",p.closetag="\\n</html>";else{var T=m.outerHTML,k=m.innerHTML;if(k){var E=T.lastIndexOf(k);0>E?p.opentag=T:(p.opentag=T.slice(0,E),p.closetag=T.slice(E+k.length))}else p.opentag=T?T:m.nodeValue}m=f.nextNode()}var S=s.getElementsByTagName("head")[0];n=S&&u[h.indexOf(S)];var L=s.getElementsByTagName("title")[0];L?(o=L.textContent,i=u[h.indexOf(L)]):(o="",i=null),this.chtml=d,this.sections=r,this.seccontrols=l,this.raise()}}}),this.updateNamedSection=function(t,n){var o=this.seccontrols[t];o&&(this.sections[t]=n,o.opentag="<!--"+t+"\\n"+n+"-->\\n",e=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function r(){function t(){if(o)switch(i){case 1:controls.extend(b.element.style,{width:"100%",height:"100%"}),controls.extend(h.element.style,{top:"20px",bottom:"auto",left:"20px",right:"auto",width:"50%",height:"50%"});break;case 2:controls.extend(b.element.style,{width:"100%",height:"100%"}),controls.extend(h.element.style,{top:"auto",bottom:"20px",left:"20px",right:"auto",width:"50%",height:"50%"});break;case 3:controls.extend(b.element.style,{width:"100%",height:"100%"}),controls.extend(h.element.style,{top:"auto",bottom:"20px",left:"auto",right:"20px",width:"50%",height:"50%"});break;default:controls.extend(b.element.style,{width:"100%",height:"100%"}),controls.extend(h.element.style,{top:"20px",bottom:"auto",left:"auto",right:"20px",width:"50%",height:"50%"})}else switch(i){case 1:controls.extend(b.element.style,{top:"0",right:"0",bottom:"0",left:"auto",width:"50%",height:"100%"}),controls.extend(h.element.style,{top:"0",right:"auto",bottom:"0",left:"0",width:"50%",height:"100%"});break;case 2:controls.extend(b.element.style,{top:"auto",right:"0",bottom:"0",left:"0",width:"100%",height:"50%"}),controls.extend(h.element.style,{top:"0",right:"0",bottom:"auto",left:"0",width:"100%",height:"50%"});break;case 3:controls.extend(b.element.style,{top:"0",right:"0",bottom:"auto",left:"0",width:"100%",height:"50%"}),controls.extend(h.element.style,{top:"auto",right:"0",bottom:"0",left:"0",width:"100%",height:"50%"});break;default:controls.extend(b.element.style,{top:"0",right:"auto",bottom:"0",left:"0",width:"50%",height:"100%"}),controls.extend(h.element.style,{top:"0",right:"0",bottom:"0",left:"auto",width:"50%",height:"100%"})}}var e;g.listen(function(){d.edit_html=g.html;var t=Object.keys(g.sections),e=f.data;e.length=2+t.length;for(var n=0,o=t.length;o>n;n++)e[n+2]={text:t[n]};e.raise(),b.updateInnerHtml(g.chtml.innerHTML(),Object.keys(g.sections))});var n;Object.defineProperty(this,"edit_html",{get:function(){return n},set:function(t){t!==n&&(n=t,g.html=n)}}),f.listen("selected",function(){p.save(),d.updateCodeEdit(),d.modified=5,m.visible=0===f.selectedIndex}),this.updateCodeEdit=function(){switch(p.mode=f.selectedIndex,p.mode){case 1:p.text=d.edit_html;break;case 2:var t=f.selected;t?(p.section=t.text,p.text=g.sections[t.text]):p.text="";break;default:p.text=""}},p.listen("text",function(t){switch(p.mode){case 1:d.edit_html=t,d.modified=25;break;case 2:d.updateNamedSection(p.section,p.text),d.modified=25}}),this.updateNamedSection=function(t,e){g.updateNamedSection(t,e),n=g.buildHTML(),b.updateNamedSection(t,e,g.chtml.innerHTML())},this.save=function(){var t=c.dataobject.data;t.selected=f.selected&&f.selected.text,t.html=this.edit_html,t.html===e&&(t.delete=!0),c.dataobject.raise(),this.modified=0},this.revert=function(){this.edit_html=e,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return p.save(),g.buildHTML()};var o=0,i=0,a=600,r=500;if(Object.defineProperty(this,"mode",{get:function(){return o},set:function(e){o=e,t(),d.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return i},set:function(e){i=e,t(),d.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[o,i,a,r].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");o=parseInt(l[0]),i=parseInt(l[1]),a=parseInt(l[2]),r=parseInt(l[3])}catch(s){}t()}c.restore(function(){var t=new XMLHttpRequest;t.open("GET",location.href,!1),t.onload=function(t){e=t.target.response.replace(/\\r/g,""),d.edit_html=c.dataobject.data.html||e,f.selected=c.dataobject.data.selected,f.checkSelection()},t.send()}),setInterval(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this),25)}function l(t,e){function n(){s(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,a,r,l=this,c=l.dataobject=controls.create("DataObject");if(c.data={key:t,history:[]},c.listen(function(){o=!0}),setInterval(function(){o&&l.write()},25),window.indexedDB){try{var d=window.indexedDB.open("markdown-webdocs.editor.db",1);d.onsuccess=function(t){i=t.target.result,e()},d.onupgradeneeded=function(t){i=t.target.result,i.createObjectStore("drafts",{keyPath:"key"}),e()},d.onerror=function(t){s(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(t)},d.onblocked=function(t){s(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(t)}}catch(h){return n(),void 0}l.restore=function(e){try{var n=i.transaction(["drafts"],"readonly").objectStore("drafts").get(t);n.onsuccess=function(n){var i=c.data;controls.extend(i,n.target.result),i.key=t,Array.isArray(i.history)||(i.history=[]),r=!0,o=!1,e&&e()},n.onerror=function(t){console.log(t)}}catch(a){}},l.write=function(){if(r)try{var e=i.transaction(["drafts"],"readwrite").objectStore("drafts"),n=c.data;n.delete?(delete n.delete,e.delete(t)):e.put(n),o=!1}catch(a){console.log(a)}}}else{if(!window.openDatabase)return n(),void 0;try{var a=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs drafts",0);if(!a)return n(),void 0;a.transaction(function(t){t.executeSql("CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,e)}catch(h){return n(),void 0}l.restore=function(e){try{a.transaction(function(n){n.executeSql("SELECT value FROM drafts WHERE key = ? LIMIT 1",[t],function(t,n){var i=c.data;if(n.rows.length)try{controls.extend(i,JSON.parse(n.rows.item(0).value))}catch(a){}Array.isArray(i.history)||(i.history=[]),r=!0,o=!1,e&&e()},function(t){console.log(t)})},function(){console.log(event)},function(){})}catch(n){}},l.write=function(){if(r)try{a.transaction(function(e){var n=c.data;n.delete?(delete n.delete,e.executeSql("DELETE FROM drafts WHERE key = ?",[t],function(){},function(t){console.log(t)})):e.executeSql("INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",[t,JSON.stringify(n)],function(){},function(t){console.log(t)})},function(){console.log(event)},function(){}),o=!1}catch(e){console.log(e)}}}}function s(t){$DOC.cbody.attachAll(),$DOC.cbody.unshift("alert:div",{$text:t,"class":"mar20 alert alert-warning col1-sm-offset-3 col-sm-6",style:"z-index:1200;"}),$DOC.cbody.alert.createElement()}var c,d,h,u,f,m,p,g,b;"undefined"!=typeof $ENV?t():(this.defercqueue||(this.defercqueue=[]),this.defercqueue.push(t)),a.prototype=controls.create("DataObject")}).call(this);');
             
@@ -12985,7 +12996,7 @@ function Controls(doT) {
     controls.VERSION = VERSION;
     controls.id_generator = 53504; // use it only as per session elements id generator in controls constructors
     
-    var IDENTIFIERS = ',add,attach,attributes,class,data,element,first,id,__type,controls,last,name,forEach,parameters,parent,remove,style,';
+    var IDENTIFIERS = ',add,attach,attributes,class,data,element,first,id,__type,controls,last,name,each,forEach,parameters,parent,remove,style,';
     var ENCODE_HTML_MATCH = /&(?!#?\w+;)|<|>|"|'|\//g;
     var ENCODE_HTML_PAIRS = { "<": "&#60;", ">": "&#62;", '"': '&#34;', "'": '&#39;', "&": "&#38;", "/": '&#47;' };
     var DECODE_HTML_MATCH = /&#(\d{1,8});/g;
@@ -14093,7 +14104,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             // normalize arguments
             
-            if (typeof repeats !== 'number') {
+            if ('object function'.indexOf(typeof repeats) >= 0) {
                 this_arg = callback;
                 callback = attributes;
                 attributes = repeats;
@@ -14112,8 +14123,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 // collection detected
                 var result;
                 
-                for(var i = 0, c = type.length; i < c; i++)
-                    result = this.add(type[i], repeats, attributes, callback, this_arg);
+                for(var i = index, c = index + type.length; i < c; i++)
+                    result = this.insert(i, type[i], repeats, attributes, callback, this_arg);
                 
                 return result;
             }
@@ -14169,11 +14180,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             // loop for create control(s)
             
-            for(var i = 0; i < repeats; i++) {
+            for(var i = 0, c = repeats || 1; i < c; i++) {
                 // prepare parameters and attributes
                 
-                var params = {};
-                var attrs = {class:''};
+                var params = {},
+                    attrs = {class:''};
                 
                 for(var prop in parameters) {
                     params[prop] = parameters[prop];
@@ -14214,6 +14225,50 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         
         this.unshift = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             return this.insert(0, type, repeats, attributes, callback, this_arg);
+        };
+        
+        this._add = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            this.add(type, repeats, attributes, callback, this_arg);
+            return this;
+        };
+        
+        this._text = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            if (typeof repeats === 'object') {
+                this_arg = callback;
+                callback = attributes;
+                attributes = repeats;
+                repeats = 1;
+            }
+            attributes = attributes || {};
+            attributes.$text = text;
+            this.add('controls.container', repeats, attributes, callback, this_arg);
+            return this;
+        };
+        
+        this._p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            if (typeof repeats === 'object') {
+                this_arg = callback;
+                callback = attributes;
+                attributes = repeats;
+                repeats = 1;
+            }
+            attributes = attributes || {};
+            attributes.$text = text;
+            this.add('controls.p', repeats, attributes, callback, this_arg);
+            return this;
+        };
+        
+        this._templ = function(template, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            if (typeof repeats === 'object') {
+                this_arg = callback;
+                callback = attributes;
+                attributes = repeats;
+                repeats = 1;
+            }
+            attributes = attributes || {};
+            attributes.$template = template;
+            this.add('controls.custom', repeats, attributes, callback, this_arg);
+            return this;
         };
         
         // Remove subcontrol from .controls collection
@@ -14263,14 +14318,12 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
         };
     
-        this.$builder = function () { return controls.$builder(this); };
-        
         this.every      = function(delegate, thisArg)   { return this.controls.every(delegate,   thisArg || this); };
         this.filter     = function(delegate, thisArg)   { return this.controls.filter(delegate,  thisArg || this); };
-        this.forEach    = function(delegate, thisArg)   { return this.controls.forEach(delegate, thisArg || this); };
+        this.each       = function(delegate, thisArg)   { return this.controls.forEach(delegate, thisArg || this); };
+        this.forEach    = this.each;
         this.map        = function(delegate, thisArg)   { return this.controls.map(delegate,     thisArg || this); };
         this.some       = function(delegate, thisArg)   { return this.controls.some(delegate,    thisArg || this); };
-    
     };
     
     function extract_func_code(func) {
@@ -14530,273 +14583,25 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         
         return new_control;
     };
-    
-    controls.$builder = function(control) {
-        if (!this.$move)
-            return new controls.$builder(control);
-        
-        this.$default = 'controls.';
-        this.$context = control;
-        this.$context_stack = [];
-    };
-    function check_type(builder, type) {
-        if (typeof type !== 'string')
-            return type;
-        
-        var colonpos = type.indexOf(':'),
-            dotpos = type.indexOf('.'),
-            slashpos = type.indexOf('/'),
-            numberpos = type.indexOf('#');
-        
-        if ((~dotpos && colonpos > dotpos) || (~slashpos && colonpos > slashpos) || (~numberpos && colonpos > numberpos))
-            colonpos = -1;
-        if ((~slashpos && dotpos > slashpos) || (~numberpos && dotpos > numberpos))
-            dotpos = -1;
-        
-        if (dotpos < 0) {
-            if (colonpos >= 0)
-                type = type.substr(0, colonpos + 1) + builder.$default + type.substr(colonpos + 1);
-            else
-                type = builder.$default + type;
-        }
-        
-        return type;
-    }
-    // $builder commands executed in the context of the control, avoid name conflicts.
-    // Naming convention: $ command does not change the context. $$ command - changing context.
-    controls.$builder.prototype = {
-        // move the $builder context to
-        $move: function(control) {
-            this.$context = control;
-        },
-        // set default namespace
-        $namespace : function(namespace) {
-            if (namespace.indexOf('.') < 0)
-                namespace = namespace + '.';
-            
-            this.$default = namespace;
-        },
-        // add [C]ontrol
-        $C: function(type, repeats, attributes, callback, this_arg) {
-            var context = this.$context;
-            if (!context)
-                throw new TypeError('$C: context undefined! ' + type);
 
-            return context.add(check_type(this, type), repeats, attributes, callback, this_arg);
-        },
-        $$C: function(type, repeats, attributes, callback, this_arg) {
-            if (typeof(repeats) !== 'number') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            
-            if (typeof(attributes) === 'function') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = undefined;
-            }
-            
-            var context = this.$context;
-            if (!context)
-                throw new TypeError('$builder $$C: context undefined! ' + type);
-            
-            var control;
-            
-            if (callback) {
-                this.$context_stack.push(this.$context);
-                
-                control = context.add(check_type(this, type), repeats, attributes, function(control) {
-                    this.$context = control;
-                    callback.call(this_arg || control, control);
-                }, this);
-                
-                this.$context = this.$context_stack.pop();
-            }
-            else {
-                control = context.add(check_type(this, type), repeats, attributes);
-                this.$context = control;
-            }
-            
-            return control;
-        },
-        
-        // add [T]emplate
-        $T: function(template, repeats, attributes, callback, this_arg) {
-            if (typeof(repeats) !== 'number') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            
-            if (typeof(attributes) === 'function') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = undefined;
-            }
-            
-            var context = this.$context;
-            if (!context)
-                throw new TypeError('$T: context undefined!');
-            
-            var attrs = attributes || {};
-            attrs.$template = template;
-            
-            return context.add('controls.Custom', repeats, attrs, callback, this_arg);
-        },
-        $$T: function(template, repeats, attributes, callback, this_arg) {
-            if (typeof(repeats) !== 'number') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            
-            if (typeof(attributes) === 'function') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = undefined;
-            }
-            
-            var context = this.$context;
-            if (!context)
-                throw new TypeError('$$T: context undefined! ');
-            
-            var attrs = attributes || {};
-            attrs.$template = template;
-            
-            var control;
-            
-            if (callback) {
-                this.$context_stack.push(this.$context);
-                
-                control = context.add('controls.Custom', repeats, attrs, function(control) {
-                    this.$context = control;
-                    callback.call(this_arg || control, control);
-                }, this);
-                
-                this.$context = this.$context_stack.pop();
-            }
-            else {
-                control = context.add('controls.Custom', repeats, attrs);
-                this.$context = control;
-            }
-            
-            return control;
-        },
-        
-        // add te[X]t
-        $X: function(text, repeats, attributes, callback, this_arg) {
-            if (typeof(repeats) !== 'number') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            
-            if (typeof(attributes) === 'function') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = undefined;
-            }
-            
-            var context = this.$context;
-            if (!context)
-                throw new TypeError('$X: context undefined!');
-            
-            var attrs = attributes || {};
-            attrs.$text = text;
-            
-            return context.add('controls.Container', repeats, attrs, callback, this_arg);
-        },
-        $$X: function(text, repeats, attributes, callback, this_arg) {
-            if (typeof(repeats) !== 'number') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            
-            if (typeof(attributes) === 'function') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = undefined;
-            }
-            
-            var context = this.$context;
-            if (!context)
-                throw new TypeError('$$X: context undefined!');
-            
-            var attrs = attributes || {};
-            attrs.$text = text;
-            
-            var control;
-            
-            if (callback) {
-                this.$context_stack.push(this.$context);
-                
-                control = context.add('controls.Container', repeats, attrs, function(control) {
-                    this.$context = control;
-                    callback.call(this_arg || control, control);
-                }, this);
-                
-                this.$context = this.$context_stack.pop();
-            }
-            else {
-                control = context.add('controls.Container', repeats, attrs);
-                this.$context = control;
-            }
-            
-            return control;
-        },
-        
-        // [E]ncode text
-        $E: function(text, repeats, attributes, callback, this_arg) {
-            return this.$X(controls.encodeHTML(text), repeats, attributes, callback, this_arg);
-        },
-        $$E: function(text, repeats, attributes, callback, this_arg) {
-            return this.$$X(controls.encodeHTML(text), repeats, attributes, callback, this_arg);
-        },
-        $encode: function(text) { return controls.encodeHTML(text); },
-        
-        forEach: function(callback, this_arg) {
-            var control = this.$context;
-            if (control)
-                control.controls.forEach(callback, this_arg || this);
-        },
-        $$forEach: function(callback, this_arg) {
-            var control = this.$context;
-            if (control) {
-                this.$context_stack.push(this.$context);
-                
-                var controls = control.controls;
-                for(var prop in controls) {
-                    var control = controls[prop];
-                    this.$context = control;
-                    callback.call(this_arg || this, control);
-                }
-                
-                this.$context = this.$context_stack.pop();
-            }
-        }
+    controls.text = function(text, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        attributes = attributes || {};
+        attributes.$text = text;
+        return controls.create('controls.container', parameters, attributes, callback, this_arg);
     };
-    
-    controls.defCommand = function(command, func) {
-        controls.$builder.prototype[command] = func;
+
+    controls.p = function(text, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        attributes = attributes || {};
+        attributes.$text = text;
+        return controls.create('controls.container', parameters, attributes, callback, this_arg);
     };
-    
-    'p'.split(',').forEach(function(tag) {
-        controls.defCommand('$' + tag, function(text,_class,style) { this.$C(tag, {$text:text, class:_class, style:style}); });
-        controls.defCommand('$$' + tag, function(text,_class,style) { this.$$C(tag, {$text:text, class:_class, style:style}); });
-    });
-    
-    'h1,h2,h3,h4,h5,h6'.split(',').forEach(function(tag) {
-        controls.defCommand('$' + tag, function(text,id,_class,style) { if(id)id=id.replace(/ /g,'-'); this.$C(tag, {$text:text, id:id, class:_class, style:style}); });
-        controls.defCommand('$$' + tag, function(text,id,_class,style) { if(id)id=id.replace(/ /g,'-'); this.$$C(tag, {$text:text, id:id, class:_class, style:style}); });
-    });
-    
+
+    controls.templ = function(template, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        attributes = attributes || {};
+        attributes.$template = template;
+        return controls.create('controls.custom', parameters, attributes, callback, this_arg);
+    };
+        
     
     // controls.reviverJSON()
     // 
@@ -14903,13 +14708,13 @@ c' + tagname + '.prototype = controls.control_prototype;'
 + 'controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
         }
         
-        Function('controls', 'A,Abbr,Address,Article,Aside,B,Base,Bdi,Bdo,Blockquote,Button,Canvas,Cite,Code,Col,Colgroup,Command,Datalist,Dd,Del,Details,\
-Dfn,Div,Dl,Dt,Em,Embed,Fieldset,Figcaption,Figure,Footer,Form,Gnome,H1,H2,H3,H4,H5,H6,Header,I,IFrame,Img,Ins,Kbd,Keygen,Label,Legend,Li,Link,Map,Mark,Menu,Meter,Nav,\
-Noscript,Object,Ol,Optgroup,Option,Output,P,Pre,Progress,Ruby,Rt,Rp,S,Samp,Script,Section,Small,Span,Strong,Style,Sub,Summary,Sup,\
-Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
+        Function('controls', 'a,abbr,address,article,aside,b,base,bdi,bdo,blockquote,button,canvas,cite,code,col,colgroup,command,datalist,dd,del,details,\
+dfn,div,dl,dt,em,embed,fieldset,figcaption,figure,footer,form,gnome,h1,h2,h3,h4,h5,h6,header,i,iframe,img,ins,kbd,keygen,label,legend,li,link,map,mark,menu,meter,nav,\
+noscript,object,ol,optgroup,option,output,p,pre,progress,ruby,rt,rp,s,samp,script,section,small,span,strong,style,sub,summary,sup,\
+table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
             .split(',').map(function(tagname) { return gencode(tagname.toLowerCase(), true); }).join(''))(controls);
     
-        Function('controls', 'Area,Hr,Meta,Param,Source,Track'
+        Function('controls', 'area,hr,meta,param,source,track'
             .split(',').map(function(tagname) { return gencode(tagname.toLowerCase(), false); }).join(''))(controls);
     })();
     
@@ -14922,22 +14727,22 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
     // without own html
     // 
     function Container(parameters, attributes) {
-        controls.controlInitialize(this, 'controls.Container', parameters, attributes, controls.default_inner_template);
+        controls.controlInitialize(this, 'controls.container', parameters, attributes, controls.default_inner_template);
     };
     Container.prototype = controls.control_prototype;
-    controls.typeRegister('controls.Container', Container);
+    controls.typeRegister('controls.container', Container);
     
     // Custom
     // 
     // set template after creating the control
     // 
     function Custom(parameters, attributes) {
-        controls.controlInitialize(this, 'controls.Custom', parameters, attributes,
+        controls.controlInitialize(this, 'controls.custom', parameters, attributes,
             attributes.$template || attributes.$outer_template,
             attributes.$inner_template);
     };
     Custom.prototype = controls.control_prototype;
-    controls.typeRegister('controls.Custom', Custom);
+    controls.typeRegister('controls.custom', Custom);
 
     // Stub
     // 
@@ -14959,8 +14764,7 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
 //        if (attributes.hasOwnProperty(prop))
 //            save_attributes[prop] = attributes[prop];
         
-        controls.controlInitialize(this, 'controls.Stub', parameters, attributes, function(it) { return '<div' + it.printAttributes() + '>' + it.printControls() + '</div>'; } );
-        
+        controls.controlInitialize(this, 'controls.stub', parameters, attributes, function(it) { return '<div' + it.printAttributes() + '>' + it.printControls() + '</div>'; } );
         this.class('stub');
         
         var state = 0; // 0 - stub, > 0 - resources loaded, < 0 - load error
@@ -14984,20 +14788,29 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
         
         // try create control and replace stub on success
         this.tryReplace = function() {
-            var params = controls.extend({}, this.parameters),
-                attrs = controls.extend({}, this.attributes);
-            for(var prop in this.parameters)
-            if (prop.substr(0,2) === '#{')
-                delete params[prop];
+            var parameters = this.parameters,
+                params = {},
+                attrs = {},
+                attributes = this.attributes;
+        
+            for(var prop in parameters)
+            if (prop[0] !== '#' && prop[1] !== '{')
+                params[prop] = parameters[prop];
+            
+            for(var prop in attributes)
+                attrs[prop] = attributes[prop];
+        
             var control = controls.create(parameters['#{type}'], params, attrs);
             if (control) {
                 control.class(null, 'stub stub-loading stub-error');
                 this.replaceItself(control);
+                // raise event
+                this.raise('control', control);
             }
         };
     };
     Stub.prototype = controls.control_prototype;
-    controls.typeRegister('controls.Stub', Stub);
+    controls.typeRegister('controls.stub', Stub);
     
     // Head
     function Head(parameters, attributes) {
@@ -15031,7 +14844,7 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
     // layout.cellSet.class(...);
     // 
     function Layout(parameters, attributes) {
-        controls.controlInitialize(this, 'controls.Layout', parameters, attributes, Layout.template);
+        controls.controlInitialize(this, 'controls.layout', parameters, attributes, Layout.template);
         var clearfix = false; // use clearfix if float
         
         this.cellSet = new Container();
@@ -15072,11 +14885,11 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
 '<div{{=it.printAttributes()}}>\
 {{~it.controls :value:index}}<div data-type="layout-item"{{=it.cellSet.printAttributes("-id")}}>{{=value.wrappedHTML()}}</div>{{~}}\
 {{?it.clearfix}}<div style="clear:both;"></div>{{?}}</div>');
-    controls.typeRegister('controls.Layout', Layout);
+    controls.typeRegister('controls.layout', Layout);
 
     
     function List(parameters, attributes) {
-        controls.controlInitialize(this, 'controls.List', parameters, attributes, List.template);
+        controls.controlInitialize(this, 'controls.list', parameters, attributes, List.template);
         
         this.itemSet = new Container();
         this.itemSet.listen('attributes', this, function(event) {
@@ -15102,13 +14915,13 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
 '<ul{{=it.printAttributes()}}>\
 {{~it.controls :value:index}}<li{{=it.itemSet.printAttributes("-id")}}>{{=value.wrappedHTML()}}</li>{{~}}\
 </ul>');
-    controls.typeRegister('controls.List', List);
+    controls.typeRegister('controls.list', List);
     
     
     // Input
     // 
     function Input(parameters, attributes) {
-        this.initialize('controls.Input', parameters, attributes, Input.template);
+        this.initialize('controls.input', parameters, attributes, Input.template);
         
         Object.defineProperty(this, 'value', {
             get: function() { return this.attributes.value; },
@@ -15132,7 +14945,7 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
     };
     Input.prototype = controls.control_prototype;
     Input.template = function(it) { return '<input' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</input>'; };
-    controls.typeRegister('controls.Input', Input);
+    controls.typeRegister('controls.input', Input);
     
     
     // Select
@@ -15141,7 +14954,7 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
     //  $data {DataArray}
     //
     function Select(parameters, attributes) {
-        this.initialize('controls.Select', parameters, attributes, Select.template, Select.inner_template);
+        this.initialize('controls.select', parameters, attributes, Select.template, Select.inner_template);
 
         this.bind(attributes.hasOwnProperty('$data')
             ? controls.create('DataArray', {$data: attributes.$data})
@@ -15173,7 +14986,7 @@ Table,TBody,Td,Textarea,Tfoot,Th,Thead,Time,Title,Tr,U,Ul,Var,Video,Wbr'
     Select.prototype = controls.control_prototype;
     Select.template = function(it) { return '<select' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.data.map(function(item){ return '<option value=' + item + '>' + item + '</option>'; }).join('') + '</select>'; };
     Select.inner_template = function(it) { return (it.attributes.$text || '') + it.data.map(function(item){ return '<option value=' + item + '>' + item + '</option>'; }).join(''); };
-    controls.typeRegister('controls.Select', Select);
+    controls.typeRegister('controls.select', Select);
 
 };
 
@@ -15502,7 +15315,7 @@ module.exports=require(6)
 
     function NavBar(parameters, attributes) {
         
-        controls.controlInitialize(this, 'navbar', parameters, attributes, nav_template, $ENV.default_inner_template);
+        controls.controlInitialize(this, 'controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template);
         this.class('navbar navbar-default');
 
         // text contains two parts separated by '***', first part non togglable, second part is togglable
@@ -15568,7 +15381,7 @@ return '<div' + it.printAttributes() + '>\
     {
         return '<nav' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
     };
-    controls.typeRegister('navbar', NavBar);
+    controls.typeRegister('controls.navbar', NavBar);
 
 
 }).call(this);
@@ -16283,9 +16096,21 @@ this.text(), // additional css
 
                                 collection.add(control);
 
-                                // create component loader
-                                if (control.isStub)
+                                // create stub loader
+                                if (control.isStub) {
+                                    control.listen('control', function(control) {
+                                        // raise 'com' event
+                                        var com = $DOC.events.component;
+                                        if (com)
+                                            com.raise(control);
+                                    });
                                     new stubResLoader(control);
+                                }
+                                
+                                // raise 'com' event
+                                var com = $DOC.events.component;
+                                if (com)
+                                    com.raise(control);
                             }
                             else
                                 collection.add('p', {$text:'&#60;' + tag + '?&#62;'});
@@ -16501,7 +16326,7 @@ this.text(), // additional css
         
         $DOC.state = 1;
         $DOC.cbody.attach();
-        $DOC.onsection(patches);
+        $DOC.listen('section', patches);
         
         var processed_nodes = [];
         

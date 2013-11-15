@@ -156,7 +156,8 @@ $ENV = {
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
         // Section control created event
-        onsection: function(handler) { this.forceEvent('section').addListener(handler); },
+        listen: function(type, handler, capture) { this.forceEvent(type).addListener(handler); },
+        raise: function(type, capture) { var event = this.events[type]; if (event) event.raise(); },
                 
         addSection: function(name, value) {
             var sections = this.sections, exists = sections[name];
@@ -279,17 +280,27 @@ $ENV = {
             });
             document.head.appendChild(script);
         },
+        // get the url relative to the root
+        getRootUrl: function(url) {
+            if (url[0] === '/') {
+                if (url[1] !== '/')
+                    url = this.root + url;
+            } else if (url.indexOf(':') < 0 && url[0] !== '.')
+                url = this.root + url;
+            return url.replace('{{=$DOC.root}}', this.root);
+        },
         // load user.js scripts
         loadUserJS: function() {
             var userjs = this.options.userjs;
             if (userjs) {
                 userjs = userjs.split(',');
                 for(var i = 0, c = userjs.length; i < c; i++)
-                    this.appendScript('user.js/' + i, this.root + userjs[i]);
+                    this.appendScript('user.js/' + i, this.getRootUrl(userjs[i]));
             }
         },
         // document transformation start after all scripts loaded or failed
         checkAllScriptsReady: function() {
+            /*this undefined*/
             if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
                 $DOC.finalTransformation();
         },
@@ -339,7 +350,7 @@ $ENV = {
             }
             names.split(/ ,;/g).forEach(function(name) {
                 if (mod_group.indexOf(name) < 0) {
-                    var path = $DOC.root + 'mods/' + name + '/' + name;
+                    var path = $DOC.getRootUrl('mods/' + name + '/' + name);
                     $DOC.appendCSS(group + '-' + name + '-css', path + '.css');
                     $DOC.appendScript(group + '-' + name + '-js', path + '.js');
                     mod_group.push(name);
@@ -409,13 +420,13 @@ $ENV = {
     
     $DOC.headTransformation = function() {
     
-        $DOC.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-        if ($DOC.options.icon)
-            $DOC.appendElement('link', {rel:'shortcut icon', href:$DOC.options.icon.replace('{{=$DOC.root}}', $DOC.root)});
+        this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+        if (this.options.icon)
+            this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl(this.options.icon)});
 
         // document style
 
-        $DOC.appendCSS('document.css',
+        this.appendCSS('document.css',
 '.fixed-top-bar, .fixed-top-panel\
     { display: block; margin: 0; padding: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1030; }\
 .fixed-top-panel\
@@ -506,17 +517,17 @@ $ENV = {
 .padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
 .padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
 ');
-        var edit_mode = $DOC.options.edit_mode;
+        var edit_mode = this.options.edit_mode;
         
         if (theme && edit_mode !== 1) {
             // theme loading and confirmed flag
-            $DOC.appendCSS('theme.css', $DOC.root + 'mods/' + theme + '/' + theme + '.css', function(state) {
+            this.appendCSS('theme.css', this.getRootUrl('mods/' + theme + '/' + theme + '.css'), function(state) {
                 if (state < 0 && theme_confirmed)
                     localStorage.setItem('primary-theme-confirmed', '');
                 else if (state > 0 && !theme_confirmed)
                     localStorage.setItem('primary-theme-confirmed', true);
             }, 'afterbegin');
-            $DOC.appendScript('theme.js', $DOC.root + 'mods/' + theme + '/' + theme + '.js');
+            this.appendScript('theme.js', this.getRootUrl('mods/' + theme + '/' + theme + '.js'));
         }
         // load bootstrap.css if not theme or previous load error
         if (!theme || !theme_confirmed || edit_mode === 1) {
@@ -533,15 +544,15 @@ $ENV = {
                 }
                 if (!bcss) {
                     var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
-                    $DOC.appendCSS('bootstrap.css', ($DOC.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : ($DOC.codebase + '/bootstrap.css'), function(state) {
-                        if (state < 0)  $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
+                    this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + '/bootstrap.css'), function(state) {
+                        if (state < 0)  this.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
                     }, 'afterbegin');
                 }
             }
         }
         
         // open editor
-        if ($DOC.options.editable) {
+        if (this.options.editable) {
             if (edit_mode === 1 && window.top === window.self)
                 eval('/*include editor*/');
             

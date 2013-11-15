@@ -112,9 +112,21 @@
 
                                 collection.add(control);
 
-                                // create component loader
-                                if (control.isStub)
+                                // create stub loader
+                                if (control.isStub) {
+                                    control.listen('control', function(control) {
+                                        // raise 'com' event
+                                        var com = $DOC.events.component;
+                                        if (com)
+                                            com.raise(control);
+                                    });
                                     new stubResLoader(control);
+                                }
+                                
+                                // raise 'com' event
+                                var com = $DOC.events.component;
+                                if (com)
+                                    com.raise(control);
                             }
                             else
                                 collection.add('p', {$text:'&#60;' + tag + '?&#62;'});
@@ -330,7 +342,7 @@
         
         $DOC.state = 1;
         $DOC.cbody.attach();
-        $DOC.onsection(patches);
+        $DOC.listen('section', patches);
         
         var processed_nodes = [];
         
