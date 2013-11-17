@@ -244,7 +244,7 @@
         while(text_node) {
             if (processed_nodes.indexOf(text_node) < 0) {
                 processed_nodes.push(text_node);
-                    text_nodes.push(text_node);
+                text_nodes.push(text_node);
             }
             text_node = iterator.nextNode();
         }
