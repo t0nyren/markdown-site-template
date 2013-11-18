@@ -72,24 +72,41 @@
             
             // buttons fullscreen, flip, close
             
-            toolbar.add('controls_group:bootstrap.BtnGroup', {class:'mar5 fright'}, function(controls_group) {
-                controls_group.add('bootstrap.Button', {$icon:'fullscreen', 'data-original-title':'Over-nonoverlapped'})
+//            toolbar.add('controls_group:bootstrap.BtnGroup', {class:'mar5 fright'}, function(controls_group) {
+                toolbar.add('bootstrap.Button', {class:'mar5 fright', $icon:'remove', 'data-original-title':'Close editor (Ctrl-F12)'})
                     .listen('click', function() {
-                        controller.mode = (controller.mode) ? 0 : 1;
-                    });
-                controls_group.add('bootstrap.Button', {$icon:'th-large', 'data-original-title':'Left-right-top-bottom'})
-                    .listen('click', function() {
-                        controller.position++;
-                        if (controller.position > 3)
-                            controller.position = 0;
-                    });
-                controls_group.add('bootstrap.Button', {$icon:'remove', 'data-original-title':'Close editor (Ctrl-F12)'})
-                    .listen('click', function() {
-                        var url = location.href, pos = url.IndexOf('?indexOf'); if (pos < 0) pos = url.indexOf('&edit');
+                        var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
                         if (pos >= 0)
                             window.location = url.slice(0, pos) + url.slice(pos + 5);
                     });
-            });
+                    
+                toolbar.add('bootstrap.Splitbutton', {class:'martop5 fright', $icon:'fullscreen'})
+                    ._add('bootstrap.DropdownItem', {$icon:'chevron-left'})
+                    ._add('bootstrap.DropdownItem', {$icon:'chevron-right'})
+                    ._add('bootstrap.DropdownItem', {$icon:'chevron-up'})
+                    ._add('bootstrap.DropdownItem', {$icon:'chevron-down'})
+                        .listen('click', function(event) {
+                            switch(event.target.className || event.target.firstChild.className) {
+                                case 'glyphicon glyphicon-fullscreen':
+                                case 'btn btn-default':
+                                    controller.mode = (controller.mode) ? 0 : 1;
+                                    break;
+                                case 'glyphicon glyphicon-chevron-right':
+                                    controller.position = 0;
+                                    break;
+                                case 'glyphicon glyphicon-chevron-left':
+                                    controller.position = 1;
+                                    break;
+                                case 'glyphicon glyphicon-chevron-up':
+                                    controller.position = 2;
+                                    break;
+                                case 'glyphicon glyphicon-chevron-down':
+                                    controller.position = 3;
+                                    break;
+                            }
+                        });
+                
+//            });
             
             // tabheaders
             
@@ -816,7 +833,7 @@
         
         // node-webkit
         var fs;
-        if (typeof require === 'function' && (fs = require('fs'))) {
+        if (typeof require === 'function' && location.protocol === 'file:' && (fs = require('fs'))) {
             this.environment = 1;
             this.editable = true;
             toolbar.save_group.save.class(null, 'hide');

@@ -11401,7 +11401,7 @@ $ENV = {
         // open editor
         if (this.options.editable) {
             if (edit_mode === 1 && window.top === window.self)
-                eval('(function(){"use strict";function e(){function e(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),b=new a,$DOC.cbody.add(y=new i),y.createElement(),h=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),p=h.add("toolbar:div",{"class":"clearfix",style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(e){e&&$(e).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),p.add("save_group:bootstrap.BtnGroup",{"class":"mar5"},function(e){function t(){f.save(),e.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(f.buildHTML())}e.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert to saved state"}).listen("click",function(){f.revert()}),e.add("download:a",{download:decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html","class":"btn btn-default",$text:\'<b class="glyphicon glyphicon-save"></b>\',"data-original-title":"Download edited document"}).listen("mousedown",t).listen("focus",t).listen("click",function(e){try{var t=new Blob([f.buildHTML()]);return window.navigator.msSaveOrOpenBlob(t,decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html"),e.preventDefault(),void 0}catch(n){}}),e.add("save:bootstrap.Button",{"class":"btn btn-default hide",$icon:"edit","data-original-title":"Save"}).listen("click",function(){f.save(),u.write(decodeURI(window.location.pathname),f.buildHTML())})}),p.add("controls_group:bootstrap.BtnGroup",{"class":"mar5 fright"},function(e){e.add("bootstrap.Button",{$icon:"fullscreen","data-original-title":"Over-nonoverlapped"}).listen("click",function(){f.mode=f.mode?0:1}),e.add("bootstrap.Button",{$icon:"th-large","data-original-title":"Left-right-top-bottom"}).listen("click",function(){f.position++,f.position>3&&(f.position=0)}),e.add("bootstrap.Button",{$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var e=location.href,t=e.IndexOf("?indexOf");0>t&&(t=e.indexOf("&edit")),t>=0&&(window.location=e.slice(0,t)+e.slice(t+5))})}),p.add(m=new o),h.add(g=new n),h.add(v=new t),h.createElement(),f=new s,u=new r}$(window).load(function(){d=new l(location.origin+location.pathname,e)})}function t(){var e=controls.create("div",{"class":"pad20"}),t=!0;Object.defineProperty(e,"visible",{get:function(){return t},set:function(n){t=n,e.element&&(e.element.style.display=t?"block":"none")}}),e.listen("element",function(e){e&&(e.style.display=t?"block":"none")});var n=e.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){b.title=n.title_edit.value}),b.listen(function(){b.title!==n.title_edit.value&&(n.title_edit.value=b.title)}),e.save=function(){},e}function n(){function e(){if(t.mode){var e=t._element;e&&e.value!==o&&(t.modified=25,o=e.value)}}var t=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});t.code_edit_resize=function(){t.element.style.height=$(h.element).height()-$(p.element).height()+"px"},$(window).on("resize",t.code_edit_resize);var n=0;Object.defineProperty(t,"mode",{get:function(){return n},set:function(e){e>2&&(e=2),e!==n&&(n=e,this.element&&(t.element.style.display=n?"block":"none"),t.code_edit_resize())}});var o;return t.listen("element",function(e){e&&(e.value=o),t.code_edit_resize()}),Object.defineProperty(t,"text",{get:function(){return this.element?this.element.value:o},set:function(e){o=e||"",this.element&&(this.element.value=o),this.modified=0}}),t.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",o))},t.listen("change",e,!0),setInterval(function(){e(),t.modified&&--t.modified<2&&(t.modified=0,t.raise("text",o))},25),t}function o(){function e(){o.selectedIndex=o.controls.indexOf(this)}var t,n=-1,o=p.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(e){var t=m.data;e.length+2<t.length&&t.splice(1,t.length-e.length-2);for(var n=t.length,o=e.length+2;o>n;n++)t.splice(1,0,{});for(var n=1,i=t.length-1;i>n;n++)t[n].text=e[n-1];t.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,a=n.length,s=i.length;s>a;a++)o.add("bootstrap.TabHeader").listen("click",e);for(var a=n.length-1,s=i.length;a>=s;a--){var r=n[a];r.deleteAll(),r.removeListener("click",e),o.remove(r)}for(var a=0,s=i.length;s>a;a++){var l=i[a];l.id=n[a].id;var r=n[a];r.attributes["data-original-title"]=l.hint,r.attributes.$icon=l.icon,r.text(l.text),l===t?r.class("active"):r.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(e){this.selected=e}}),Object.defineProperty(o,"selected",{get:function(){return t},set:function(e){var o=this.data;if("string"!=typeof e){if("number"==typeof e)return e>=0&&e<o.length&&e!==n?this.selected=o[e]:-1===e&&(this.selected=void 0),void 0;var i=o.indexOf(e);if(i>=0){var a=o[i];a!==t&&t&&(this.lastSelected=t)}if(e!==t||i!==n){for(var s=this.controls,r=0,l=s.length;l>r;r++)r===i?s[r].class("active"):s[r].class(null,"active");this.raise("selected",t=e?e:void 0,n=i)}}else{for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.id===e)return this.selected=a,void 0}for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.text===e)return this.selected=a,void 0}}}}),o.checkSelection=function(){var e=this.data;if(e.length){var n=e.indexOf(t);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){var e,t,n=location.href;return n=n.slice(0,n.length-location.hash.length),n+=n.indexOf("?")>0?"&preview":"?preview",y=controls.create("iframe",{sandbox:"",src:n,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),y.updateInnerHtml=function(n,o){e=n,t=o;var i=this.element&&this.element.contentDocument,a=this.$DOC;if(i&&a){var s=i.getElementsByTagName("html")[0];s&&(a.initialize(),s.innerHTML=n,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},y.reload=function(){this.element&&this.deleteAll(),this.createElement()},y.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(n){this.reload()}this.$DOC=this.element&&y.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,t)}.bind(y),0)}),y.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,a=i.sections[t];"object"==typeof a&&a.source_node&&i.processTextNode(a.source_node,t+"\\n"+n)},y}function a(){function e(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(e){return e.outerHTML()}).join("")+(this.closetag||"")}var t,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(a){if(o=a,!i){if(!n)return;i=n.add("div"),i.template(e)}i.controls.length=0,i.opentag="<title>"+a+"</title>",i.closetag="",t=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return t},set:function(a){if(a!==t){t=a;var s={},r={},l=document.implementation.createHTMLDocument(""),c=l.documentElement;c.innerHTML=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(t)[1];for(var d=controls.create("div"),u=[],f=[],h=l.createNodeIterator(c,65535,null,!1),p=h.nextNode();p;){var m=p===c?d:controls.create("div");m.template(e),u.push(p),f.push(m);var v=u.indexOf(p.parentNode);if(v>=0&&f[v].add(m),8===p.nodeType){var g=p.nodeValue,b=g[0];if(m.opentag="<!--"+p.nodeValue+"-->","%"===b);else if("!"===b);else{var y=g.indexOf(" "),x=g.indexOf("\\n"),w=g.indexOf("->");if(0>y&&0>x&&0>w);else if(0>y&&w>0);else if(x>0&&(0>y||y>x)&&(y=x),y>0&&128>y){var O=g.slice(0,y);s[O]=g.slice(y+1),r[O]=m}}}else if(p===c)m.opentag="<!DOCTYPE html>\\n"+/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(t)[1]+"\\n",m.closetag="\\n</html>";else{var T=p.outerHTML,S=p.innerHTML;if(S){var k=T.lastIndexOf(S);0>k?m.opentag=T:(m.opentag=T.slice(0,k),m.closetag=T.slice(k+S.length))}else m.opentag=T?T:p.nodeValue}p=h.nextNode()}var E=l.getElementsByTagName("head")[0];n=E&&f[u.indexOf(E)];var L=l.getElementsByTagName("title")[0];L?(o=L.textContent,i=f[u.indexOf(L)]):(o="",i=null),this.chtml=d,this.sections=s,this.seccontrols=r,this.raise()}}}),this.updateNamedSection=function(e,n){var o=this.seccontrols[e];o&&(this.sections[e]=n,o.opentag="<!--"+e+"\\n"+n+"-->\\n",t=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function s(){function e(e,t,n,o,i,a,s,r,l,c,d,u){var f=y.element.style;f.top=e,f.right=t,f.bottom=n,f.left=o,f.width=i,f.height=a,f=h.element.style,f.top=s,f.right=r,f.bottom=l,f.left=c,f.width=d,f.height=u}function t(){if(i)switch(a){case 1:e("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 2:e("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 3:e("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:e("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(a){case 1:e("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:e("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:e("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:e("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}g.code_edit_resize()}var n;b.listen(function(){f.edit_html=b.html,m.setTabs(Object.keys(b.sections)),y.updateInnerHtml(b.chtml.innerHTML(),Object.keys(b.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(e){e!==o&&(o=e,b.html=o)}}),this.checkEdits=function(){var e=m.selected;e&&e.isoptions?v.save():e&&g.save()},m.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,v.visible=0===m.selectedIndex}),this.updateCodeEdit=function(){var e=m.selected;switch(g.mode=!e||e.isoptions?0:e.ishtml?1:2,g.mode){case 1:g.text=f.edit_html;break;case 2:var t=m.selected;t?(g.section=t.text,g.text=b.sections[t.text]):g.text="";break;default:g.text=""}},g.listen("text",function(e){switch(g.mode){case 1:f.edit_html=e,f.modified=25;break;case 2:f.updateNamedSection(g.section,g.text),f.modified=25}}),this.updateNamedSection=function(e,t){b.updateNamedSection(e,t),o=b.buildHTML(),y.updateNamedSection(e,t,b.chtml.innerHTML())},this.save=function(){this.checkEdits();var e=d.dataobject.data;e.selected=m.selected&&m.selected.text,e.html=this.edit_html,e.html===n&&(e.delete=!0),d.dataobject.raise(),this.modified=0},this.revert=function(){this.edit_html=n,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return g.save(),b.buildHTML()};var i=0,a=0,s=600,r=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(e){i=e,t(),f.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return a},set:function(e){a=e,t(),f.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,a,s,r].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),a=parseInt(l[1]),s=parseInt(l[2]),r=parseInt(l[3])}catch(c){}t()}d.restore(function(){$.ajax({url:location.href,type:"GET",dataType:"html"}).done(function(e){var t=localStorage&&localStorage.getItem("default selected page");m.lastSelected=d.dataobject.data.selected||t||m.data[0],n=e.replace(/\\r/g,""),f.edit_html=d.dataobject.data.html||n,m.checkSelection()})}),setInterval(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this),25)}function r(){function e(e){var t=e.lastIndexOf("/");return t>=0&&(e=e.slice(t+1)),t=e.lastIndexOf("\\\\"),t>=0&&(e=e.slice(t+1)),e}this.environment=0,this.fileName=e(location.href);var t;if("function"==typeof require&&(t=require("fs")))this.environment=1,this.editable=!0,p.save_group.save.class(null,"hide"),this.write=function(n,o){try{t.writeFileSync(e(n),o),d.reloadOnReady()}catch(i){console.log(i)}};else if("file:"!==location.protocol){var n=location.href,o=n.lastIndexOf("/"),i=n.slice(0,o)+"/@";this.write=function(e,t){i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",async:0,data:JSON.stringify({command:"write",url:e,data:t})}).done(function(e){"success"===e.result&&d.reloadOnReady()})},i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",data:JSON.stringify({command:"options"})}).done(function(e){"success"===e.result&&(this.environment=2,(this.editable=e.editable)&&p.save_group.save.class(null,"hide"))})}}function l(e,t){function n(){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,a,s,r=this,l=r.dataobject=controls.create("DataObject");if(l.data={key:e,history:[]},l.listen(function(){o=!0}),setInterval(function(){o&&r.write()},25),window.indexedDB){try{var d=window.indexedDB.open("markdown-webdocs.editor.db",1);d.onsuccess=function(e){i=e.target.result,t()},d.onupgradeneeded=function(e){i=e.target.result,i.createObjectStore("drafts",{keyPath:"key"}),t()},d.onerror=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(e)},d.onblocked=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(e)}}catch(u){return n(),void 0}r.restore=function(t){try{var n=i.transaction(["drafts"],"readonly").objectStore("drafts").get(e);n.onsuccess=function(n){var i=l.data;controls.extend(i,n.target.result),i.key=e,Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},n.onerror=function(e){console.log(e)}}catch(a){}},r.write=function(){if(s)try{var t=i.transaction(["drafts"],"readwrite").objectStore("drafts"),n=l.data;n.delete?(delete n.delete,t.delete(e)):t.put(n),localStorage&&localStorage.setItem("default selected page",n.selected),o=!1}catch(a){console.log(a)}}}else{if(!window.openDatabase)return n(),void 0;try{var a=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs drafts",0);if(!a)return n(),void 0;a.transaction(function(e){e.executeSql("CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,t)}catch(u){return n(),void 0}r.restore=function(t){try{a.transaction(function(n){n.executeSql("SELECT value FROM drafts WHERE key = ? LIMIT 1",[e],function(e,n){var i=l.data;if(n.rows.length)try{controls.extend(i,JSON.parse(n.rows.item(0).value))}catch(a){}Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},function(e){console.log(e)})},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(s)try{a.transaction(function(t){var n=l.data;n.delete?(delete n.delete,t.executeSql("DELETE FROM drafts WHERE key = ?",[e],function(){},function(e){console.log(e)})):t.executeSql("INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",[e,JSON.stringify(n)],function(){},function(e){console.log(e)})},function(){console.log(event)},function(){}),o=!1}catch(t){console.log(t)}}}r.reloadOnReady=function(){setTimeout(function(){location.reload()},400)}}function c(e){$DOC.cbody.attachAll(),$DOC.cbody.unshift("alert:div",{$text:e,"class":"mar20 alert alert-warning col1-sm-offset-3 col-sm-6",style:"z-index:1200;"}),$DOC.cbody.alert.createElement()}var d,u,f,h,p,m,v,g,b,y;this.top!==this.self||this["mw-document-editor"]||(this["mw-document-editor"]=!0,"undefined"!=typeof $ENV?e():(this.defercqueue||(this.defercqueue=[]),this.defercqueue.push(e)),a.prototype=controls.create("DataObject"))}).call(function(){return this||("undefined"!=typeof window?window:global)}());');
+                eval('(function(){"use strict";function e(){function e(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),b=new a,$DOC.cbody.add(y=new i),y.createElement(),f=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),p=f.add("toolbar:div",{"class":"clearfix",style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(e){e&&$(e).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),p.add("save_group:bootstrap.BtnGroup",{"class":"mar5"},function(e){function t(){h.save(),e.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(h.buildHTML())}e.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert to saved state"}).listen("click",function(){h.revert()}),e.add("download:a",{download:decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html","class":"btn btn-default",$text:\'<b class="glyphicon glyphicon-save"></b>\',"data-original-title":"Download edited document"}).listen("mousedown",t).listen("focus",t).listen("click",function(e){try{var t=new Blob([h.buildHTML()]);return window.navigator.msSaveOrOpenBlob(t,decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html"),e.preventDefault(),void 0}catch(n){}}),e.add("save:bootstrap.Button",{"class":"btn btn-default hide",$icon:"edit","data-original-title":"Save"}).listen("click",function(){h.save(),u.write(decodeURI(window.location.pathname),h.buildHTML())})}),p.add("bootstrap.Button",{"class":"mar5 fright",$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var e=location.href,t=e.indexOf("?edit");0>t&&(t=e.indexOf("&edit")),t>=0&&(window.location=e.slice(0,t)+e.slice(t+5))}),p.add("bootstrap.Splitbutton",{"class":"martop5 fright",$icon:"fullscreen"})._add("bootstrap.DropdownItem",{$icon:"chevron-left"})._add("bootstrap.DropdownItem",{$icon:"chevron-right"})._add("bootstrap.DropdownItem",{$icon:"chevron-up"})._add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(e){switch(e.target.className||e.target.firstChild.className){case"glyphicon glyphicon-fullscreen":case"btn btn-default":h.mode=h.mode?0:1;break;case"glyphicon glyphicon-chevron-right":h.position=0;break;case"glyphicon glyphicon-chevron-left":h.position=1;break;case"glyphicon glyphicon-chevron-up":h.position=2;break;case"glyphicon glyphicon-chevron-down":h.position=3}}),p.add(m=new o),f.add(g=new n),f.add(v=new t),f.createElement(),h=new s,u=new r}$(window).load(function(){d=new l(location.origin+location.pathname,e)})}function t(){var e=controls.create("div",{"class":"pad20"}),t=!0;Object.defineProperty(e,"visible",{get:function(){return t},set:function(n){t=n,e.element&&(e.element.style.display=t?"block":"none")}}),e.listen("element",function(e){e&&(e.style.display=t?"block":"none")});var n=e.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){b.title=n.title_edit.value}),b.listen(function(){b.title!==n.title_edit.value&&(n.title_edit.value=b.title)}),e.save=function(){},e}function n(){function e(){if(t.mode){var e=t._element;e&&e.value!==o&&(t.modified=25,o=e.value)}}var t=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});t.code_edit_resize=function(){t.element.style.height=$(f.element).height()-$(p.element).height()+"px"},$(window).on("resize",t.code_edit_resize);var n=0;Object.defineProperty(t,"mode",{get:function(){return n},set:function(e){e>2&&(e=2),e!==n&&(n=e,this.element&&(t.element.style.display=n?"block":"none"),t.code_edit_resize())}});var o;return t.listen("element",function(e){e&&(e.value=o),t.code_edit_resize()}),Object.defineProperty(t,"text",{get:function(){return this.element?this.element.value:o},set:function(e){o=e||"",this.element&&(this.element.value=o),this.modified=0}}),t.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",o))},t.listen("change",e,!0),setInterval(function(){e(),t.modified&&--t.modified<2&&(t.modified=0,t.raise("text",o))},25),t}function o(){function e(){o.selectedIndex=o.controls.indexOf(this)}var t,n=-1,o=p.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(e){var t=m.data;e.length+2<t.length&&t.splice(1,t.length-e.length-2);for(var n=t.length,o=e.length+2;o>n;n++)t.splice(1,0,{});for(var n=1,i=t.length-1;i>n;n++)t[n].text=e[n-1];t.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,a=n.length,s=i.length;s>a;a++)o.add("bootstrap.TabHeader").listen("click",e);for(var a=n.length-1,s=i.length;a>=s;a--){var r=n[a];r.deleteAll(),r.removeListener("click",e),o.remove(r)}for(var a=0,s=i.length;s>a;a++){var l=i[a];l.id=n[a].id;var r=n[a];r.attributes["data-original-title"]=l.hint,r.attributes.$icon=l.icon,r.text(l.text),l===t?r.class("active"):r.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(e){this.selected=e}}),Object.defineProperty(o,"selected",{get:function(){return t},set:function(e){var o=this.data;if("string"!=typeof e){if("number"==typeof e)return e>=0&&e<o.length&&e!==n?this.selected=o[e]:-1===e&&(this.selected=void 0),void 0;var i=o.indexOf(e);if(i>=0){var a=o[i];a!==t&&t&&(this.lastSelected=t)}if(e!==t||i!==n){for(var s=this.controls,r=0,l=s.length;l>r;r++)r===i?s[r].class("active"):s[r].class(null,"active");this.raise("selected",t=e?e:void 0,n=i)}}else{for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.id===e)return this.selected=a,void 0}for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.text===e)return this.selected=a,void 0}}}}),o.checkSelection=function(){var e=this.data;if(e.length){var n=e.indexOf(t);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){var e,t,n=location.href;return n=n.slice(0,n.length-location.hash.length),n+=n.indexOf("?")>0?"&preview":"?preview",y=controls.create("iframe",{sandbox:"",src:n,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),y.updateInnerHtml=function(n,o){e=n,t=o;var i=this.element&&this.element.contentDocument,a=this.$DOC;if(i&&a){var s=i.getElementsByTagName("html")[0];s&&(a.initialize(),s.innerHTML=n,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},y.reload=function(){this.element&&this.deleteAll(),this.createElement()},y.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(n){this.reload()}this.$DOC=this.element&&y.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,t)}.bind(y),0)}),y.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,a=i.sections[t];"object"==typeof a&&a.source_node&&i.processTextNode(a.source_node,t+"\\n"+n)},y}function a(){function e(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(e){return e.outerHTML()}).join("")+(this.closetag||"")}var t,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(a){if(o=a,!i){if(!n)return;i=n.add("div"),i.template(e)}i.controls.length=0,i.opentag="<title>"+a+"</title>",i.closetag="",t=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return t},set:function(a){if(a!==t){t=a;var s={},r={},l=document.implementation.createHTMLDocument(""),c=l.documentElement;c.innerHTML=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(t)[1];for(var d=controls.create("div"),u=[],h=[],f=l.createNodeIterator(c,65535,null,!1),p=f.nextNode();p;){var m=p===c?d:controls.create("div");m.template(e),u.push(p),h.push(m);var v=u.indexOf(p.parentNode);if(v>=0&&h[v].add(m),8===p.nodeType){var g=p.nodeValue,b=g[0];if(m.opentag="<!--"+p.nodeValue+"-->","%"===b);else if("!"===b);else{var y=g.indexOf(" "),w=g.indexOf("\\n"),x=g.indexOf("->");if(0>y&&0>w&&0>x);else if(0>y&&x>0);else if(w>0&&(0>y||y>w)&&(y=w),y>0&&128>y){var O=g.slice(0,y);s[O]=g.slice(y+1),r[O]=m}}}else if(p===c)m.opentag="<!DOCTYPE html>\\n"+/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(t)[1]+"\\n",m.closetag="\\n</html>";else{var T=p.outerHTML,S=p.innerHTML;if(S){var k=T.lastIndexOf(S);0>k?m.opentag=T:(m.opentag=T.slice(0,k),m.closetag=T.slice(k+S.length))}else m.opentag=T?T:p.nodeValue}p=f.nextNode()}var E=l.getElementsByTagName("head")[0];n=E&&h[u.indexOf(E)];var I=l.getElementsByTagName("title")[0];I?(o=I.textContent,i=h[u.indexOf(I)]):(o="",i=null),this.chtml=d,this.sections=s,this.seccontrols=r,this.raise()}}}),this.updateNamedSection=function(e,n){var o=this.seccontrols[e];o&&(this.sections[e]=n,o.opentag="<!--"+e+"\\n"+n+"-->\\n",t=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function s(){function e(e,t,n,o,i,a,s,r,l,c,d,u){var h=y.element.style;h.top=e,h.right=t,h.bottom=n,h.left=o,h.width=i,h.height=a,h=f.element.style,h.top=s,h.right=r,h.bottom=l,h.left=c,h.width=d,h.height=u}function t(){if(i)switch(a){case 1:e("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 2:e("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 3:e("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:e("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(a){case 1:e("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:e("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:e("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:e("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}g.code_edit_resize()}var n;b.listen(function(){h.edit_html=b.html,m.setTabs(Object.keys(b.sections)),y.updateInnerHtml(b.chtml.innerHTML(),Object.keys(b.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(e){e!==o&&(o=e,b.html=o)}}),this.checkEdits=function(){var e=m.selected;e&&e.isoptions?v.save():e&&g.save()},m.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,v.visible=0===m.selectedIndex}),this.updateCodeEdit=function(){var e=m.selected;switch(g.mode=!e||e.isoptions?0:e.ishtml?1:2,g.mode){case 1:g.text=h.edit_html;break;case 2:var t=m.selected;t?(g.section=t.text,g.text=b.sections[t.text]):g.text="";break;default:g.text=""}},g.listen("text",function(e){switch(g.mode){case 1:h.edit_html=e,h.modified=25;break;case 2:h.updateNamedSection(g.section,g.text),h.modified=25}}),this.updateNamedSection=function(e,t){b.updateNamedSection(e,t),o=b.buildHTML(),y.updateNamedSection(e,t,b.chtml.innerHTML())},this.save=function(){this.checkEdits();var e=d.dataobject.data;e.selected=m.selected&&m.selected.text,e.html=this.edit_html,e.html===n&&(e.delete=!0),d.dataobject.raise(),this.modified=0},this.revert=function(){this.edit_html=n,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return g.save(),b.buildHTML()};var i=0,a=0,s=600,r=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(e){i=e,t(),h.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return a},set:function(e){a=e,t(),h.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,a,s,r].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),a=parseInt(l[1]),s=parseInt(l[2]),r=parseInt(l[3])}catch(c){}t()}d.restore(function(){$.ajax({url:location.href,type:"GET",dataType:"html"}).done(function(e){var t=localStorage&&localStorage.getItem("default selected page");m.lastSelected=d.dataobject.data.selected||t||m.data[0],n=e.replace(/\\r/g,""),h.edit_html=d.dataobject.data.html||n,m.checkSelection()})}),setInterval(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this),25)}function r(){function e(e){var t=e.lastIndexOf("/");return t>=0&&(e=e.slice(t+1)),t=e.lastIndexOf("\\\\"),t>=0&&(e=e.slice(t+1)),e}this.environment=0,this.fileName=e(location.href);var t;if("function"==typeof require&&"file:"===location.protocol&&(t=require("fs")))this.environment=1,this.editable=!0,p.save_group.save.class(null,"hide"),this.write=function(n,o){try{t.writeFileSync(e(n),o),d.reloadOnReady()}catch(i){console.log(i)}};else if("file:"!==location.protocol){var n=location.href,o=n.lastIndexOf("/"),i=n.slice(0,o)+"/@";this.write=function(e,t){i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",async:0,data:JSON.stringify({command:"write",url:e,data:t})}).done(function(e){"success"===e.result&&d.reloadOnReady()})},i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",data:JSON.stringify({command:"options"})}).done(function(e){"success"===e.result&&(this.environment=2,(this.editable=e.editable)&&p.save_group.save.class(null,"hide"))})}}function l(e,t){function n(){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,a,s,r=this,l=r.dataobject=controls.create("DataObject");if(l.data={key:e,history:[]},l.listen(function(){o=!0}),setInterval(function(){o&&r.write()},25),window.indexedDB){try{var d=window.indexedDB.open("markdown-webdocs.editor.db",1);d.onsuccess=function(e){i=e.target.result,t()},d.onupgradeneeded=function(e){i=e.target.result,i.createObjectStore("drafts",{keyPath:"key"}),t()},d.onerror=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(e)},d.onblocked=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(e)}}catch(u){return n(),void 0}r.restore=function(t){try{var n=i.transaction(["drafts"],"readonly").objectStore("drafts").get(e);n.onsuccess=function(n){var i=l.data;controls.extend(i,n.target.result),i.key=e,Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},n.onerror=function(e){console.log(e)}}catch(a){}},r.write=function(){if(s)try{var t=i.transaction(["drafts"],"readwrite").objectStore("drafts"),n=l.data;n.delete?(delete n.delete,t.delete(e)):t.put(n),localStorage&&localStorage.setItem("default selected page",n.selected),o=!1}catch(a){console.log(a)}}}else{if(!window.openDatabase)return n(),void 0;try{var a=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs drafts",0);if(!a)return n(),void 0;a.transaction(function(e){e.executeSql("CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,t)}catch(u){return n(),void 0}r.restore=function(t){try{a.transaction(function(n){n.executeSql("SELECT value FROM drafts WHERE key = ? LIMIT 1",[e],function(e,n){var i=l.data;if(n.rows.length)try{controls.extend(i,JSON.parse(n.rows.item(0).value))}catch(a){}Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},function(e){console.log(e)})},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(s)try{a.transaction(function(t){var n=l.data;n.delete?(delete n.delete,t.executeSql("DELETE FROM drafts WHERE key = ?",[e],function(){},function(e){console.log(e)})):t.executeSql("INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",[e,JSON.stringify(n)],function(){},function(e){console.log(e)})},function(){console.log(event)},function(){}),o=!1}catch(t){console.log(t)}}}r.reloadOnReady=function(){setTimeout(function(){location.reload()},400)}}function c(e){$DOC.cbody.attachAll(),$DOC.cbody.unshift("alert:div",{$text:e,"class":"mar20 alert alert-warning col1-sm-offset-3 col-sm-6",style:"z-index:1200;"}),$DOC.cbody.alert.createElement()}var d,u,h,f,p,m,v,g,b,y;this.top!==this.self||this["mw-document-editor"]||(this["mw-document-editor"]=!0,"undefined"!=typeof $ENV?e():(this.defercqueue||(this.defercqueue=[]),this.defercqueue.push(e)),a.prototype=controls.create("DataObject"))}).call(function(){return this||("undefined"!=typeof window?window:global)}());');
             
             window.addEventListener('keydown', function(event) {
                 if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
@@ -11459,33 +11459,33 @@ function Bootstrap(controls) {
     };
     
     var CONTROL_STYLE = ' default info link success primary warning danger ';
-    control_prototype.getControlStyle = function(parameters, style_enum) {
-        parameters = parameters || this.parameters;
-        style_enum = style_enum || CONTROL_STYLE;
-        var cstyle = parameters.style || parameters['/style'];
+    control_prototype.getControlStyle = function() {
+        var parameters = this.parameters,
+            cstyle = parameters.style || parameters['/style'];
         
         if (!cstyle)
-        for(var prop in parameters) {
-            var lowercase = prop.toLowerCase();
-            if (style_enum.indexOf(lowercase) > 0 && parameters[prop] === true)
-                cstyle = lowercase;
-        }
+        for(var prop in parameters)
+        if (parameters[prop])
+            cstyle = prop;
         
         return cstyle || 'default';
     };
     
-    var CONTROL_SIZE = ' large small ';
-    control_prototype.getControlSize = function(parameters, size_enum) {
-        parameters = parameters || this.parameters;
-        size_enum = size_enum || CONTROL_SIZE;
-        var csize = parameters.size || parameters['/size'];
+    var CONTROL_SIZE = {
+        'xtra-small':'xtra-small', 'xs':'xtra-small', 'btn-xs':'xtra-small', '-2':'xtra-small',
+        'small':'small', 'sm':'small', 'btn-sm':'small', '-1':'small',
+        'default':'', '':'', '0':'',
+        'large':'large', 'lg':'large', 'btn-lg':'large', '1':'large',
+        'xtra-large':'xtra-large', 'xl':'xtra-large', '2':'xtra-large'
+    };
+    control_prototype.getControlSize = function() {
+        var parameters = this.parameters,
+            csize = CONTROL_SIZE[parameters.size || parameters['/size']];
         
         if (!csize)
-        for(var prop in parameters) {
-            var lowercase = prop.toLowerCase();
-            if (size_enum.indexOf(lowercase) > 0 && parameters[prop] === true)
-                csize = lowercase;
-        }
+        for(var prop in parameters)
+        if (!csize)
+            csize = CONTROL_SIZE[prop];
         
         return csize || '';
     };
@@ -11494,11 +11494,10 @@ function Bootstrap(controls) {
     // Label
     // 
     function Label(parameters, attributes) {
-        this.initialize('bootstrap.Label', parameters, attributes, Label.template);
-         
-        this.listen('type', function() {
-            this.class('label label-' + this.getControlStyle(), 'label-default label-link label-primary label-success label-info label-warning label-danger');
-        });
+        this.initialize('bootstrap.Label', parameters, attributes, Label.template)
+            .listen('type', function() {
+                this.class('label label-' + this.getControlStyle(), 'label-default label-link label-primary label-success label-info label-warning label-danger');
+            });
     };
     Label.prototype = control_prototype;
     Label.template = doT.template(
@@ -11561,7 +11560,7 @@ function Bootstrap(controls) {
     DropdownItem.prototype = control_prototype;
     DropdownItem.template = doT.template(
 '<li id="{{=it.id}}">\
-<a data-toggle="tab"{{=it.printAttributes("-id")}}>\
+<a{{=it.printAttributes("-id")}}>\
 {{? it.attributes.$icon }}<span class="glyphicon glyphicon-{{=it.attributes.$icon}}"></span>&nbsp;{{?}}\
 {{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}\
 </a></li>\n');
@@ -11627,39 +11626,19 @@ function Bootstrap(controls) {
     // Example:
     //  controls.create('bootstrap.Button/style=success', {$icon: "glass"});
     //
-    bootstrap.BUTTON_SIZES = {
-        '0':'btn-xs', 'btn-xs':'btn-xs', 'xtra-small':'btn-xs',
-        '1':'btn-sm', 'btn-sm':'btn-sm', 'small':'btn-sm',
-        '2':'',       'default':'',
-        '3':'btn-lg', 'btn-lg':'btn-lg', 'large':'btn-lg'
-    };
+    var BUTTON_SIZES = { 'xtra-small':'btn-xs', small:'btn-sm', large:'btn-lg' };
+    function buttonTypeHandler() {
+        this.class('btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim(),
+        this.attributes.class ? 'btn-default btn-primary btn-success btn-info btn-warning btn-danger btn-link btn-xs btn-sm btn-lg' : null);
+    }
     function Button(parameters, attributes) {
-        this.initialize('bootstrap.Button', parameters, attributes, Button.template);
-        
-        this.listen('type', function() {
-            var style = this.parameter('style') || 'default';
-            Object.keys(parameters).some(function(param) { if (CONTROL_STYLE.indexOf(param) >= 0) style = param; });
-            
-            this.class('btn btn-' + style, 'btn-default btn-primary btn-success btn-info btn-warning btn-danger btn-link');
-            
-            var size = bootstrap.BUTTON_SIZES['' + this.parameter('size') || '2'];
-            this.class(size, 'btn-xs btn-sm btn-lg');
-        });
-        
-        // get/set size
-        this.size = function(size) {
-            if (arguments.length > 0) {
-                this.parameters.size = size;
-                this.raise('type');
-            }
-            
-            return this.parameter('size');
-        };
+        this.initialize('bootstrap.Button', parameters, attributes, Button.template)
+            .listen('type', this, buttonTypeHandler);
     };
     Button.prototype = control_prototype;
     Button.template = function(it) {
         var attrs = it.attributes;
-        return '<button' + it.printAttributes() + '>'
+        return '<button type="button"' + it.printAttributes() + '>'
             + (attrs.$icon ? ('<b class="glyphicon glyphicon-' + attrs.$icon + '"></b>') : '')
             + ((attrs.$icon && attrs.$text) ? '&nbsp;' : '')
             + (attrs.$text || '')
@@ -11671,22 +11650,38 @@ function Bootstrap(controls) {
     // Splitbutton
     //
     function Splitbutton(parameters, attributes) {
-        this.initialize('bootstrap.Splitbutton', parameters, attributes, Splitbutton.template);
+        this.initialize('bootstrap.Splitbutton', parameters, attributes, Splitbutton.template)
+            .class('btn-group');
+         this.btn_class = 'btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim();
     };
     Splitbutton.prototype = control_prototype;
-    Splitbutton.template = doT.template(
-'<div id="{{=it.id}}" class="btn-group">\
-<button type="button" class="btn btn-primary {{=it.attributes.class}}"{{=it.printAttributes("style")}}>{{=it.attributes.$text}}\
-{{? it.attributes.$icon}}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
-</button>\
-<button type="button" class="btn btn-primary {{=it.attributes.class}} dropdown-toggle" data-toggle="dropdown">\
-<span class="caret"></span>\
-</button>\
-{{? (it.controls && it.controls.length > 0) }}\
-<ul class="dropdown-menu">\
-{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\
-</ul>{{?}}\
-</div>');
+    Splitbutton.template = function(it) {
+var attributes = it.attributes,
+out = '<div' + it.printAttributes() + '>\
+<button type="button" class="' + it.btn_class + '">'
+ + (attributes.$icon ? ('<b class="glyphicon glyphicon-' + attributes.$icon + '"> </b>') : '')
+ + (attributes.$text || '')
+ + '</button>\
+<button type="button" class="' + it.btn_class + ' dropdown-toggle" data-toggle="dropdown"><span class="caret"></span>\
+</button>';
+if (it.controls.length)
+out += '<ul class="dropdown-menu">' + it.printControls() + '</ul>\
+</div>';
+return out;
+};
+//    Splitbutton.template = doT.template(
+//'<div id="{{=it.id}}" class="btn-group">\
+//<button type="button" class="btn btn-primary {{=it.attributes.class}}"{{=it.printAttributes("style")}}>{{=it.attributes.$text}}\
+//{{? it.attributes.$icon}}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
+//</button>\
+//<button type="button" class="btn btn-primary {{=it.attributes.class}} dropdown-toggle" data-toggle="dropdown">\
+//<span class="caret"></span>\
+//</button>\
+//{{? (it.controls && it.controls.length > 0) }}\
+//<ul class="dropdown-menu">\
+//{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\
+//</ul>{{?}}\
+//</div>');
     controls.typeRegister('bootstrap.Splitbutton', Splitbutton);
     
     
@@ -11694,10 +11689,8 @@ function Bootstrap(controls) {
     // 
     //
     function BtnGroup(parameters, attributes) {
-        this.initialize('bootstrap.BtnGroup', parameters, attributes, BtnGroup.template);
-        
-        if (!this.attributes.class || this.attributes.class.indexOf('btn-group') < 0)
-            this.class('btn-group');
+        this.initialize('bootstrap.BtnGroup', parameters, attributes, BtnGroup.template)
+            .class('btn-group');
     };
     BtnGroup.prototype = control_prototype;
     controls.typeRegister('bootstrap.BtnGroup', BtnGroup);
@@ -11706,8 +11699,8 @@ function Bootstrap(controls) {
     // TabPanelHeader
     // 
     function TabPanelHeader(parameters, attributes) {
-        this.initialize('bootstrap.TabPanelHeader', parameters, attributes, TabPanelHeader.template);
-        this.class('nav nav-tabs tabpanel-header');
+        this.initialize('bootstrap.TabPanelHeader', parameters, attributes, TabPanelHeader.template)
+            .class('nav nav-tabs tabpanel-header');
     };
     TabPanelHeader.prototype = control_prototype;
     TabPanelHeader.template = function(it) { return '<ul' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</ul>'; };
@@ -11717,8 +11710,8 @@ function Bootstrap(controls) {
     // TabHeader
     // 
     function TabHeader(parameters, attributes) {
-        this.initialize('bootstrap.TabHeader', parameters, attributes, TabHeader.template);
-        this.class('tab-header');
+        this.initialize('bootstrap.TabHeader', parameters, attributes, TabHeader.template)
+            .class('tab-header');
     };
     TabHeader.prototype = control_prototype;
     TabHeader.template = doT.template(
@@ -11732,8 +11725,8 @@ function Bootstrap(controls) {
     // TabPanelBody
     // 
     function TabPanelBody(parameters, attributes) {
-        this.initialize('bootstrap.TabPanelBody', parameters, attributes);
-        this.class('tab-content tabpanel-body');
+        this.initialize('bootstrap.TabPanelBody', parameters, attributes)
+            .class('tab-content tabpanel-body');
     };
     TabPanelBody.prototype = control_prototype;
     controls.typeRegister('bootstrap.TabPanelBody', TabPanelBody);
@@ -11742,8 +11735,8 @@ function Bootstrap(controls) {
     // TabPage
     // 
     function TabPage(parameters, attributes) {
-        this.initialize('bootstrap.TabPage', parameters, attributes);
-        this.class('tab-pane fade');
+        this.initialize('bootstrap.TabPage', parameters, attributes)
+            .class('tab-pane fade');
     };
     TabPage.prototype = control_prototype;
     controls.typeRegister('bootstrap.TabPage', TabPage);
@@ -11752,8 +11745,8 @@ function Bootstrap(controls) {
     // Form
     // 
     function Form(parameters, attributes) {
-        this.initialize('bootstrap.Form', parameters, attributes, Form.template);
-        attributes.role = 'form';
+        this.initialize('bootstrap.Form', parameters, attributes, Form.template)
+            .attr('role', 'form');
     };
     Form.prototype = control_prototype;
     Form.template = function(it) { return '<form' + it.printAttributes() + '>' + it.printControls() + '</form>'; };
@@ -11763,8 +11756,8 @@ function Bootstrap(controls) {
     // FormGroup
     // 
     function FormGroup(parameters, attributes) {
-        this.initialize('bootstrap.FormGroup', parameters, attributes);
-        this.class('form-group');
+        this.initialize('bootstrap.FormGroup', parameters, attributes)
+            .class('form-group');
     };
     FormGroup.prototype = control_prototype;
     controls.typeRegister('bootstrap.FormGroup', FormGroup);
@@ -11773,8 +11766,8 @@ function Bootstrap(controls) {
     // ControlLabel
     // 
     function ControlLabel(parameters, attributes) {
-        this.initialize('bootstrap.ControlLabel', parameters, attributes, ControlLabel.template);
-        this.class('control-label');
+        this.initialize('bootstrap.ControlLabel', parameters, attributes, ControlLabel.template)
+            .class('control-label');
     };
     ControlLabel.prototype = control_prototype;
     ControlLabel.template = function(it) { return '<label' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</label>'; };
@@ -11784,9 +11777,9 @@ function Bootstrap(controls) {
     // ControlInput
     // 
     function ControlInput(parameters, attributes) {
-        var control = new controls['controls.input'](parameters, attributes);
+        var control = new controls['controls.input'](parameters, attributes)
+            ._class('form-control');
         control.__type = 'bootstrap.ControlInput';
-        control.class('form-control');
         return control;
     };
     controls.factoryRegister('bootstrap.ControlInput', ControlInput);
@@ -11798,10 +11791,10 @@ function Bootstrap(controls) {
     //  $data {DataArray}
     //
     function ControlSelect(parameters, attributes) {
-        var control = new controls['controls.select'](parameters, attributes);
+        var control = new controls['controls.select'](parameters, attributes)
+            ._class('form-control')
+            ._style('display:inline-block;');
         control.__type = 'bootstrap.ControlSelect';
-        control.class('form-control');
-        control.style('display:inline-block;');
         return control;
     };
     controls.factoryRegister('bootstrap.ControlSelect', ControlSelect);
@@ -13040,6 +13033,8 @@ function Controls(doT) {
             enumerable: true, writable: true,
             value: (typeof(inner_template) === 'string') ? doT.template(inner_template) : inner_template
         });
+    
+        return object;
     };
     
     // plug in control constructor to the controls infrastructure
@@ -13333,14 +13328,8 @@ function Controls(doT) {
     controls.control_prototype = new function() {
         
         this.initialize = function(__type, parameters, _attributes, outer_template, inner_template) {
-            controls.controlInitialize(this, __type, parameters, _attributes, outer_template, inner_template);
+            return controls.controlInitialize(this, __type, parameters, _attributes, outer_template, inner_template);
         };
-        
-        // todo del:
-        Object.defineProperty(this, "$", {
-            enumerable: true, 
-            get: function() { return (this._element) ? $(this._element) : $('#' + this.id); }
-        });
         
         Object.defineProperty(this, "name", {
             enumerable: true, 
@@ -13863,6 +13852,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
         };
         
+        this._attr = function(name, value) {
+            this.attr(name, value);
+            return this;
+        };
+        
         // set attributes
         this.attrs = function(_attributes) {
             var attributes = this.attributes;
@@ -14027,6 +14021,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             return this.attributes.style;
         };
         
+        this._style = function(style) {
+            this.style(style);
+            return this;
+        };
+        
         this.class = function(set, remove) {
             var attributes = this.attributes;
             
@@ -14066,6 +14065,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             
             return attributes.class;
+        };
+        
+        this._class = function(set, remove) {
+            this.class(set, remove);
+            return this;
         };
         
         // Create control and insert to the .controls collection
