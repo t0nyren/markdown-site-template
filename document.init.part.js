@@ -545,7 +545,7 @@ $ENV = {
                 if (!bcss) {
                     var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
                     this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + '/bootstrap.css'), function(state) {
-                        if (state < 0)  this.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
+                        if (state < 0) $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
                     }, 'afterbegin');
                 }
             }
@@ -559,12 +559,9 @@ $ENV = {
             window.addEventListener('keydown', function(event) {
                 if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
                     if (edit_mode) {
-                        var url = location.href, pos = url.lastIndexOf('edit'), len = 4;
-                        if (url[pos-1] === '?') {
-                            pos--;
-                            len++;
-                        }
-                        window.location = url.slice(0, pos) + url.slice(pos + len);
+                        var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
+                        if (pos >= 0)
+                            window.location = url.slice(0, pos) + url.slice(pos + 5);
                     } else
                         window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
                 }
