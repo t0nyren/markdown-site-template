@@ -1114,7 +1114,6 @@
         $DOC.cbody.unshift('alert:div', {$text:message, class:'mar20 alert alert-warning col1-sm-offset-3 col-sm-6', style:'z-index:1200;'});
         $DOC.cbody.alert.createElement();
     }
-    
 
-    
+
 }).call(function() { return this || (typeof window !== 'undefined' ? window : global); }());
