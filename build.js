@@ -99,6 +99,10 @@ bfy.on('exit', function()
         zip('markdown-site-template.zip', 'markdown-site-template',
         [
             'bootstrap.css',
+            'fonts\\glyphicons-halflings-regular.eot',
+            'fonts\\glyphicons-halflings-regular.svg',
+            'fonts\\glyphicons-halflings-regular.ttf',
+            'fonts\\glyphicons-halflings-regular.woff',
             'document.js',
             'document.min.js',
             'index.html',

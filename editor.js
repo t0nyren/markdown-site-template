@@ -1,5 +1,5 @@
 (function() { 'use strict';
-    var db, host, controller, table, toolbar, tabheaders, options, code_edit, parser, preview;
+    var db, host, cpanel, controller, table, toolbar, tabheaders, options, code_edit, parser, preview;
     if (this.top !== this.self || this['mw-document-editor']) return; this['mw-document-editor'] = true;
     if (typeof $ENV !== 'undefined') initialize(); else { if (!this.defercqueue) this.defercqueue = []; this.defercqueue.push(initialize); }
 
@@ -36,14 +36,14 @@
                 //toolbar.save_group.add('formatting:bootstrap.Button', {$icon:'font',      'data-original-title':'Formatting toolbar'});
                 
                 // revert button
-                save_group.add('revert:bootstrap.Button',   {$icon:'backward',  'data-original-title':'Revert to saved state'})
+                save_group.add('revert:bootstrap.Button',   {$icon:'backward',  'data-original-title':'Revert'})
                     .listen('click', function() {
                         controller.revert();
                     });
                     
                 // download button
                 save_group.add('download:a', { download: (decodeURI(location.pathname).split('/').slice(-1)[0] || 'document.html'),
-                    class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download edited document'})
+                    class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download'})
                     .listen('mousedown', setDataUrl)
                     .listen('focus', setDataUrl)
                     .listen('click', function(event) {
@@ -63,50 +63,53 @@
                     }
                     
                 // save button
-                save_group.add('save:bootstrap.Button', { class:'btn btn-default hide', $icon:'edit', 'data-original-title':'Save'})
+                save_group
+                    .add('save:bootstrap.Button', {class:'btn btn-default disabled', $icon:'edit', 'data-original-title':'Save'})
+                        .listen('click', function() {
+                            controller.save();
+                            host.write(decodeURI(window.location.pathname), controller.buildHTML());
+                        });
+                        
+                toolbar.add('cpanel:bootstrap.Button', {class:'hide btn btn-default fleft martop5 marbottom5 marleft5 padleft15 padright15', $icon:'cog', 'data-original-title':'Control panel'})
                     .listen('click', function() {
-                        controller.save();
-                        host.write(decodeURI(window.location.pathname), controller.buildHTML());
+
                     });
             });
             
             // buttons fullscreen, flip, close
             
-//            toolbar.add('controls_group:bootstrap.BtnGroup', {class:'mar5 fright'}, function(controls_group) {
-                toolbar.add('bootstrap.Button', {class:'mar5 fright', $icon:'remove', 'data-original-title':'Close editor (Ctrl-F12)'})
-                    .listen('click', function() {
-                        var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
-                        if (pos >= 0)
-                            window.location = url.slice(0, pos) + url.slice(pos + 5);
+            toolbar.add('bootstrap.Button', {class:'mar5 fright', $icon:'remove', 'data-original-title':'Close editor (Ctrl-F12)'})
+                .listen('click', function() {
+                    var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
+                    if (pos >= 0)
+                        window.location = url.slice(0, pos) + url.slice(pos + 5);
+                });
+
+            toolbar.add('bootstrap.Splitbutton', {class:'martop5 fright', $icon:'fullscreen'})
+                ._add('bootstrap.DropdownItem', {$icon:'chevron-left'})
+                ._add('bootstrap.DropdownItem', {$icon:'chevron-right'})
+                ._add('bootstrap.DropdownItem', {$icon:'chevron-up'})
+                ._add('bootstrap.DropdownItem', {$icon:'chevron-down'})
+                    .listen('click', function(event) {
+                        switch(event.target.className || event.target.firstChild.className) {
+                            case 'glyphicon glyphicon-fullscreen':
+                            case 'btn btn-default':
+                                controller.mode = (controller.mode) ? 0 : 1;
+                                break;
+                            case 'glyphicon glyphicon-chevron-right':
+                                controller.position = 0;
+                                break;
+                            case 'glyphicon glyphicon-chevron-left':
+                                controller.position = 1;
+                                break;
+                            case 'glyphicon glyphicon-chevron-up':
+                                controller.position = 2;
+                                break;
+                            case 'glyphicon glyphicon-chevron-down':
+                                controller.position = 3;
+                                break;
+                        }
                     });
-                    
-                toolbar.add('bootstrap.Splitbutton', {class:'martop5 fright', $icon:'fullscreen'})
-                    ._add('bootstrap.DropdownItem', {$icon:'chevron-left'})
-                    ._add('bootstrap.DropdownItem', {$icon:'chevron-right'})
-                    ._add('bootstrap.DropdownItem', {$icon:'chevron-up'})
-                    ._add('bootstrap.DropdownItem', {$icon:'chevron-down'})
-                        .listen('click', function(event) {
-                            switch(event.target.className || event.target.firstChild.className) {
-                                case 'glyphicon glyphicon-fullscreen':
-                                case 'btn btn-default':
-                                    controller.mode = (controller.mode) ? 0 : 1;
-                                    break;
-                                case 'glyphicon glyphicon-chevron-right':
-                                    controller.position = 0;
-                                    break;
-                                case 'glyphicon glyphicon-chevron-left':
-                                    controller.position = 1;
-                                    break;
-                                case 'glyphicon glyphicon-chevron-up':
-                                    controller.position = 2;
-                                    break;
-                                case 'glyphicon glyphicon-chevron-down':
-                                    controller.position = 3;
-                                    break;
-                            }
-                        });
-                
-//            });
             
             // tabheaders
             
@@ -836,7 +839,7 @@
         if (typeof require === 'function' && location.protocol === 'file:' && (fs = require('fs'))) {
             this.environment = 1;
             this.editable = true;
-            toolbar.save_group.save.class(null, 'hide');
+            toolbar.save_group.save.class(null, 'disabled');
             
             // write file
             this.write = function(fname, data) {
@@ -867,7 +870,7 @@
                     if (response.result === 'success') {
                         this.environment = 2;
                         if (this.editable = response.editable)
-                            toolbar.save_group.save.class(null, 'hide');
+                            toolbar.save_group.save.class(null, 'disabled');
                     }
                 });
         }

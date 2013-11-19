@@ -505,18 +505,9 @@ $ENV = {
 .bold {font-weight:bold;} .justify {text-align:justify;} .nowrap {white-space:nowrap;} .l {font-size:90%;} .ll {font-size:80%;}\
 .fleft {float:left;} .fright {float:right;} .fnone {float:none;}\
 .left {text-align:left;} .right {text-align:right;} .clear {clear:both;} .clearleft {clear:left;} .clearright {clear:right;}\
-.center {text-align:center;vertical-align:middle;} .hcenter {text-align:center;} .vcenter {vertical-align:middle;} .bottom {vertical-align:bottom;}\
-.mar0 {margin:0;} .martop0 {margin-top:0;}\
-.mar5 {margin:5px;} .martop5 {margin-top:5px;} .marbottom5 {margin-top:5px;}\
-.mar10 {margin:10px;} .martop10 {margin-top:10px;} .marbottom10 {margin-bottom:10px;} .marright10 {margin-bottom:10px;}\
-.mar15 {margin:15px;} .martop15 {margin-top:15px;} .marbottom15 {margin-bottom:15px;}\
-.mar20 {margin:20px;} .martop20 {margin-top:20px;} .marbottom20 {margin-bottom:20px;} .marleft20 {margin-left:20px;}\
-.pad0 {padding:0;} .padtop0 {padding-top:0;}\
-.pad5 {padding:5px;} .pad10 {padding:10px;} .pad15 {padding:15px;} .pad20 {padding:20px;}\
-.padtop15 {padding-top:15px;} .padtop20 {padding-top:20px;}\
-.padleft10 {padding-left:10px;} .padleft15 {padding-left:15px;} .padleft20 {padding-left:20px;}\
-.padright5 {padding-right:5px;} .padright20 {padding-right:20px;}\
-');
+.center {text-align:center;vertical-align:middle;} .hcenter {text-align:center;} .vcenter {vertical-align:middle;} .bottom {vertical-align:bottom;}'
+ + ['0','5','10','15','20'].map(function(val) { return '.mar' + val + '{margin:' + val + 'px}.martop' + val + '{margin-top:' + val + 'px}.marright' + val + '{margin-right:' + val + 'px}.marbottom' + val + '{margin-bottom:' + val + 'px}.marleft' + val + '{margin-left:' + val + 'px}.pad' + val + '{padding:' + val + 'px}.padtop' + val + '{padding-top:' + val + 'px}.padright' + val + '{padding-right:' + val + 'px}.padbottom' + val + '{padding-bottom:' + val + 'px}.padleft' + val + '{padding-left:' + val + 'px}'; }).join('')
+);     
         var edit_mode = this.options.edit_mode;
         
         if (theme && edit_mode !== 1) {
