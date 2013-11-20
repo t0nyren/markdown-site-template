@@ -11395,7 +11395,7 @@ $ENV = {
         // open editor
         if (this.options.editable) {
             if (edit_mode === 1 && window.top === window.self)
-                eval('(function(){"use strict";function e(){function e(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),b=new a,$DOC.cbody.add(y=new i),y.createElement(),h=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),p=h.add("toolbar:div",{"class":"clearfix",style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(e){e&&$(e).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),p.add("save_group:bootstrap.BtnGroup",{"class":"mar5"},function(e){function t(){f.save(),e.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(f.buildHTML())}e.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){f.revert()}),e.add("download:a",{download:decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html","class":"btn btn-default",$text:\'<b class="glyphicon glyphicon-save"></b>\',"data-original-title":"Download"}).listen("mousedown",t).listen("focus",t).listen("click",function(e){try{var t=new Blob([f.buildHTML()]);return window.navigator.msSaveOrOpenBlob(t,decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html"),e.preventDefault(),void 0}catch(n){}}),e.add("save:bootstrap.Button",{"class":"btn btn-default disabled",$icon:"edit","data-original-title":"Save"}).listen("click",function(){f.save(),u.write(decodeURI(window.location.pathname),f.buildHTML())}),p.add("cpanel:bootstrap.Button",{"class":"hide btn btn-default fleft martop5 marbottom5 marleft5 padleft15 padright15",$icon:"cog","data-original-title":"Control panel"}).listen("click",function(){})}),p.add("bootstrap.Button",{"class":"mar5 fright",$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var e=location.href,t=e.indexOf("?edit");0>t&&(t=e.indexOf("&edit")),t>=0&&(window.location=e.slice(0,t)+e.slice(t+5))}),p.add("bootstrap.Splitbutton",{"class":"martop5 fright",$icon:"fullscreen"})._add("bootstrap.DropdownItem",{$icon:"chevron-left"})._add("bootstrap.DropdownItem",{$icon:"chevron-right"})._add("bootstrap.DropdownItem",{$icon:"chevron-up"})._add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(e){switch(e.target.className||e.target.firstChild.className){case"glyphicon glyphicon-fullscreen":case"btn btn-default":f.mode=f.mode?0:1;break;case"glyphicon glyphicon-chevron-right":f.position=0;break;case"glyphicon glyphicon-chevron-left":f.position=1;break;case"glyphicon glyphicon-chevron-up":f.position=2;break;case"glyphicon glyphicon-chevron-down":f.position=3}}),p.add(m=new o),h.add(g=new n),h.add(v=new t),h.createElement(),f=new s,u=new r}$(window).load(function(){d=new l(location.origin+location.pathname,e)})}function t(){var e=controls.create("div",{"class":"pad20"}),t=!0;Object.defineProperty(e,"visible",{get:function(){return t},set:function(n){t=n,e.element&&(e.element.style.display=t?"block":"none")}}),e.listen("element",function(e){e&&(e.style.display=t?"block":"none")});var n=e.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){b.title=n.title_edit.value}),b.listen(function(){b.title!==n.title_edit.value&&(n.title_edit.value=b.title)}),e.save=function(){},e}function n(){function e(){if(t.mode){var e=t._element;e&&e.value!==o&&(t.modified=25,o=e.value)}}var t=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});t.code_edit_resize=function(){t.element.style.height=$(h.element).height()-$(p.element).height()+"px"},$(window).on("resize",t.code_edit_resize);var n=0;Object.defineProperty(t,"mode",{get:function(){return n},set:function(e){e>2&&(e=2),e!==n&&(n=e,this.element&&(t.element.style.display=n?"block":"none"),t.code_edit_resize())}});var o;return t.listen("element",function(e){e&&(e.value=o),t.code_edit_resize()}),Object.defineProperty(t,"text",{get:function(){return this.element?this.element.value:o},set:function(e){o=e||"",this.element&&(this.element.value=o),this.modified=0}}),t.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",o))},t.listen("change",e,!0),setInterval(function(){e(),t.modified&&--t.modified<2&&(t.modified=0,t.raise("text",o))},25),t}function o(){function e(){o.selectedIndex=o.controls.indexOf(this)}var t,n=-1,o=p.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(e){var t=m.data;e.length+2<t.length&&t.splice(1,t.length-e.length-2);for(var n=t.length,o=e.length+2;o>n;n++)t.splice(1,0,{});for(var n=1,i=t.length-1;i>n;n++)t[n].text=e[n-1];t.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,a=n.length,s=i.length;s>a;a++)o.add("bootstrap.TabHeader").listen("click",e);for(var a=n.length-1,s=i.length;a>=s;a--){var r=n[a];r.deleteAll(),r.removeListener("click",e),o.remove(r)}for(var a=0,s=i.length;s>a;a++){var l=i[a];l.id=n[a].id;var r=n[a];r.attributes["data-original-title"]=l.hint,r.attributes.$icon=l.icon,r.text(l.text),l===t?r.class("active"):r.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(e){this.selected=e}}),Object.defineProperty(o,"selected",{get:function(){return t},set:function(e){var o=this.data;if("string"!=typeof e){if("number"==typeof e)return e>=0&&e<o.length&&e!==n?this.selected=o[e]:-1===e&&(this.selected=void 0),void 0;var i=o.indexOf(e);if(i>=0){var a=o[i];a!==t&&t&&(this.lastSelected=t)}if(e!==t||i!==n){for(var s=this.controls,r=0,l=s.length;l>r;r++)r===i?s[r].class("active"):s[r].class(null,"active");this.raise("selected",t=e?e:void 0,n=i)}}else{for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.id===e)return this.selected=a,void 0}for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.text===e)return this.selected=a,void 0}}}}),o.checkSelection=function(){var e=this.data;if(e.length){var n=e.indexOf(t);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){var e,t,n=location.href;return n=n.slice(0,n.length-location.hash.length),n+=n.indexOf("?")>0?"&preview":"?preview",y=controls.create("iframe",{sandbox:"",src:n,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),y.updateInnerHtml=function(n,o){e=n,t=o;var i=this.element&&this.element.contentDocument,a=this.$DOC;if(i&&a){var s=i.getElementsByTagName("html")[0];s&&(a.initialize(),s.innerHTML=n,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},y.reload=function(){this.element&&this.deleteAll(),this.createElement()},y.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(n){this.reload()}this.$DOC=this.element&&y.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,t)}.bind(y),0)}),y.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,a=i.sections[t];"object"==typeof a&&a.source_node&&i.processTextNode(a.source_node,t+"\\n"+n)},y}function a(){function e(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(e){return e.outerHTML()}).join("")+(this.closetag||"")}var t,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(a){if(o=a,!i){if(!n)return;i=n.add("div"),i.template(e)}i.controls.length=0,i.opentag="<title>"+a+"</title>",i.closetag="",t=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return t},set:function(a){if(a!==t){t=a;var s={},r={},l=document.implementation.createHTMLDocument(""),c=l.documentElement;c.innerHTML=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(t)[1];for(var d=controls.create("div"),u=[],f=[],h=l.createNodeIterator(c,65535,null,!1),p=h.nextNode();p;){var m=p===c?d:controls.create("div");m.template(e),u.push(p),f.push(m);var v=u.indexOf(p.parentNode);if(v>=0&&f[v].add(m),8===p.nodeType){var g=p.nodeValue,b=g[0];if(m.opentag="<!--"+p.nodeValue+"-->","%"===b);else if("!"===b);else{var y=g.indexOf(" "),w=g.indexOf("\\n"),x=g.indexOf("->");if(0>y&&0>w&&0>x);else if(0>y&&x>0);else if(w>0&&(0>y||y>w)&&(y=w),y>0&&128>y){var O=g.slice(0,y);s[O]=g.slice(y+1),r[O]=m}}}else if(p===c)m.opentag="<!DOCTYPE html>\\n"+/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(t)[1]+"\\n",m.closetag="\\n</html>";else{var T=p.outerHTML,S=p.innerHTML;if(S){var k=T.lastIndexOf(S);0>k?m.opentag=T:(m.opentag=T.slice(0,k),m.closetag=T.slice(k+S.length))}else m.opentag=T?T:p.nodeValue}p=h.nextNode()}var E=l.getElementsByTagName("head")[0];n=E&&f[u.indexOf(E)];var I=l.getElementsByTagName("title")[0];I?(o=I.textContent,i=f[u.indexOf(I)]):(o="",i=null),this.chtml=d,this.sections=s,this.seccontrols=r,this.raise()}}}),this.updateNamedSection=function(e,n){var o=this.seccontrols[e];o&&(this.sections[e]=n,o.opentag="<!--"+e+"\\n"+n+"-->\\n",t=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function s(){function e(e,t,n,o,i,a,s,r,l,c,d,u){var f=y.element.style;f.top=e,f.right=t,f.bottom=n,f.left=o,f.width=i,f.height=a,f=h.element.style,f.top=s,f.right=r,f.bottom=l,f.left=c,f.width=d,f.height=u}function t(){if(i)switch(a){case 1:e("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 2:e("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 3:e("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:e("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(a){case 1:e("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:e("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:e("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:e("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}g.code_edit_resize()}var n;b.listen(function(){f.edit_html=b.html,m.setTabs(Object.keys(b.sections)),y.updateInnerHtml(b.chtml.innerHTML(),Object.keys(b.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(e){e!==o&&(o=e,b.html=o)}}),this.checkEdits=function(){var e=m.selected;e&&e.isoptions?v.save():e&&g.save()},m.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,v.visible=0===m.selectedIndex}),this.updateCodeEdit=function(){var e=m.selected;switch(g.mode=!e||e.isoptions?0:e.ishtml?1:2,g.mode){case 1:g.text=f.edit_html;break;case 2:var t=m.selected;t?(g.section=t.text,g.text=b.sections[t.text]):g.text="";break;default:g.text=""}},g.listen("text",function(e){switch(g.mode){case 1:f.edit_html=e,f.modified=25;break;case 2:f.updateNamedSection(g.section,g.text),f.modified=25}}),this.updateNamedSection=function(e,t){b.updateNamedSection(e,t),o=b.buildHTML(),y.updateNamedSection(e,t,b.chtml.innerHTML())},this.save=function(){this.checkEdits();var e=d.dataobject.data;e.selected=m.selected&&m.selected.text,e.html=this.edit_html,e.html===n&&(e.delete=!0),d.dataobject.raise(),this.modified=0},this.revert=function(){this.edit_html=n,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return g.save(),b.buildHTML()};var i=0,a=0,s=600,r=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(e){i=e,t(),f.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return a},set:function(e){a=e,t(),f.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,a,s,r].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),a=parseInt(l[1]),s=parseInt(l[2]),r=parseInt(l[3])}catch(c){}t()}d.restore(function(){$.ajax({url:location.href,type:"GET",dataType:"html"}).done(function(e){var t=localStorage&&localStorage.getItem("default selected page");m.lastSelected=d.dataobject.data.selected||t||m.data[0],n=e.replace(/\\r/g,""),f.edit_html=d.dataobject.data.html||n,m.checkSelection()})}),setInterval(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this),25)}function r(){function e(e){var t=e.lastIndexOf("/");return t>=0&&(e=e.slice(t+1)),t=e.lastIndexOf("\\\\"),t>=0&&(e=e.slice(t+1)),e}this.environment=0,this.fileName=e(location.href);var t;if("function"==typeof require&&"file:"===location.protocol&&(t=require("fs")))this.environment=1,this.editable=!0,p.save_group.save.class(null,"disabled"),this.write=function(n,o){try{t.writeFileSync(e(n),o),d.reloadOnReady()}catch(i){console.log(i)}};else if("file:"!==location.protocol){var n=location.href,o=n.lastIndexOf("/"),i=n.slice(0,o)+"/@";this.write=function(e,t){i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",async:0,data:JSON.stringify({command:"write",url:e,data:t})}).done(function(e){"success"===e.result&&d.reloadOnReady()})},i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",data:JSON.stringify({command:"options"})}).done(function(e){"success"===e.result&&(this.environment=2,(this.editable=e.editable)&&p.save_group.save.class(null,"disabled"))})}}function l(e,t){function n(){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,a,s,r=this,l=r.dataobject=controls.create("DataObject");if(l.data={key:e,history:[]},l.listen(function(){o=!0}),setInterval(function(){o&&r.write()},25),window.indexedDB){try{var d=window.indexedDB.open("markdown-webdocs.editor.db",1);d.onsuccess=function(e){i=e.target.result,t()},d.onupgradeneeded=function(e){i=e.target.result,i.createObjectStore("drafts",{keyPath:"key"}),t()},d.onerror=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(e)},d.onblocked=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(e)}}catch(u){return n(),void 0}r.restore=function(t){try{var n=i.transaction(["drafts"],"readonly").objectStore("drafts").get(e);n.onsuccess=function(n){var i=l.data;controls.extend(i,n.target.result),i.key=e,Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},n.onerror=function(e){console.log(e)}}catch(a){}},r.write=function(){if(s)try{var t=i.transaction(["drafts"],"readwrite").objectStore("drafts"),n=l.data;n.delete?(delete n.delete,t.delete(e)):t.put(n),localStorage&&localStorage.setItem("default selected page",n.selected),o=!1}catch(a){console.log(a)}}}else{if(!window.openDatabase)return n(),void 0;try{var a=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs drafts",0);if(!a)return n(),void 0;a.transaction(function(e){e.executeSql("CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,t)}catch(u){return n(),void 0}r.restore=function(t){try{a.transaction(function(n){n.executeSql("SELECT value FROM drafts WHERE key = ? LIMIT 1",[e],function(e,n){var i=l.data;if(n.rows.length)try{controls.extend(i,JSON.parse(n.rows.item(0).value))}catch(a){}Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},function(e){console.log(e)})},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(s)try{a.transaction(function(t){var n=l.data;n.delete?(delete n.delete,t.executeSql("DELETE FROM drafts WHERE key = ?",[e],function(){},function(e){console.log(e)})):t.executeSql("INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",[e,JSON.stringify(n)],function(){},function(e){console.log(e)})},function(){console.log(event)},function(){}),o=!1}catch(t){console.log(t)}}}r.reloadOnReady=function(){setTimeout(function(){location.reload()},400)}}function c(e){$DOC.cbody.attachAll(),$DOC.cbody.unshift("alert:div",{$text:e,"class":"mar20 alert alert-warning col1-sm-offset-3 col-sm-6",style:"z-index:1200;"}),$DOC.cbody.alert.createElement()}var d,u,f,h,p,m,v,g,b,y;this.top!==this.self||this["mw-document-editor"]||(this["mw-document-editor"]=!0,"undefined"!=typeof $ENV?e():(this.defercqueue||(this.defercqueue=[]),this.defercqueue.push(e)),a.prototype=controls.create("DataObject"))}).call(function(){return this||("undefined"!=typeof window?window:global)}());');
+                eval('(function(){"use strict";function e(){function e(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),g=new a,$DOC.cbody.add(y=new i),y.createElement(),h=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),p=h.add("toolbar:div",{"class":"clearfix",style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(e){e&&$(e).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),p.add("save_group:bootstrap.BtnGroup",{"class":"mar5"},function(e){function t(){f.save(),e.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(f.buildHTML())}e.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){f.revert()}),e.add("download:a",{download:decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html","class":"btn btn-default",$text:\'<b class="glyphicon glyphicon-save"></b>\',"data-original-title":"Download"}).listen("mousedown",t).listen("focus",t).listen("click",function(e){try{var t=new Blob([f.buildHTML()]);return window.navigator.msSaveOrOpenBlob(t,decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html"),e.preventDefault(),void 0}catch(n){}}),e.add("save:bootstrap.Button",{"class":"btn btn-default disabled",$icon:"edit","data-original-title":"Save"}).listen("click",function(){f.save(),u.write(decodeURI(window.location.pathname),f.buildHTML())}),p.add("cpanel:bootstrap.Button",{"class":"hide btn btn-default fleft martop5 marbottom5 marleft5 padleft15 padright15",$icon:"cog","data-original-title":"Control panel"}).listen("click",function(){})}),p.add("bootstrap.Button",{"class":"mar5 fright",$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var e=location.href,t=e.indexOf("?edit");0>t&&(t=e.indexOf("&edit")),t>=0&&(window.location=e.slice(0,t)+e.slice(t+5))});var e=p.add("bootstrap.Splitbutton",{"class":"martop5 fright",$icon:"fullscreen"});e.button.listen("click",function(){f.mode=f.mode?0:1});var l=e.items;l.add("bootstrap.DropdownItem",{$icon:"chevron-left"}).listen("click",function(){f.position=1}),l.add("bootstrap.DropdownItem",{$icon:"chevron-right"}).listen("click",function(){f.position=0}),l.add("bootstrap.DropdownItem",{$icon:"chevron-up"}).listen("click",function(){f.position=2}),l.add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(){f.position=3}),p.add(m=new o),h.add(b=new n),h.add(v=new t),h.createElement(),f=new s,u=new r}$(window).load(function(){d=new l(location.origin+location.pathname,e)})}function t(){var e=controls.create("div",{"class":"pad20"}),t=!0;Object.defineProperty(e,"visible",{get:function(){return t},set:function(n){t=n,e.element&&(e.element.style.display=t?"block":"none")}}),e.listen("element",function(e){e&&(e.style.display=t?"block":"none")});var n=e.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){g.title=n.title_edit.value}),g.listen(function(){g.title!==n.title_edit.value&&(n.title_edit.value=g.title)}),e.save=function(){},e}function n(){function e(){if(t.mode){var e=t._element;e&&e.value!==o&&(t.modified=25,o=e.value)}}var t=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});t.code_edit_resize=function(){t.element.style.height=$(h.element).height()-$(p.element).height()+"px"},$(window).on("resize",t.code_edit_resize);var n=0;Object.defineProperty(t,"mode",{get:function(){return n},set:function(e){e>2&&(e=2),e!==n&&(n=e,this.element&&(t.element.style.display=n?"block":"none"),t.code_edit_resize())}});var o;return t.listen("element",function(e){e&&(e.value=o),t.code_edit_resize()}),Object.defineProperty(t,"text",{get:function(){return this.element?this.element.value:o},set:function(e){o=e||"",this.element&&(this.element.value=o),this.modified=0}}),t.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",o))},t.listen("change",e,!0),setInterval(function(){e(),t.modified&&--t.modified<2&&(t.modified=0,t.raise("text",o))},25),t}function o(){function e(){o.selectedIndex=o.controls.indexOf(this)}var t,n=-1,o=p.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(e){var t=m.data;e.length+2<t.length&&t.splice(1,t.length-e.length-2);for(var n=t.length,o=e.length+2;o>n;n++)t.splice(1,0,{});for(var n=1,i=t.length-1;i>n;n++)t[n].text=e[n-1];t.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,a=n.length,s=i.length;s>a;a++)o.add("bootstrap.TabHeader").listen("click",e);for(var a=n.length-1,s=i.length;a>=s;a--){var r=n[a];r.deleteAll(),r.removeListener("click",e),o.remove(r)}for(var a=0,s=i.length;s>a;a++){var l=i[a];l.id=n[a].id;var r=n[a];r.attributes["data-original-title"]=l.hint,r.attributes.$icon=l.icon,r.text(l.text),l===t?r.class("active"):r.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(e){this.selected=e}}),Object.defineProperty(o,"selected",{get:function(){return t},set:function(e){var o=this.data;if("string"!=typeof e){if("number"==typeof e)return e>=0&&e<o.length&&e!==n?this.selected=o[e]:-1===e&&(this.selected=void 0),void 0;var i=o.indexOf(e);if(i>=0){var a=o[i];a!==t&&t&&(this.lastSelected=t)}if(e!==t||i!==n){for(var s=this.controls,r=0,l=s.length;l>r;r++)r===i?s[r].class("active"):s[r].class(null,"active");this.raise("selected",t=e?e:void 0,n=i)}}else{for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.id===e)return this.selected=a,void 0}for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.text===e)return this.selected=a,void 0}}}}),o.checkSelection=function(){var e=this.data;if(e.length){var n=e.indexOf(t);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){var e,t,n=location.href;return n=n.slice(0,n.length-location.hash.length),n+=n.indexOf("?")>0?"&preview":"?preview",y=controls.create("iframe",{sandbox:"",src:n,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),y.updateInnerHtml=function(n,o){e=n,t=o;var i=this.element&&this.element.contentDocument,a=this.$DOC;if(i&&a){var s=i.getElementsByTagName("html")[0];s&&(a.initialize(),s.innerHTML=n,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},y.reload=function(){this.element&&this.deleteAll(),this.createElement()},y.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(n){this.reload()}this.$DOC=this.element&&y.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,t)}.bind(y),0)}),y.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,a=i.sections[t];"object"==typeof a&&a.source_node&&i.processTextNode(a.source_node,t+"\\n"+n)},y}function a(){function e(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(e){return e.outerHTML()}).join("")+(this.closetag||"")}var t,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(a){if(o=a,!i){if(!n)return;i=n.add("div"),i.template(e)}i.controls.length=0,i.opentag="<title>"+a+"</title>",i.closetag="",t=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return t},set:function(a){if(a!==t){t=a;var s={},r={},l=document.implementation.createHTMLDocument(""),c=l.documentElement;c.innerHTML=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(t)[1];for(var d=controls.create("div"),u=[],f=[],h=l.createNodeIterator(c,65535,null,!1),p=h.nextNode();p;){var m=p===c?d:controls.create("div");m.template(e),u.push(p),f.push(m);var v=u.indexOf(p.parentNode);if(v>=0&&f[v].add(m),8===p.nodeType){var b=p.nodeValue,g=b[0];if(m.opentag="<!--"+p.nodeValue+"-->","%"===g);else if("!"===g);else{var y=b.indexOf(" "),w=b.indexOf("\\n"),x=b.indexOf("->");if(0>y&&0>w&&0>x);else if(0>y&&x>0);else if(w>0&&(0>y||y>w)&&(y=w),y>0&&128>y){var O=b.slice(0,y);s[O]=b.slice(y+1),r[O]=m}}}else if(p===c)m.opentag="<!DOCTYPE html>\\n"+/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(t)[1]+"\\n",m.closetag="\\n</html>";else{var T=p.outerHTML,S=p.innerHTML;if(S){var k=T.lastIndexOf(S);0>k?m.opentag=T:(m.opentag=T.slice(0,k),m.closetag=T.slice(k+S.length))}else m.opentag=T?T:p.nodeValue}p=h.nextNode()}var E=l.getElementsByTagName("head")[0];n=E&&f[u.indexOf(E)];var I=l.getElementsByTagName("title")[0];I?(o=I.textContent,i=f[u.indexOf(I)]):(o="",i=null),this.chtml=d,this.sections=s,this.seccontrols=r,this.raise()}}}),this.updateNamedSection=function(e,n){var o=this.seccontrols[e];o&&(this.sections[e]=n,o.opentag="<!--"+e+"\\n"+n+"-->\\n",t=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function s(){function e(e,t,n,o,i,a,s,r,l,c,d,u){var f=y.element.style;f.top=e,f.right=t,f.bottom=n,f.left=o,f.width=i,f.height=a,f=h.element.style,f.top=s,f.right=r,f.bottom=l,f.left=c,f.width=d,f.height=u}function t(){if(i)switch(a){case 1:e("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 2:e("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 3:e("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:e("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(a){case 1:e("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:e("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:e("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:e("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}b.code_edit_resize()}var n;g.listen(function(){f.edit_html=g.html,m.setTabs(Object.keys(g.sections)),y.updateInnerHtml(g.chtml.innerHTML(),Object.keys(g.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(e){e!==o&&(o=e,g.html=o)}}),this.checkEdits=function(){var e=m.selected;e&&e.isoptions?v.save():e&&b.save()},m.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,v.visible=0===m.selectedIndex}),this.updateCodeEdit=function(){var e=m.selected;switch(b.mode=!e||e.isoptions?0:e.ishtml?1:2,b.mode){case 1:b.text=f.edit_html;break;case 2:var t=m.selected;t?(b.section=t.text,b.text=g.sections[t.text]):b.text="";break;default:b.text=""}},b.listen("text",function(e){switch(b.mode){case 1:f.edit_html=e,f.modified=25;break;case 2:f.updateNamedSection(b.section,b.text),f.modified=25}}),this.updateNamedSection=function(e,t){g.updateNamedSection(e,t),o=g.buildHTML(),y.updateNamedSection(e,t,g.chtml.innerHTML())},this.save=function(){this.checkEdits();var e=d.dataobject.data;e.selected=m.selected&&m.selected.text,e.html=this.edit_html,e.html===n&&(e.delete=!0),d.dataobject.raise(),this.modified=0},this.revert=function(){this.edit_html=n,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return b.save(),g.buildHTML()};var i=0,a=0,s=600,r=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(e){i=e,t(),f.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return a},set:function(e){a=e,t(),f.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,a,s,r].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),a=parseInt(l[1]),s=parseInt(l[2]),r=parseInt(l[3])}catch(c){}t()}d.restore(function(){$.ajax({url:location.href,type:"GET",dataType:"html"}).done(function(e){var t=localStorage&&localStorage.getItem("default selected page");m.lastSelected=d.dataobject.data.selected||t||m.data[0],n=e.replace(/\\r/g,""),f.edit_html=d.dataobject.data.html||n,m.checkSelection()})}),setInterval(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this),25)}function r(){function e(e){var t=e.lastIndexOf("/");return t>=0&&(e=e.slice(t+1)),t=e.lastIndexOf("\\\\"),t>=0&&(e=e.slice(t+1)),e}this.environment=0,this.fileName=e(location.href);var t;if("function"==typeof require&&"file:"===location.protocol&&(t=require("fs")))this.environment=1,this.editable=!0,p.save_group.save.class(null,"disabled"),this.write=function(n,o){try{t.writeFileSync(e(n),o),d.reloadOnReady()}catch(i){console.log(i)}};else if("file:"!==location.protocol){var n=location.href,o=n.lastIndexOf("/"),i=n.slice(0,o)+"/@";this.write=function(e,t){i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",async:0,data:JSON.stringify({command:"write",url:e,data:t})}).done(function(e){"success"===e.result&&d.reloadOnReady()})},i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",data:JSON.stringify({command:"options"})}).done(function(e){"success"===e.result&&(this.environment=2,(this.editable=e.editable)&&p.save_group.save.class(null,"disabled"))})}}function l(e,t){function n(){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,a,s,r=this,l=r.dataobject=controls.create("DataObject");if(l.data={key:e,history:[]},l.listen(function(){o=!0}),setInterval(function(){o&&r.write()},25),window.indexedDB){try{var d=window.indexedDB.open("markdown-webdocs.editor.db",1);d.onsuccess=function(e){i=e.target.result,t()},d.onupgradeneeded=function(e){i=e.target.result,i.createObjectStore("drafts",{keyPath:"key"}),t()},d.onerror=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(e)},d.onblocked=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(e)}}catch(u){return n(),void 0}r.restore=function(t){try{var n=i.transaction(["drafts"],"readonly").objectStore("drafts").get(e);n.onsuccess=function(n){var i=l.data;controls.extend(i,n.target.result),i.key=e,Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},n.onerror=function(e){console.log(e)}}catch(a){}},r.write=function(){if(s)try{var t=i.transaction(["drafts"],"readwrite").objectStore("drafts"),n=l.data;n.delete?(delete n.delete,t.delete(e)):t.put(n),localStorage&&localStorage.setItem("default selected page",n.selected),o=!1}catch(a){console.log(a)}}}else{if(!window.openDatabase)return n(),void 0;try{var a=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs drafts",0);if(!a)return n(),void 0;a.transaction(function(e){e.executeSql("CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,t)}catch(u){return n(),void 0}r.restore=function(t){try{a.transaction(function(n){n.executeSql("SELECT value FROM drafts WHERE key = ? LIMIT 1",[e],function(e,n){var i=l.data;if(n.rows.length)try{controls.extend(i,JSON.parse(n.rows.item(0).value))}catch(a){}Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},function(e){console.log(e)})},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(s)try{a.transaction(function(t){var n=l.data;n.delete?(delete n.delete,t.executeSql("DELETE FROM drafts WHERE key = ?",[e],function(){},function(e){console.log(e)})):t.executeSql("INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",[e,JSON.stringify(n)],function(){},function(e){console.log(e)})},function(){console.log(event)},function(){}),o=!1}catch(t){console.log(t)}}}r.reloadOnReady=function(){setTimeout(function(){location.reload()},400)}}function c(e){$DOC.cbody.attachAll(),$DOC.cbody.unshift("alert:div",{$text:e,"class":"mar20 alert alert-warning col1-sm-offset-3 col-sm-6",style:"z-index:1200;"}),$DOC.cbody.alert.createElement()}var d,u,f,h,p,m,v,b,g,y;this.top!==this.self||this["mw-document-editor"]||(this["mw-document-editor"]=!0,"undefined"!=typeof $ENV?e():(this.defercqueue||(this.defercqueue=[]),this.defercqueue.push(e)),a.prototype=controls.create("DataObject"))}).call(function(){return this||("undefined"!=typeof window?window:global)}());');
             
             window.addEventListener('keydown', function(event) {
                 if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
@@ -11421,14 +11421,13 @@ var global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? 
 //     (c) 2013 vadim b.
 //     License: MIT
 //
-// require doT.js, controls.js
+// require controls.js
 
 
 (function() { "use strict";
 
 function Bootstrap(controls) {
     var bootstrap = this;
-    var doT = controls.doT;
     bootstrap.VERSION = '0.6.12';
     controls.bootstrap = bootstrap;
     
@@ -11452,17 +11451,10 @@ function Bootstrap(controls) {
         return icon_class;
     };
     
-    var CONTROL_STYLE = ' default info link success primary warning danger ';
     control_prototype.getControlStyle = function() {
-        var parameters = this.parameters,
-            cstyle = parameters.style || parameters['/style'];
-        
-        if (!cstyle)
-        for(var prop in parameters)
-        if (parameters[prop])
-            cstyle = prop;
-        
-        return cstyle || 'default';
+        var parameters = this.parameters;
+        return parameters.style || parameters['/style'] || (parameters.info && 'info') || (parameters.link && 'link') || (parameters.success && 'success')
+            || (parameters.primary && 'primary') || (parameters.warning && 'warning') || (parameters.danger && 'danger') || 'default';
     };
     
     var CONTROL_SIZE = {
@@ -11494,8 +11486,7 @@ function Bootstrap(controls) {
             });
     };
     Label.prototype = control_prototype;
-    Label.template = doT.template(
-'<span{{=it.printAttributes()}}>{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</span>');
+    Label.template = function(it) { return '<span' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</span>'; };
     controls.typeRegister('bootstrap.Label', Label);
     
     
@@ -11552,12 +11543,12 @@ function Bootstrap(controls) {
         this.initialize('bootstrap.DropdownItem', parameters, attributes, DropdownItem.template);
     };
     DropdownItem.prototype = control_prototype;
-    DropdownItem.template = doT.template(
-'<li id="{{=it.id}}">\
-<a{{=it.printAttributes("-id")}}>\
-{{? it.attributes.$icon }}<span class="glyphicon glyphicon-{{=it.attributes.$icon}}"></span>&nbsp;{{?}}\
-{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}\
-</a></li>\n');
+    DropdownItem.template = function(it) {
+        var out = '<li id="' + it.id + '"><a' + it.printAttributes('-id') + '>',
+            attrs = it.attributes;
+        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
+        return (it.attributes.$text || '') + '</a></li>';
+    };
     controls.typeRegister('bootstrap.DropdownItem', DropdownItem);
     
     
@@ -11569,7 +11560,7 @@ function Bootstrap(controls) {
             .class('divider');
     };
     DividerItem.prototype = control_prototype;
-    DividerItem.template = doT.template('<li{{=it.printAttributes()}}></li>');
+    DividerItem.template = function(it) { return '<li' + it.printAttributes() + '></li>'; };
     controls.typeRegister('bootstrap.DividerItem', DividerItem);
     
     
@@ -11581,16 +11572,19 @@ function Bootstrap(controls) {
             .class('dropdown');
     };
     DropdownLink.prototype = control_prototype;
-    DropdownLink.template = doT.template(
-'<div{{=it.printAttributes()}}>\
-<a class="dropdown-toggle" data-toggle="dropdown" href="#">\
-{{? it.attributes.$icon }}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
-{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}\
-</a>\n\
-{{? (it.controls && it.controls.length > 0) }}\
-<ul class="dropdown-menu">\n\
-{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\
-</ul>{{?}}</div>\n');
+    DropdownLink.template = function(it) {
+        var out = '<div' + it.printAttributes() + '><a class="dropdown-toggle" data-toggle="dropdown" href="#">',
+            attrs = it.attributes, ctrls = it.controls;
+        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
+        out += (it.attributes.$text || '') + '</a>';
+        if (ctrls.length) {
+            out += '<ul class="dropdown-menu">';
+            for (var i = 0, c = ctrls.length; i < c; i++)
+                out += ctrls[i].wrappedHTML();
+            out += '</ul>';
+        }
+        return out + '</div>';
+    };
     controls.typeRegister('bootstrap.DropdownLink', DropdownLink);
 
 
@@ -11600,12 +11594,20 @@ function Bootstrap(controls) {
             .class('btn dropdown-toggle');
     };
     ToggleBtn.prototype = control_prototype;
-    ToggleBtn.template = doT.template(
-'<a{{=it.printAttributes()}} data-toggle="dropdown" href="#">{{? it.attributes.$icon }}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}{{? it.attributes.Caret }}<span class="caret"></span>{{?}}{{? it.attributes.$text }}{{=it.attributes.$text}}{{?}}</a>\n\
-{{? (it.controls && it.controls.length > 0) }}\n\
-<ul class="dropdown-menu">\n\
-{{~it.controls :value:index}}{{=value.wrappedHTML()}}{{~}}\n\
-</ul>{{?}}\n');
+    ToggleBtn.template = function(it) {
+        var out = '<a' + it.printAttributes() + ' data-toggle="dropdown" href="#">',
+            attrs = it.attributes, ctrls = it.controls;
+        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
+        if (attrs.caret || attrs.Caret) out += '<span class="caret"></span>';
+        out += (it.attributes.$text || '') + '</a>';
+        if (ctrls.length) {
+            out += '<ul class="dropdown-menu">';
+            for (var i = 0, c = ctrls.length; i < c; i++)
+                out += ctrls[i].wrappedHTML();
+            out += '</ul>';
+        }
+        return out;
+    };
     controls.typeRegister('bootstrap.ToggleBtn', ToggleBtn);
     
     
@@ -11633,7 +11635,7 @@ function Bootstrap(controls) {
     Button.template = function(it) {
         var attrs = it.attributes;
         return '<button type="button"' + it.printAttributes() + '>'
-            + (attrs.$icon ? ('<b class="glyphicon glyphicon-' + attrs.$icon + '"></b>') : '')
+            + (attrs.$icon ? ('<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>') : '')
             + ((attrs.$icon && attrs.$text) ? '&nbsp;' : '')
             + (attrs.$text || '')
             + '</button>';
@@ -11645,24 +11647,17 @@ function Bootstrap(controls) {
     //
     function Splitbutton(parameters, attributes) {
         this.initialize('bootstrap.Splitbutton', parameters, attributes, Splitbutton.template)
-            .class('btn-group');
-         this.btn_class = 'btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim();
+            ._class('btn-group')
+            ._add('button:bootstrap.Button', {$icon:attributes.$icon})
+            ._add('toggle:bootstrap.Button', {class:'dropdown-toggle', 'data-toggle':'dropdown', $text:'<span class="caret"></span>'})
+            ._add('items:ul', {class:'dropdown-menu'})
+            .listen('type', function() {
+                var btn_class = 'btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim();
+                this.button.class(btn_class);
+                this.toggle.class(btn_class);
+            });
     };
     Splitbutton.prototype = control_prototype;
-    Splitbutton.template = function(it) {
-var attributes = it.attributes,
-out = '<div' + it.printAttributes() + '>\
-<button type="button" class="' + it.btn_class + '">'
- + (attributes.$icon ? ('<b class="glyphicon glyphicon-' + attributes.$icon + '"> </b>') : '')
- + (attributes.$text || '')
- + '</button>\
-<button type="button" class="' + it.btn_class + ' dropdown-toggle" data-toggle="dropdown"><span class="caret"></span>\
-</button>';
-if (it.controls.length)
-out += '<ul class="dropdown-menu">' + it.printControls() + '</ul>';
-out += '</div>';
-return out;
-};
     controls.typeRegister('bootstrap.Splitbutton', Splitbutton);
     
     
@@ -11695,11 +11690,14 @@ return out;
             .class('tab-header');
     };
     TabHeader.prototype = control_prototype;
-    TabHeader.template = doT.template(
-'<li{{=it.printAttributes()}}>\
-<a href={{=it.attributes.$href}} data-toggle="tab">\
-{{? it.attributes.$icon}}<b class="glyphicon glyphicon-{{=it.attributes.$icon}}"> </b>{{?}}\
-{{? it.attributes.$text}}{{=it.attributes.$text}}{{?}}</a></li>');
+    TabHeader.template = function(it) {
+        var attrs = it.attributes;
+        return '<li' + it.printAttributes() + '><a href="' + (attrs.$href || '') + '" data-toggle="tab">'
+            + (attrs.$icon ? ('<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>') : '')
+            + ((attrs.$icon && attrs.$text) ? '&nbsp;' : '')
+            + (attrs.$text || '')
+            + '</a></li>';
+    };
     controls.typeRegister('bootstrap.TabHeader', TabHeader);
     
     
@@ -13810,6 +13808,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 if (event)
                     event.raise.apply(this, args);
             }
+            
+            return this;
         };
         
         this.parameter = function(name, value) {
@@ -13823,6 +13823,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             else
                 return parameters[name] || parameters['/'+name];
+        };
+        
+        this._parameter = function(name, value) {
+            this.parameter(name, value);
+            return this;
         };
         
         // set attribute value
@@ -13868,6 +13873,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             
             return attributes;
+        };
+        
+        this._attrs = function(_attributes) {
+            this.attrs(_attributes);
+            return this;
         };
         
         // get/set path.type/parameters
@@ -13923,6 +13933,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             // no automatic refresh() calls
             
             // << set type and parameters
+        };
+        
+        this._type = function(type, apply_inherited) {
+            this.type(type, apply_inherited);
+            return this;
         };
         
         // Get html code of the selected attributes
@@ -13983,33 +13998,39 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         };
         
         // Set .$text attribute on this object and refresh DOM element.outerHTML
-        this.text = function(_text) {
+        this.text = function(text) {
             var attributes = this.attributes;
             if (arguments.length) {
-                if (_text !== attributes.$text) {
-                    attributes.$text = _text;
+                if (text !== attributes.$text) {
+                    attributes.$text = text;
                     this.refresh();
                 }
             }
             return attributes.$text;
         };
         
-        this.style = function(_style) {
+        this._text = function(text) {
+            this.text(text);
+            return this;
+        };
+        
+        this.style = function(style) {
+            var attributes = this.attributes;
+            
             if (arguments.length) {
-                var attributes = this.attributes, style = attributes.style;
-
-                if (_style !== style) {
-                    attributes.style = _style;
+                if (style !== attributes.style) {
+                    attributes.style = style;
                     
                     var element = this._element;
                     if (element)
-                        element.style = _style;
+                        element.style = style;
                     
-                    this.raise('attributes', 'style', _style);
+                    this.raise('attributes', 'style', style);
                 };
+                return style;
             }
             
-            return this.attributes.style;
+            return attributes.style;
         };
         
         this._style = function(style) {
@@ -14199,16 +14220,21 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             return this.insert(this.controls.length, type, repeats, attributes, callback, this_arg);
         };
         
+        this._add = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            this.insert(this.controls.length, type, repeats, attributes, callback, this_arg);
+            return this;
+        };
+        
         this.unshift = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             return this.insert(0, type, repeats, attributes, callback, this_arg);
         };
         
-        this._add = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            this.add(type, repeats, attributes, callback, this_arg);
+        this._unshift = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            this.insert(0, type, repeats, attributes, callback, this_arg);
             return this;
         };
         
-        this._text = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        this.add_text = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             if (typeof repeats === 'object') {
                 this_arg = callback;
                 callback = attributes;
@@ -14217,11 +14243,15 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             attributes = attributes || {};
             attributes.$text = text;
-            this.add('controls.container', repeats, attributes, callback, this_arg);
+            return this.add('controls.container', repeats, attributes, callback, this_arg);
+        };
+        
+        this._add_text = function(text, repeats, attributes, callback, this_arg) {
+            this.add_text(text, repeats, attributes, callback, this_arg);
             return this;
         };
         
-        this._p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        this.add_p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             if (typeof repeats === 'object') {
                 this_arg = callback;
                 callback = attributes;
@@ -14230,11 +14260,15 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             attributes = attributes || {};
             attributes.$text = text;
-            this.add('controls.p', repeats, attributes, callback, this_arg);
+            return this.add('p', repeats, attributes, callback, this_arg);
+        };
+        
+        this._add_p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            this.add_p(text, repeats, attributes, callback, this_arg);
             return this;
         };
         
-        this._templ = function(template, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        this.add_templ = function(template, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             if (typeof repeats === 'object') {
                 this_arg = callback;
                 callback = attributes;
@@ -14243,7 +14277,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             }
             attributes = attributes || {};
             attributes.$template = template;
-            this.add('controls.custom', repeats, attributes, callback, this_arg);
+            return this.add('controls.custom', repeats, attributes, callback, this_arg);
+        };
+        
+        this._add_templ = function(template, repeats, attributes, callback, this_arg) {
+            this.add_templ(template, repeats, attributes, callback, this_arg);
             return this;
         };
         
@@ -14258,6 +14296,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             if (control)
                 control.parent = undefined;
+            return this;
         };
         
         // Remove all subcontrols from .controls collection
@@ -14265,6 +14304,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.removeAll = function() {
             for(var ctrls = this.controls, i = ctrls.length - 1; i >= 0; i--)
                 this.remove(ctrls[i]);
+            return this;
         };
         
         function route_data_event() {
@@ -14292,6 +14332,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 
                 route_data_event.call(this);
             }
+            return this;
         };
     
         this.every      = function(delegate, thisArg)   { return this.controls.every(delegate,   thisArg || this); };
@@ -14559,25 +14600,40 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         return new_control;
     };
 
-    controls.text = function(text, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+    controls.text = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        if (typeof repeats === 'object') {
+            this_arg = callback;
+            callback = attributes;
+            attributes = repeats;
+            repeats = 1;
+        }
         attributes = attributes || {};
         attributes.$text = text;
-        return controls.create('controls.container', parameters, attributes, callback, this_arg);
+        return controls.create('controls.container', repeats, attributes, callback, this_arg);
     };
 
-    controls.p = function(text, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-        attributes = attributes || {};
-        attributes.$text = text;
-        return controls.create('controls.container', parameters, attributes, callback, this_arg);
+    controls.p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        if (typeof repeats === 'object') {
+            this_arg = callback;
+            callback = attributes;
+            attributes = repeats;
+            repeats = 1;
+        }
+        return controls.create('controls.p', repeats, controls.extend({}, attributes), callback, this_arg);
     };
 
-    controls.templ = function(template, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+    controls.templ = function(template, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        if (typeof repeats === 'object') {
+            this_arg = callback;
+            callback = attributes;
+            attributes = repeats;
+            repeats = 1;
+        }
         attributes = attributes || {};
         attributes.$template = template;
-        return controls.create('controls.custom', parameters, attributes, callback, this_arg);
+        return controls.create('controls.custom', repeats, attributes, callback, this_arg);
     };
         
-    
     // controls.reviverJSON()
     // 
     // use with JSON.parse(json, controls.reviverJSON), this function restores controls
@@ -14790,8 +14846,8 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
     // Head
     function Head(parameters, attributes) {
         controls.controlInitialize(this, 'controls.head', parameters, attributes, Head.template);
-        this.attach    = function() { Head.prototype.attach.call(this, document.head); };
-        this.attachAll = function() { Head.prototype.attach.call(this, document.head); Head.prototype.attachAll.call(this); };
+        this.attach    = function() { return Head.prototype.attach.call(this, document.head); };
+        this.attachAll = function() { return Head.prototype.attachAll.call(this); };
     };
     Head.prototype = controls.control_prototype;
     Head.template = function(it) { return '<head>' + (it.attributes.$text || '') + it.printControls() + '</head>'; };
@@ -14800,8 +14856,8 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
     // Body
     function Body(parameters, attributes) {
         controls.controlInitialize(this, 'controls.body', parameters, attributes, Body.template);
-        this.attach    = function() { Body.prototype.attach.call(this, document.body); };
-        this.attachAll = function() { Body.prototype.attach.call(this, document.body); Body.prototype.attachAll.call(this); };
+        this.attach    = function() { return Body.prototype.attach.call(this, document.body); };
+        this.attachAll = function() { return Body.prototype.attachAll.call(this); };
     };
     Body.prototype = controls.control_prototype;
     Body.template = function(it) { return '<body' + it.printAttributes('-id') + '>' + (it.attributes.$text || '') + it.printControls() + '</body>'; };
@@ -14856,10 +14912,13 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         });
     };
     Layout.prototype = controls.control_prototype;
-    Layout.template = doT.template(
-'<div{{=it.printAttributes()}}>\
-{{~it.controls :value:index}}<div data-type="layout-item"{{=it.cellSet.printAttributes("-id")}}>{{=value.wrappedHTML()}}</div>{{~}}\
-{{?it.clearfix}}<div style="clear:both;"></div>{{?}}</div>');
+    Layout.template = function(it) {
+        var out = '<div' + it.printAttributes() + '>',
+            ctrls = it.controls, cell = '<div data-type="layout-item"' + it.cellSet.printAttributes("-id") + '>';
+        for(var i = 0, c = ctrls.length; i < c; i++)
+            out += cell + ctrls[i].wrappedHTML() + '</div>';
+        return out + (it.clearfix) ? '<div style="clear:both;"></div></div>' : '</div>';
+    };
     controls.typeRegister('controls.layout', Layout);
 
     
@@ -14886,10 +14945,13 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         });
     };
     List.prototype = controls.control_prototype;
-    List.template = doT.template(
-'<ul{{=it.printAttributes()}}>\
-{{~it.controls :value:index}}<li{{=it.itemSet.printAttributes("-id")}}>{{=value.wrappedHTML()}}</li>{{~}}\
-</ul>');
+    List.template = function(it) {
+        var out ='<ul' + it.printAttributes() + '>',
+            ctrls = it.controls, item = '<li' + it.itemSet.printAttributes("-id") + '>';
+        for(var i = 0, c = ctrls.length; i < c; i++)
+            out += item + ctrls[i].wrappedHTML() + '</li>';
+        return out + '</ul>';
+    };
     controls.typeRegister('controls.list', List);
     
     

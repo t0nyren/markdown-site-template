@@ -21,8 +21,8 @@ if (!controls) throw new TypeError('controls.js not found!');
         
         parameters['/namespace'] = 'bs-carousel';
         
-        controls.controlInitialize(this, 'carousel', parameters, attributes);
-        this.class('carousel slide');
+        this.initialize('carousel', parameters, attributes)
+            .class('carousel slide');
         
         // get parameters
         var interval = parameters.interval || 5000;
@@ -39,7 +39,7 @@ if (!controls) throw new TypeError('controls.js not found!');
         
         // remove burrs
         for(var i = inner.length - 1; i >= 0; i--)
-        if (inner.controls[i].__type !== 'controls.Div')
+        if (inner.controls[i].__type !== 'controls.div')
             inner.controls.splice(i, 1);
         
         if (show_indicator) {

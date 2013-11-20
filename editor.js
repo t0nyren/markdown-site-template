@@ -85,31 +85,23 @@
                         window.location = url.slice(0, pos) + url.slice(pos + 5);
                 });
 
-            toolbar.add('bootstrap.Splitbutton', {class:'martop5 fright', $icon:'fullscreen'})
-                ._add('bootstrap.DropdownItem', {$icon:'chevron-left'})
-                ._add('bootstrap.DropdownItem', {$icon:'chevron-right'})
-                ._add('bootstrap.DropdownItem', {$icon:'chevron-up'})
-                ._add('bootstrap.DropdownItem', {$icon:'chevron-down'})
-                    .listen('click', function(event) {
-                        switch(event.target.className || event.target.firstChild.className) {
-                            case 'glyphicon glyphicon-fullscreen':
-                            case 'btn btn-default':
-                                controller.mode = (controller.mode) ? 0 : 1;
-                                break;
-                            case 'glyphicon glyphicon-chevron-right':
-                                controller.position = 0;
-                                break;
-                            case 'glyphicon glyphicon-chevron-left':
-                                controller.position = 1;
-                                break;
-                            case 'glyphicon glyphicon-chevron-up':
-                                controller.position = 2;
-                                break;
-                            case 'glyphicon glyphicon-chevron-down':
-                                controller.position = 3;
-                                break;
-                        }
-                    });
+            var split = toolbar.add('bootstrap.Splitbutton', {class:'martop5 fright', $icon:'fullscreen'});
+            split.button.listen('click', function() {
+                controller.mode = (controller.mode) ? 0 : 1;
+            });
+            var items = split.items;
+            items.add('bootstrap.DropdownItem', {$icon:'chevron-left'}).listen('click', function() {
+                controller.position = 1;
+            });
+            items.add('bootstrap.DropdownItem', {$icon:'chevron-right'}).listen('click', function() {
+                controller.position = 0;
+            });
+            items.add('bootstrap.DropdownItem', {$icon:'chevron-up'}).listen('click', function() {
+                controller.position = 2;
+            });
+            items.add('bootstrap.DropdownItem', {$icon:'chevron-down'}).listen('click', function() {
+                controller.position = 3;
+            });
             
             // tabheaders
             
@@ -747,8 +739,8 @@
         function relayout() {
             if (mode) {
                 switch(position) {
-                    case 1: setStyle('0', '0', '0', '0', '100%', '100%',  '20px', 'auto', 'auto', '20px', '50%', '50%'); break;
-                    case 2: setStyle('0', '0', '0', '0', '100%', '100%',  'auto', 'auto', '20px', '20px', '50%', '50%'); break;
+                    case 1: setStyle('0', '0', '0', '0', '100%', '100%',  'auto', 'auto', '20px', '20px', '50%', '50%'); break;
+                    case 2: setStyle('0', '0', '0', '0', '100%', '100%',  '20px', 'auto', 'auto', '20px', '50%', '50%'); break;
                     case 3: setStyle('0', '0', '0', '0', '100%', '100%',  'auto', '20px', '20px', 'auto', '50%', '50%'); break;
                     default:setStyle('0', '0', '0', '0', '100%', '100%',  '20px', '20px', 'auto', 'auto', '50%', '50%');
                 }
