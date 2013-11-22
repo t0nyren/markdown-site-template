@@ -51,10 +51,10 @@
         // container.outerHTML() returns text as is
         var container = control.add('container', {$text:text});
         
-        // if text contains doT template then compile to getText function
+        // if text contains template then compile to getText function
         var pos = text.indexOf('{{');
         if (pos >= 0 && text.indexOf('}}') > pos) {
-            container.getText = controls.doT.template(text);
+            container.getText = controls.template(text);
             container.template(template);
         }
     };

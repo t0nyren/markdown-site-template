@@ -8,7 +8,7 @@ $ENV = {
 };
 
 (function() { 'use strict';
-    
+    $ENV.controls.template = $ENV.dot.template;
     var extend = $ENV.controls.extend;
     
     // initialize $ENV

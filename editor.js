@@ -827,13 +827,13 @@
         }
         
         // node-webkit
-        var fs;
-        if (typeof require === 'function' && location.protocol === 'file:' && (fs = require('fs'))) {
+        if (typeof nwDispatcher !== 'undefined' && location.protocol === 'file:') {
             this.environment = 1;
             this.editable = true;
             toolbar.save_group.save.class(null, 'disabled');
             
             // write file
+            var fs = require('fs');
             this.write = function(fname, data) {
                 try {
                     fs.writeFileSync(getFName(fname), data);
