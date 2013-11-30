@@ -17,7 +17,7 @@
 
         // Brand part
         
-        this.add('header:div', {class:'navbar-header'})
+        this.add('header:div`navbar-header')
             .template(function(it) {
 return '<div' + it.printAttributes() + '>\
 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">\
@@ -32,7 +32,7 @@ return '<div' + it.printAttributes() + '>\
         
         // Collapsible part
         
-        this.add('collapse:div', {class:'collapse navbar-collapse navbar-ex1-collapse'})
+        this.add('collapse:div`collapse navbar-collapse navbar-ex1-collapse')
             .template($ENV.default_template, $ENV.default_inner_template);
         $DOC.processContent(this.collapse, parts.slice(-1)[0]);
         

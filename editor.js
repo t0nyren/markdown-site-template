@@ -1245,7 +1245,7 @@ function initialize() {
         if (window.indexedDB) {
             try {
                 // indexedDB.deleteDatabase
-                var request = window.indexedDB.open('markdown-webdocs.editor.db', 1.0);
+                var request = window.indexedDB.open('markdown-webdocs.editor.db.1', 1.0);
 
                 request.onsuccess = function(event) { 
                     indexeddb = event.target.result;
@@ -1354,7 +1354,7 @@ function initialize() {
 
             // web SQL engine
             try {
-                var websqldb = window.openDatabase('markdown-webdocs.editor.db', '1.0', 'markdow webdocs editor', 0);
+                var websqldb = window.openDatabase('markdown-webdocs.editor.db.1', '1.0', 'markdow webdocs editor', 0);
                 if (!websqldb) {
                     NoIDBError();
                     return;

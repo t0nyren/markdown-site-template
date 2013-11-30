@@ -146,7 +146,6 @@ $ENV = {
                 handler();
             else
                 this.forceEvent('ready').addListener(handler);
-                //window.addEventListener('DOMContentLoaded', handler);
         },
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
