@@ -36,7 +36,7 @@ function initialize() {
     
     function GEmoji(parameters, attributes)
     {
-        controls.controlInitialize(this, 'gemoji', parameters, attributes, $ENV.default_inline_template);
+        controls.controlInitialize(this, 'emoji', parameters, attributes, $ENV.default_inline_template);
         
         size = parseInt(this.parameter('size')), tsize = '' + size;
         if (size !== 16 && size !== 20 && size !== 32 && size !== 64) {

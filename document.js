@@ -10848,7 +10848,7 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
 
 
 ;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-if (!$ENV) {
+/*if (!$ENV)*/ {
 
 $ENV = {
     dot: require('dot'),
@@ -10863,18 +10863,11 @@ $ENV = {
     
     // initialize $ENV
     
-    // marked patches
-    var marked = $ENV.marked;
     // Set default options except highlight which has no default
-    marked.setOptions({
+    $ENV.marked.setOptions({
       gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
     });
-    // todo: delete $ENV.markedPostProcess()
-    $ENV.markedPostProcess = function(text, options) {
-        var formatted = marked(text, options);
-        return formatted;
-    };
-    
+
     // default control templates
     $ENV.default_template = function(it) {
         return '<div' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</div>'; };
@@ -10905,10 +10898,13 @@ $ENV = {
             // edit mode
             if (url_params.edit && window.self === window.top)
                 options.edit_mode = 1; // editor
-            if (url_params.preview)
-                options.edit_mode = 2; // preview
-            
-            
+            if (url_params.preview) {
+                options.edit_mode = 2; // preview mode
+                // idgen shift in preview mode
+                // Preview mode is used for compiled html. Prevent conflict between already stored in html and newly created identifiers.
+                controls.id_generator = 200000;
+            }
+
             // "DOC" script element source for: root, script options
 
             var root = '', js_root_node = document.getElementById('DOC');
@@ -10928,7 +10924,7 @@ $ENV = {
             }
             this.root = root;
             
-            // real executing script element source for: codebase
+            // executing script element source for: codebase
             
             var executing = document.currentScript;
             if (!executing) {
@@ -10992,16 +10988,15 @@ $ENV = {
         
         forceEvent: function(name) {
             var events = this.events;
-            if (!events.hasOwnProperty(name))
-                events[name] = new controls.Event();
-            return events[name];
+            return events[name] || (events[name] = new controls.Event());
         },
         // on DOMContentLoaded or simulated if DOMContentLoaded is already raised
         onready: function(handler) {
             if (this.state === 2 || document.readyState === undefined || ' interactive complete'.indexOf(document.readyState) > 0)
                 handler();
             else
-                window.addEventListener('DOMContentLoaded', handler);
+                this.forceEvent('ready').addListener(handler);
+                //window.addEventListener('DOMContentLoaded', handler);
         },
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
@@ -11110,24 +11105,31 @@ $ENV = {
                     callback(+1);
                 return;
             }
-            scripts_count++;
             var script = document.createElement('script');
             if (id)
                 script.id = id;
-            script.src = src;
-            script.async = true;
-            script.addEventListener('load', function() {
-                if (callback)
-                    callback(+1);
-                scripts_stated++;
-                $DOC.checkAllScriptsReady();
-            });
-            script.addEventListener('error', function() {
-                if (callback)
-                    callback(-1);
-                scripts_stated++;
-                $DOC.checkAllScriptsReady();
-            });
+            if (src.indexOf('(') >= 0) {
+                // raw script
+                script.innerHTML = src;
+            } else {
+                // load external script
+                script.src = src;
+                scripts_count++;
+                script.src = src;
+                script.async = true;
+                script.addEventListener('load', function() {
+                    if (callback)
+                        callback(+1);
+                    scripts_stated++;
+                    $DOC.checkAllScriptsReady();
+                });
+                script.addEventListener('error', function() {
+                    if (callback)
+                        callback(-1);
+                    scripts_stated++;
+                    $DOC.checkAllScriptsReady();
+                });
+            }
             document.head.appendChild(script);
         },
         // get the url relative to the root
@@ -11269,7 +11271,12 @@ $ENV = {
     // >> head transformation
     
     $DOC.headTransformation = function() {
-    
+        
+        if ($DOC.auto = document.head.hasAttribute('generator'))
+            return; // html
+        else // mw document
+            document.head.setAttribute('generator', 'markdown webdocs');
+
         this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
         if (this.options.icon)
             this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl(this.options.icon)});
@@ -11391,27 +11398,40 @@ $ENV = {
                 }
             }
         }
-        
-        // open editor
-        if (this.options.editable) {
-            if (edit_mode === 1 && window.top === window.self)
-                eval('(function(){"use strict";function e(){function e(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),g=new a,$DOC.cbody.add(y=new i),y.createElement(),h=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),p=h.add("toolbar:div",{"class":"clearfix",style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(e){e&&$(e).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),p.add("save_group:bootstrap.BtnGroup",{"class":"mar5"},function(e){function t(){f.save(),e.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(f.buildHTML())}e.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){f.revert()}),e.add("download:a",{download:decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html","class":"btn btn-default",$text:\'<b class="glyphicon glyphicon-save"></b>\',"data-original-title":"Download"}).listen("mousedown",t).listen("focus",t).listen("click",function(e){try{var t=new Blob([f.buildHTML()]);return window.navigator.msSaveOrOpenBlob(t,decodeURI(location.pathname).split("/").slice(-1)[0]||"document.html"),e.preventDefault(),void 0}catch(n){}}),e.add("save:bootstrap.Button",{"class":"btn btn-default disabled",$icon:"edit","data-original-title":"Save"}).listen("click",function(){f.save(),u.write(decodeURI(window.location.pathname),f.buildHTML())}),p.add("cpanel:bootstrap.Button",{"class":"hide btn btn-default fleft martop5 marbottom5 marleft5 padleft15 padright15",$icon:"cog","data-original-title":"Control panel"}).listen("click",function(){})}),p.add("bootstrap.Button",{"class":"mar5 fright",$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var e=location.href,t=e.indexOf("?edit");0>t&&(t=e.indexOf("&edit")),t>=0&&(window.location=e.slice(0,t)+e.slice(t+5))});var e=p.add("bootstrap.Splitbutton",{"class":"martop5 fright",$icon:"fullscreen"});e.button.listen("click",function(){f.mode=f.mode?0:1});var l=e.items;l.add("bootstrap.DropdownItem",{$icon:"chevron-left"}).listen("click",function(){f.position=1}),l.add("bootstrap.DropdownItem",{$icon:"chevron-right"}).listen("click",function(){f.position=0}),l.add("bootstrap.DropdownItem",{$icon:"chevron-up"}).listen("click",function(){f.position=2}),l.add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(){f.position=3}),p.add(m=new o),h.add(b=new n),h.add(v=new t),h.createElement(),f=new s,u=new r}$(window).load(function(){d=new l(location.origin+location.pathname,e)})}function t(){var e=controls.create("div",{"class":"pad20"}),t=!0;Object.defineProperty(e,"visible",{get:function(){return t},set:function(n){t=n,e.element&&(e.element.style.display=t?"block":"none")}}),e.listen("element",function(e){e&&(e.style.display=t?"block":"none")});var n=e.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){g.title=n.title_edit.value}),g.listen(function(){g.title!==n.title_edit.value&&(n.title_edit.value=g.title)}),e.save=function(){},e}function n(){function e(){if(t.mode){var e=t._element;e&&e.value!==o&&(t.modified=25,o=e.value)}}var t=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});t.code_edit_resize=function(){t.element.style.height=$(h.element).height()-$(p.element).height()+"px"},$(window).on("resize",t.code_edit_resize);var n=0;Object.defineProperty(t,"mode",{get:function(){return n},set:function(e){e>2&&(e=2),e!==n&&(n=e,this.element&&(t.element.style.display=n?"block":"none"),t.code_edit_resize())}});var o;return t.listen("element",function(e){e&&(e.value=o),t.code_edit_resize()}),Object.defineProperty(t,"text",{get:function(){return this.element?this.element.value:o},set:function(e){o=e||"",this.element&&(this.element.value=o),this.modified=0}}),t.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",o))},t.listen("change",e,!0),setInterval(function(){e(),t.modified&&--t.modified<2&&(t.modified=0,t.raise("text",o))},25),t}function o(){function e(){o.selectedIndex=o.controls.indexOf(this)}var t,n=-1,o=p.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(e){var t=m.data;e.length+2<t.length&&t.splice(1,t.length-e.length-2);for(var n=t.length,o=e.length+2;o>n;n++)t.splice(1,0,{});for(var n=1,i=t.length-1;i>n;n++)t[n].text=e[n-1];t.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,a=n.length,s=i.length;s>a;a++)o.add("bootstrap.TabHeader").listen("click",e);for(var a=n.length-1,s=i.length;a>=s;a--){var r=n[a];r.deleteAll(),r.removeListener("click",e),o.remove(r)}for(var a=0,s=i.length;s>a;a++){var l=i[a];l.id=n[a].id;var r=n[a];r.attributes["data-original-title"]=l.hint,r.attributes.$icon=l.icon,r.text(l.text),l===t?r.class("active"):r.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(e){this.selected=e}}),Object.defineProperty(o,"selected",{get:function(){return t},set:function(e){var o=this.data;if("string"!=typeof e){if("number"==typeof e)return e>=0&&e<o.length&&e!==n?this.selected=o[e]:-1===e&&(this.selected=void 0),void 0;var i=o.indexOf(e);if(i>=0){var a=o[i];a!==t&&t&&(this.lastSelected=t)}if(e!==t||i!==n){for(var s=this.controls,r=0,l=s.length;l>r;r++)r===i?s[r].class("active"):s[r].class(null,"active");this.raise("selected",t=e?e:void 0,n=i)}}else{for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.id===e)return this.selected=a,void 0}for(var r=0,l=o.length;l>r;r++){var a=o[r];if(a.text===e)return this.selected=a,void 0}}}}),o.checkSelection=function(){var e=this.data;if(e.length){var n=e.indexOf(t);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){var e,t,n=location.href;return n=n.slice(0,n.length-location.hash.length),n+=n.indexOf("?")>0?"&preview":"?preview",y=controls.create("iframe",{sandbox:"",src:n,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),y.updateInnerHtml=function(n,o){e=n,t=o;var i=this.element&&this.element.contentDocument,a=this.$DOC;if(i&&a){var s=i.getElementsByTagName("html")[0];s&&(a.initialize(),s.innerHTML=n,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},y.reload=function(){this.element&&this.deleteAll(),this.createElement()},y.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(n){this.reload()}this.$DOC=this.element&&y.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,t)}.bind(y),0)}),y.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,a=i.sections[t];"object"==typeof a&&a.source_node&&i.processTextNode(a.source_node,t+"\\n"+n)},y}function a(){function e(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(e){return e.outerHTML()}).join("")+(this.closetag||"")}var t,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(a){if(o=a,!i){if(!n)return;i=n.add("div"),i.template(e)}i.controls.length=0,i.opentag="<title>"+a+"</title>",i.closetag="",t=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return t},set:function(a){if(a!==t){t=a;var s={},r={},l=document.implementation.createHTMLDocument(""),c=l.documentElement;c.innerHTML=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(t)[1];for(var d=controls.create("div"),u=[],f=[],h=l.createNodeIterator(c,65535,null,!1),p=h.nextNode();p;){var m=p===c?d:controls.create("div");m.template(e),u.push(p),f.push(m);var v=u.indexOf(p.parentNode);if(v>=0&&f[v].add(m),8===p.nodeType){var b=p.nodeValue,g=b[0];if(m.opentag="<!--"+p.nodeValue+"-->","%"===g);else if("!"===g);else{var y=b.indexOf(" "),w=b.indexOf("\\n"),x=b.indexOf("->");if(0>y&&0>w&&0>x);else if(0>y&&x>0);else if(w>0&&(0>y||y>w)&&(y=w),y>0&&128>y){var O=b.slice(0,y);s[O]=b.slice(y+1),r[O]=m}}}else if(p===c)m.opentag="<!DOCTYPE html>\\n"+/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(t)[1]+"\\n",m.closetag="\\n</html>";else{var T=p.outerHTML,S=p.innerHTML;if(S){var k=T.lastIndexOf(S);0>k?m.opentag=T:(m.opentag=T.slice(0,k),m.closetag=T.slice(k+S.length))}else m.opentag=T?T:p.nodeValue}p=h.nextNode()}var E=l.getElementsByTagName("head")[0];n=E&&f[u.indexOf(E)];var I=l.getElementsByTagName("title")[0];I?(o=I.textContent,i=f[u.indexOf(I)]):(o="",i=null),this.chtml=d,this.sections=s,this.seccontrols=r,this.raise()}}}),this.updateNamedSection=function(e,n){var o=this.seccontrols[e];o&&(this.sections[e]=n,o.opentag="<!--"+e+"\\n"+n+"-->\\n",t=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function s(){function e(e,t,n,o,i,a,s,r,l,c,d,u){var f=y.element.style;f.top=e,f.right=t,f.bottom=n,f.left=o,f.width=i,f.height=a,f=h.element.style,f.top=s,f.right=r,f.bottom=l,f.left=c,f.width=d,f.height=u}function t(){if(i)switch(a){case 1:e("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 2:e("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 3:e("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:e("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(a){case 1:e("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:e("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:e("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:e("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}b.code_edit_resize()}var n;g.listen(function(){f.edit_html=g.html,m.setTabs(Object.keys(g.sections)),y.updateInnerHtml(g.chtml.innerHTML(),Object.keys(g.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(e){e!==o&&(o=e,g.html=o)}}),this.checkEdits=function(){var e=m.selected;e&&e.isoptions?v.save():e&&b.save()},m.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,v.visible=0===m.selectedIndex}),this.updateCodeEdit=function(){var e=m.selected;switch(b.mode=!e||e.isoptions?0:e.ishtml?1:2,b.mode){case 1:b.text=f.edit_html;break;case 2:var t=m.selected;t?(b.section=t.text,b.text=g.sections[t.text]):b.text="";break;default:b.text=""}},b.listen("text",function(e){switch(b.mode){case 1:f.edit_html=e,f.modified=25;break;case 2:f.updateNamedSection(b.section,b.text),f.modified=25}}),this.updateNamedSection=function(e,t){g.updateNamedSection(e,t),o=g.buildHTML(),y.updateNamedSection(e,t,g.chtml.innerHTML())},this.save=function(){this.checkEdits();var e=d.dataobject.data;e.selected=m.selected&&m.selected.text,e.html=this.edit_html,e.html===n&&(e.delete=!0),d.dataobject.raise(),this.modified=0},this.revert=function(){this.edit_html=n,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return b.save(),g.buildHTML()};var i=0,a=0,s=600,r=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(e){i=e,t(),f.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return a},set:function(e){a=e,t(),f.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,a,s,r].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),a=parseInt(l[1]),s=parseInt(l[2]),r=parseInt(l[3])}catch(c){}t()}d.restore(function(){$.ajax({url:location.href,type:"GET",dataType:"html"}).done(function(e){var t=localStorage&&localStorage.getItem("default selected page");m.lastSelected=d.dataobject.data.selected||t||m.data[0],n=e.replace(/\\r/g,""),f.edit_html=d.dataobject.data.html||n,m.checkSelection()})}),setInterval(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this),25)}function r(){function e(e){var t=e.lastIndexOf("/");return t>=0&&(e=e.slice(t+1)),t=e.lastIndexOf("\\\\"),t>=0&&(e=e.slice(t+1)),e}if(this.environment=0,this.fileName=e(location.href),"undefined"!=typeof nwDispatcher&&"file:"===location.protocol){this.environment=1,this.editable=!0,p.save_group.save.class(null,"disabled");var t=require("fs");this.write=function(n,o){try{t.writeFileSync(e(n),o),d.reloadOnReady()}catch(i){console.log(i)}}}else if("file:"!==location.protocol){var n=location.href,o=n.lastIndexOf("/"),i=n.slice(0,o)+"/@";this.write=function(e,t){i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",async:0,data:JSON.stringify({command:"write",url:e,data:t})}).done(function(e){"success"===e.result&&d.reloadOnReady()})},i&&$.ajax({url:i,type:"POST",dataType:"json",contentType:"application/json; charset=UTF-8",data:JSON.stringify({command:"options"})}).done(function(e){"success"===e.result&&(this.environment=2,(this.editable=e.editable)&&p.save_group.save.class(null,"disabled"))})}}function l(e,t){function n(){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,a,s,r=this,l=r.dataobject=controls.create("DataObject");if(l.data={key:e,history:[]},l.listen(function(){o=!0}),setInterval(function(){o&&r.write()},25),window.indexedDB){try{var d=window.indexedDB.open("markdown-webdocs.editor.db",1);d.onsuccess=function(e){i=e.target.result,t()},d.onupgradeneeded=function(e){i=e.target.result,i.createObjectStore("drafts",{keyPath:"key"}),t()},d.onerror=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(e)},d.onblocked=function(e){c(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(e)}}catch(u){return n(),void 0}r.restore=function(t){try{var n=i.transaction(["drafts"],"readonly").objectStore("drafts").get(e);n.onsuccess=function(n){var i=l.data;controls.extend(i,n.target.result),i.key=e,Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},n.onerror=function(e){console.log(e)}}catch(a){}},r.write=function(){if(s)try{var t=i.transaction(["drafts"],"readwrite").objectStore("drafts"),n=l.data;n.delete?(delete n.delete,t.delete(e)):t.put(n),localStorage&&localStorage.setItem("default selected page",n.selected),o=!1}catch(a){console.log(a)}}}else{if(!window.openDatabase)return n(),void 0;try{var a=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs drafts",0);if(!a)return n(),void 0;a.transaction(function(e){e.executeSql("CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,t)}catch(u){return n(),void 0}r.restore=function(t){try{a.transaction(function(n){n.executeSql("SELECT value FROM drafts WHERE key = ? LIMIT 1",[e],function(e,n){var i=l.data;if(n.rows.length)try{controls.extend(i,JSON.parse(n.rows.item(0).value))}catch(a){}Array.isArray(i.history)||(i.history=[]),s=!0,o=!1,t&&t()},function(e){console.log(e)})},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(s)try{a.transaction(function(t){var n=l.data;n.delete?(delete n.delete,t.executeSql("DELETE FROM drafts WHERE key = ?",[e],function(){},function(e){console.log(e)})):t.executeSql("INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)",[e,JSON.stringify(n)],function(){},function(e){console.log(e)})},function(){console.log(event)},function(){}),o=!1}catch(t){console.log(t)}}}r.reloadOnReady=function(){setTimeout(function(){location.reload()},400)}}function c(e){$DOC.cbody.attachAll(),$DOC.cbody.unshift("alert:div",{$text:e,"class":"mar20 alert alert-warning col1-sm-offset-3 col-sm-6",style:"z-index:1200;"}),$DOC.cbody.alert.createElement()}var d,u,f,h,p,m,v,b,g,y;this.top!==this.self||this["mw-document-editor"]||(this["mw-document-editor"]=!0,"undefined"!=typeof $ENV?e():(this.defercqueue||(this.defercqueue=[]),this.defercqueue.push(e)),a.prototype=controls.create("DataObject"))}).call(function(){return this||("undefined"!=typeof window?window:global)}());');
-            
-            window.addEventListener('keydown', function(event) {
-                if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
-                    if (edit_mode) {
-                        var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
-                        if (pos >= 0)
-                            window.location = url.slice(0, pos) + url.slice(pos + 5);
-                    } else
-                        window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
-                }
-            });
-        }
     };
+    
     $DOC.headTransformation();
     
-}).call(this);
+    window.addEventListener('DOMContentLoaded', function() {
+        var ready_event = $DOC.events.ready;
+        if (ready_event) {
+            ready_event.raise();
+            ready_event.clear();
+        }
+        if (scripts_count === 0)
+        window.addEventListener('load', function() {
+            $DOC.finalTransformation();
+        });
+    });
+
+    // open editor
+    if ($DOC.options.editable) {
+        if ($DOC.options.edit_mode === 1 && window.top === window.self)
+            eval('!function(){"use strict";function e(){function e(){$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),S=new a,$DOC.cbody.add(x=new n),x.createElement(),b=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),v=b.add("toolbar:div`clearfix",{style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(e){e&&$(e).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),v.add("save_group:bootstrap.BtnGroup`mar5",function(e){function t(){m.save(),e.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(m.buildHTML())}e.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){m.revert()}),e.add("download:a`btn btn-default",\'<b class="glyphicon glyphicon-save"></b>\',{download:location.url.slice(-1)[0]||"document.html","data-original-title":"Download"}).listen("mousedown",t).listen("focus",t).listen("click",function(e){try{var t=new Blob([m.buildHTML()]);return window.navigator.msSaveOrOpenBlob(t,location.url.split("/").slice(-1)[0]||"document.html"),e.preventDefault(),void 0}catch(o){}}),e.add("save:bootstrap.SplitButton",{$icon:"floppy-disk","data-original-title":"Save"},function(e){e.button._class("disabled").listen("click",function(){m.write()}),e.toggle._class("disabled"),e.items.add("bootstrap.DropdownItem",{$icon:"resize-small"}).listen("click",function(){m.write(0)}).text(".mw"),e.items.add("bootstrap.DropdownItem",{$icon:"resize-full"}).listen("click",function(){m.write(1)}).text(".html + .mw"),e.items.add("bootstrap.DropdownItem",{$icon:"share-alt"}).listen("click",function(){m.copy()}).text("Copy")}),v.add("cpanel:bootstrap.Button`hide fleft martop5 marbottom5 marleft5 padleft15 padright15",{$icon:"cog","data-original-title":"Control panel"}).listen("click",function(){})}),v.add("bootstrap.Button`mar5 fright",{$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var e=location.href,t=e.indexOf("?edit");0>t&&(t=e.indexOf("&edit")),t>=0&&(window.location=e.slice(0,t)+e.slice(t+5))});var e=v.add("bootstrap.Splitbutton`martop5 fright",{$icon:"fullscreen"});e.button.listen("click",function(){m.mode=m.mode?0:1});var c=e.items;c.add("bootstrap.DropdownItem",{$icon:"chevron-left"}).listen("click",function(){m.position=1}),c.add("bootstrap.DropdownItem",{$icon:"chevron-right"}).listen("click",function(){m.position=0}),c.add("bootstrap.DropdownItem",{$icon:"chevron-up"}).listen("click",function(){m.position=2}),c.add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(){m.position=3}),v.add("export_group:bootstrap.BtnGroup`mar5",function(e){e.add("github:bootstrap.Button",{"data-original-title":"Publish"})._icon("export")._text("GitHub").listen("click",function(){O.getSettings(!1,function(e){e&&O.publish()})}),e.add("github:bootstrap.Button",{"data-original-title":"Publish settings"})._icon("cog").listen("click",function(){O.getSettings(!0)})}),v.add(g=new i),b.add(y=new o),b.add(w=new t),b.createElement(),p=new l,m=new r,O=new s,setInterval(function(){for(var e=0,t=k.length;t>e;e++)k[e]()},25),setInterval(function(){for(var e=0,t=T.length;t>e;e++)T[e]()},1e3)}function t(){var e=controls.create("div",{"class":"pad20"}),t=!0;Object.defineProperty(e,"visible",{get:function(){return t},set:function(o){t=o,e.element&&(e.element.style.display=t?"block":"none")}}),e.listen("element",function(e){e&&(e.style.display=t?"block":"none")});var o=e.add("bootstrap.FormGroup");return o.add("bootstrap.ControlLabel",{$text:"Title:"}),o.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){S.title=o.title_edit.value}),S.listen(function(){S.title!==o.title_edit.value&&(o.title_edit.value=S.title)}),e.save=function(){},e}function o(){function e(){if(t.mode){var e=t._element;e&&e.value!==i&&(t.modified=25,i=e.value)}}var t=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});t.code_edit_resize=function(){var e=t.element;e&&(e.style.height=$(b.element).height()-$(v.element).height()+"px")},$(window).on("resize",t.code_edit_resize),T.push(t.code_edit_resize);var o=0;Object.defineProperty(t,"mode",{get:function(){return o},set:function(e){e>2&&(e=2),e!==o&&(o=e,this.element&&(t.element.style.display=o?"block":"none"),t.code_edit_resize())}});var i;return t.listen("element",function(e){e&&(e.value=i),t.code_edit_resize()}),Object.defineProperty(t,"text",{get:function(){return this.element?this.element.value:i},set:function(e){i=e||"",this.element&&(this.element.value=i),this.modified=0}}),t.save=function(){e(),this.modified&&(this.modified=0,this.raise("text",i))},t.listen("change",e,!0),k.push(function(){e(),t.modified&&--t.modified<2&&(t.modified=0,t.raise("text",i))}),t}function i(){function e(){i.selectedIndex=i.controls.indexOf(this)}var t,o=-1,i=v.add("tabs_header:bootstrap.TabPanelHeader");return i.bind(controls.create("dataarray")),i.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),i.setTabs=function(e){var t=g.data;e.length+2<t.length&&t.splice(1,t.length-e.length-2);for(var o=t.length,i=e.length+2;i>o;o++)t.splice(1,0,{});for(var o=1,n=t.length-1;n>o;o++)t[o].text=e[o-1];t.raise()},i.listen("data",function(){for(var o=i.controls,n=this.data,a=o.length,r=n.length;r>a;a++)i.add("bootstrap.TabHeader").listen("click",e);for(var a=o.length-1,r=n.length;a>=r;a--){var s=o[a];s.deleteAll(),s.removeListener("click",e),i.remove(s)}for(var a=0,r=n.length;r>a;a++){var l=n[a];l.id=o[a].id;var s=o[a];s.attributes["data-original-title"]=l.hint,s.attributes.$icon=l.icon,s.text(l.text),l===t?s.class("active"):s.class(null,"active")}i.checkSelection(),i.element&&i.refresh()}),Object.defineProperty(i,"selectedIndex",{get:function(){return o},set:function(e){this.selected=e}}),Object.defineProperty(i,"selected",{get:function(){return t},set:function(e){var i=this.data;if("string"!=typeof e){if("number"==typeof e)return e>=0&&e<i.length&&e!==o?this.selected=i[e]:-1===e&&(this.selected=void 0),void 0;var n=i.indexOf(e);if(n>=0){var a=i[n];a!==t&&t&&(this.lastSelected=t)}if(e!==t||n!==o){for(var r=this.controls,s=0,l=r.length;l>s;s++)s===n?r[s].class("active"):r[s].class(null,"active");this.raise("selected",t=e?e:void 0,o=n)}}else{for(var s=0,l=i.length;l>s;s++){var a=i[s];if(a.id===e)return this.selected=a,void 0}for(var s=0,l=i.length;l>s;s++){var a=i[s];if(a.text===e)return this.selected=a,void 0}}}}),i.checkSelection=function(){var e=this.data;if(e.length){var o=e.indexOf(t);0>o&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},i}function n(){function e(e){var t=document.createElement("textarea");return t.innerHTML=e,t.value}var t,o,i=location.href;return i=i.slice(0,i.length-location.hash.length),i+=i.indexOf("?")>0?"&preview":"?preview",x=controls.create("iframe",{sandbox:"",src:i,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),x.updateInnerHtml=function(e,i){t=e,o=i;var n=this.element&&this.element.contentDocument,a=this.$DOC;if(n&&a){var r=n.getElementsByTagName("html")[0];r&&(a.initialize(),r.innerHTML=e,a.headTransformation(),a.options.userjs?a.loadUserJS():setTimeout(function(){a.finalTransformation()},0))}},x.reload=function(){this.element&&this.deleteAll(),this.createElement()},x.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(e){this.reload()}this.$DOC=this.element&&x.element.contentWindow.$DOC,void 0!==t&&this.updateInnerHtml(t,o)}.bind(x),0)}),x.updateNamedSection=function(e,o,i){t=i;var n=this.$DOC,a=n.sections[e];"object"==typeof a&&a.source_node&&n.processTextNode(a.source_node,e+"\\n"+o)},x.grabHTML=function(){for(var t=this.element&&this.element.contentDocument,o=this.$DOC,i=t.documentElement.cloneNode(),n=t.createNodeIterator(i,128,null,!1),a=n.nextNode();a;)a.parentNode.removeChild(a),a=n.nextNode();var r="<!DOCTYPE html>"+i.outerHTML.replace(/<noscript>([\\s\\S]*?)<\\/noscript>/g,function(t,o){return"<noscript>"+e(o)+"</noscript>"}),s=r.lastIndexOf("</body>"),l=\'<script>$DOC.onload(function(){ if ($DOC.options.edit_mode) return;($DOC.chead = JSON.parse(unescape("\'+escape(JSON.stringify(o.chead))+\'"), controls.reviverJSON)).attachAll();($DOC.cbody = JSON.parse(unescape("\'+escape(JSON.stringify(o.cbody))+\'"), controls.reviverJSON)).attachAll();$DOC.vars = JSON.parse(unescape("\'+escape(JSON.stringify(o.vars))+\'"), controls.reviverJSON);for(var prop in $DOC.vars) { var v = $DOC.vars[prop]; if (v.__type) v.attachAll(); }});</script>\';return r.slice(0,s)+l+r.slice(s)},x}function a(){function e(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(e){return e.outerHTML()}).join("")+(this.closetag||"")}var t,o,i,n;Object.defineProperty(this,"title",{get:function(){return i},set:function(a){if(i=a,!n){if(!o)return;n=o.add("div"),n.template(e)}n.controls.length=0,n.opentag="<title>"+a+"</title>",n.closetag="",t=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return t},set:function(a){if(a!==t){t=a;var r={},s={},l=document.implementation.createHTMLDocument(""),c=l.documentElement,d=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(t);d&&(c.innerHTML=d[1]);for(var u=controls.create("div"),h=[],f=[],p=l.createNodeIterator(c,65535,null,!1),m=p.nextNode();m;){var b=m===c?u:controls.create("div");b.template(e),h.push(m),f.push(b);var v=h.indexOf(m.parentNode);if(v>=0&&f[v].add(b),8===m.nodeType){var g=m.nodeValue,w=g[0];if(b.opentag="<!--"+m.nodeValue+"-->","%"===w);else if("!"===w);else{var y=g.indexOf(" "),S=g.indexOf("\\n"),x=g.indexOf("->");if(0>y&&0>S&&0>x);else if(0>y&&x>0);else if(S>0&&(0>y||y>S)&&(y=S),y>0&&128>y){var O=g.slice(0,y);r[O]=g.slice(y+1),s[O]=b}}}else if(m===c){var d=/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(t);b.opentag="<!DOCTYPE html>\\n"+(d?d[1]:"<html>")+"\\n",b.closetag="\\n</html>"}else{var k=m.outerHTML,T=m.innerHTML;if(T){var N=k.lastIndexOf(T);0>N?b.opentag=k:(b.opentag=k.slice(0,N),b.closetag=k.slice(N+T.length))}else b.opentag=k?k:m.nodeValue}m=p.nextNode()}var M=l.getElementsByTagName("head")[0];o=M&&f[h.indexOf(M)];var C=l.getElementsByTagName("title")[0];C?(i=C.textContent,n=f[h.indexOf(C)]):(i="",n=null),this.chtml=u,this.sections=r,this.seccontrols=s,this.raise()}}}),this.updateNamedSection=function(e,o){var i=this.seccontrols[e];i&&(this.sections[e]=o,i.opentag="<!--"+e+"\\n"+o+"-->\\n",t=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function r(){function e(e,t,o,i,n,a,r,s,l,c,d,u){if(x.element){var h=x.element.style;h.top=e,h.right=t,h.bottom=o,h.left=i,h.width=n,h.height=a,h=b.element.style,h.top=r,h.right=s,h.bottom=l,h.left=c,h.width=d,h.height=u}}function t(){if(n)switch(a){case 1:e("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 2:e("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 3:e("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:e("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(a){case 1:e("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:e("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:e("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:e("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}y.code_edit_resize()}var o=this;S.listen(function(){o.edit_html=S.html,g.setTabs(Object.keys(S.sections)),x.updateInnerHtml(S.chtml.innerHTML(),Object.keys(S.sections))});var i;Object.defineProperty(this,"edit_html",{get:function(){return i},set:function(e){e!==i&&(i=e,S.html=i)}}),this.checkEdits=function(){var e=g.selected;e&&e.isoptions?w.save():e&&y.save()},g.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,w.visible=0===g.selectedIndex}),this.updateCodeEdit=function(){var e=g.selected;switch(y.mode=!e||e.isoptions?0:e.ishtml?1:2,y.mode){case 1:y.text=o.edit_html;break;case 2:var t=g.selected;t?(y.section=t.text,y.text=S.sections[t.text]):y.text="";break;default:y.text=""}},y.listen("text",function(e){switch(y.mode){case 1:o.edit_html=e,o.modified=25;break;case 2:o.updateNamedSection(y.section,y.text),o.modified=25}}),this.updateNamedSection=function(e,t){S.updateNamedSection(e,t),i=S.buildHTML(),x.updateNamedSection(e,t,S.chtml.innerHTML())},this.save=function(){this.checkEdits(),h.selected=g.selected&&g.selected.text,h.editMw=this.edit_html,h.html===p.mwHtml&&(h.delete=!0),h.raise(),this.modified=0},this.write=function(){this.save(),arguments.length&&(p.fileMode=arguments[0]),p.fileMode?p.write(o.buildHTML(),x.grabHTML())&&u.onReady(function(){location.reload()}):p.write(o.buildHTML())&&u.onReady(function(){location.reload()})},this.copy=function(){this.save();var e=window.prompt("Enter file name",p.fileName);if(e&&e!==p.fileName)if(p.fileMode){var t=p.writeTo(e,o.buildHTML(),x.grabHTML());t&&u.onReady(function(){window.location=t})}else{var t=p.writeTo(e,o.buildHTML());t&&u.onReady(function(){window.location=t})}},this.revert=function(){this.edit_html=p.mwHtml,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return y.save(),S.buildHTML()};var n=0,a=0,r=600,s=500;if(Object.defineProperty(this,"mode",{get:function(){return n},set:function(e){n=e,t(),o.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return a},set:function(e){a=e,t(),o.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[n,a,r,s].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");n=parseInt(l[0]),a=parseInt(l[1]),r=parseInt(l[2]),s=parseInt(l[3])}catch(c){}t()}var d=localStorage&&localStorage.getItem("default selected page");g.lastSelected=h.selected||d||g.data[0],this.edit_html=h.editMw||p.mwHtml||"",g.checkSelection(),p.writable&&(v.save_group.save.button.class(null,"disabled"),v.save_group.save.toggle.class(null,"disabled")),k.push(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this))}function s(){function e(){var e=controls.create("bootstrap.modal",{style:"z-index:1200;",disabled:!0});return e.close=e.header.add("button`close","&times;",{type:"button"}),e.header.add("h4`modal-title","Publish on GitHub"),e.body.add("bootstrap.Form")._add("bootstrap.FormGroup",function(t){t.add("bootstrap.ControlLabel","Username:"),e.user=t.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(t){t._add("bootstrap.ControlLabel","API key:"),e.apikey=t.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(t){t._add("bootstrap.ControlLabel","Repository:"),e.repo=t.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(t){t._add("bootstrap.ControlLabel","Branch:"),e.branch=t.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(t){t._add("bootstrap.ControlLabel","Document root path:"),e.rootpath=t.add("bootstrap.ControlInput")}),e.OK=e.footer.add("bootstrap.Button#primary","OK"),e.Cancel=e.footer.add("bootstrap.Button","Cancel"),e}this.getSettings=function(t,o){var i=f.github||(f.github={}),n=i.user||"",a=sessionStorage.getItem("github-apikey")||"",r=i.repo||"",s=i.branch||"gh-pages",l=i.rootpath||"";if(!t&&n&&a&&r&&l&&s)o&&o(!0);else{var c=$DOC.cbody.github_modal;c||(c=$DOC.cbody.github_modal=$DOC.cbody.add(e()),c.createElement(),c.close.listen("click",function(){$(c.element).modal("hide"),o&&o(!1)}),c.OK.listen("click",function(){var e=f.github||(f.github={});e.user=c.user.value||"",sessionStorage.setItem("github-apikey",c.apikey.value||""),e.repo=c.repo.value||"",e.branch=c.branch.value||"gh-pages",e.rootpath=c.rootpath.value||"",f.raise(),$(c.element).modal("hide"),o&&o(e.user&&c.apikey.value&&e.repo&&e.branch)}),c.Cancel.listen("click",function(){$(c.element).modal("hide"),o&&o(!1)})),c.user.value=n,c.apikey.value=a,c.repo.value=r,c.branch.value=s,c.rootpath.value=l,$(c.element).modal("show")}},this.publish=function(){$DOC.appendScript("github.api.js","github.js",function(){var e=f.github||(f.github={}),t=new Github({username:e.user,password:sessionStorage.getItem("github-apikey"),auth:"basic"}),o=t.getRepo(e.user,e.repo),i=m.buildHTML(),n=e.rootpath?e.rootpath+"/":"",a=n+p.fileName,r=n+p.fileMwName;if(p.fileMode){var s=x.grabHTML();o.write(e.branch,r,i,"---",function(e){e&&console.log(e)}),setTimeout(function(){o.write(e.branch,a,s,"---",function(e){e&&console.log(e)})},3e3)}else o.write(e.branch,a,i,"---",function(e){e&&console.log(e)})})}}function l(){function e(e){var t=e.fileName,o=e.fileMwName;".html"!==t.slice(-5)?".mw"===t.slice(-3)?(o=t,t=t.slice(0,t.length-3)):o=t+".mw":".mw.html"===t.slice(-8)?(t=t.slice(0,t.length-8),o=t+".mw.html",t+=".html"):o=t.slice(0,t.length-5)+".mw.html",e.fileName=t,e.fileMwName=o}this.environment=0,this.writable=0,this.errorState=-1,this.mwHtml="",this.fileMode=0;var t=location.url,o=t.lastIndexOf("/"),i=t.lastIndexOf("\\\\");if(o=i>o?i:o,this.path=t.slice(0,o+1),this.fileName=t.slice(o+1),e(this),"undefined"!=typeof nwDispatcher&&"file:"===location.protocol){this.environment=1,this.writable=!0;var n=require("fs"),a=this.path.slice(8)+this.fileMwName,r=this.path.slice(8)+this.fileName;try{n.existsSync(a)?(this.fileMode=1,this.mwHtml=n.readFileSync(a).toString().replace(/\\r/g,"")):this.mwHtml=n.readFileSync(r).toString().replace(/\\r/g,""),this.errorState=0}catch(s){this.errorState=1}this.write=function(e,t){if(this.writable&&!this.errorState)try{if(this.fileMode)n.writeFileSync(a,e),n.writeFileSync(r,t);else{n.writeFileSync(r,e);try{n.unlinkSync(a)}catch(o){}}return r}catch(o){console.log(o)}},this.writeTo=function(t,o,i){if(this.writable&&!this.errorState)try{var a={fileName:t};e(a);var r=this.path.slice(8)+a.fileMwName,s=this.path.slice(8)+a.fileName;if(this.fileMode)n.writeFileSync(r,o),n.writeFileSync(s,i);else{n.writeFileSync(s,o);try{n.unlinkSync(r)}catch(l){}}return s}catch(l){console.log(l)}}}else{"file:"===location.protocol&&(this.errorState=1);var l=this;$.ajax({url:this.path+this.fileMwName,type:"GET",dataType:"html",async:0}).done(function(e){l.mwHtml=e.replace(/\\r/g,"")}).fail(function(){$.ajax({url:this.path+this.fileName,type:"GET",dataType:"html",async:0}).done(function(e){l.mwHtml=e.replace(/\\r/g,"")}).fail(function(){this.errorState=1})})}}function c(e,t){function o(){d(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var i,n,a=this;this.errorState=-1;for(var r in e){var s=e[r];s.listen(function(){this.modified=!0})}if(k.push(function(){for(var t in e){var o=e[t];o.modified&&a.write()}}),window.indexedDB){try{var l=window.indexedDB.open("markdown-webdocs.editor.db",1);l.onsuccess=function(e){i=e.target.result,t()},l.onupgradeneeded=function(o){i=o.target.result;for(var n in e)i.createObjectStore(n,{keyPath:"key"});t()},l.onerror=function(e){d(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(e)},l.onblocked=function(e){d(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(e)}}catch(c){return o(),void 0}a.restore=function(t){try{var o=i.transaction(Object.keys(e),"readonly"),n=0,r=0;for(var s in e){var l=e[s],c=o.objectStore(s).get(l.key);n++,c.onsuccess=function(o){l=e[o.target.source.name],l.fromJSON(o.target.result),l.modified=!1,r++,r===n&&(a.errorState=0,t&&t())},c.onerror=function(e){console.log(e),this.errorState=1}}}catch(d){console.log(d),this.errorState=1}},a.write=function(){if(!this.errorState)try{var t=i.transaction(Object.keys(e),"readwrite");for(var o in e){var n=e[o];if(n.modified){var a=t.objectStore(o);if(n.delete)delete n.delete,a.delete(n.key);else{var r=a.put(n.toJSON());r.onsuccess=function(){},r.onerror=function(e){console.log(e)}}n.modified=!1,n.selected&&localStorage&&localStorage.setItem("default selected page",n.selected)}}}catch(s){console.log(s)}}}else{if(!window.openDatabase)return o(),void 0;try{var n=window.openDatabase("markdown-webdocs.editor.db","1.0","markdow webdocs editor",0);if(!n)return o(),void 0;n.transaction(function(t){for(var i in e)t.executeSql("CREATE TABLE IF NOT EXISTS "+i+" (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,o)},o,t)}catch(c){return o(),void 0}a.restore=function(t){try{n.transaction(function(o){var i=0,n=0;for(var r in e){var s=e[r];o.executeSql("SELECT value FROM "+r+" WHERE key = ? LIMIT 1",[s.key],function(e,o){if(o.rows.length){try{s.fromJSON(JSON.parse(o.rows.item(0).value))}catch(r){s.fromJSON({})}s.modified=!1}n++,n===i&&(a.errorState=0,t&&t())},function(e){console.log(e)})}},function(){console.log(event)},function(){})}catch(o){}},a.write=function(){if(!errorState)try{n.transaction(function(t){for(var o in e){var i=e[o];i.delete?(delete i.delete,t.executeSql("DELETE FROM "+o+" WHERE key = ?",[i.key],function(){},function(e){console.log(e)})):t.executeSql("INSERT OR REPLACE INTO "+o+" (key, value) VALUES (?, ?)",[i.key,JSON.stringify(i)],function(){},function(e){console.log(e)})}},function(){console.log(event)},function(){}),modified=!1}catch(t){console.log(t)}}}a.onReady=function(e){setTimeout(function(){e()},400)}}function d(e){$DOC.cbody.attachAll().add("div",{style:"position:fixed; left:0; top:0; width:100%; height:100%; background-color:white; opacity:0.9; z-index:1201;"}).createElement(),$DOC.cbody.add("alert:div.mar20 alert alert-warning col1-sm-offset-3 col-sm-6",{$text:e,style:"position:fixed; left:25px; top:25px; z-index:1202;"}).createElement()}var u,h,f,p,m,b,v,g,w,y,S,x,O,k=[],T=[];$(window).load(function(){location.url=decodeURI(location.href.split("?")[0]),h=controls.create("DataObject"),h.key=location.url,h.fromJSON=function(e){this.selected=e&&e.selected,this.sourceMw=e&&e.sourceMw,this.editMw=e&&e.editMw,this.history=e&&e.history,this.publish=e&&e.publish,Array.isArray(this.history)||(this.history=[])},h.toJSON=function(){return{key:this.key,selected:this.selected,sourceMw:this.sourceMw,editMw:this.editMw,history:this.history}},f=controls.create("DataObject");var t=document.createElement("script");t.setAttribute("src",$DOC.root),f.key=t.src.split("?")[0],f.fromJSON=function(e){this.github=e&&e.github},f.toJSON=function(){return{key:this.key,github:this.github}},u=new c({drafts:h,settings:f},function(){u.restore(e)})}),a.prototype=controls.create("DataObject")}window.top!==window.self||window["mw-document-editor"]||(window["mw-document-editor"]=!0,"undefined"!=typeof $ENV?e():(window.defercqueue||(window.defercqueue=[]),window.defercqueue.push(e)))}();');
+            //$DOC.appendScript('document.editor.js', '/*include editor*/');
+
+        window.addEventListener('keydown', function(event) {
+            if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
+                if ($DOC.options.edit_mode) {
+                    var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
+                    if (pos >= 0)
+                        window.location = url.slice(0, pos) + url.slice(pos + 5);
+                } else
+                    window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
+            }
+        });
+    }
+})();
 }
 
 },{"./temp/bootstrap.controls.js":2,"./temp/marked":3,"controls":4,"dot":6}],2:[function(require,module,exports){
@@ -11490,7 +11510,7 @@ function Bootstrap(controls) {
     // 
     function Label(parameters, attributes) {
         this.initialize('bootstrap.Label', parameters, attributes, Label.template)
-            .listen('type', function() {
+            .listen_('type', function() {
                 this.class('label label-' + this.getControlStyle(), 'label-default label-link label-primary label-success label-info label-warning label-danger');
             });
     };
@@ -11523,7 +11543,7 @@ function Bootstrap(controls) {
             return _footer;
         } });
     
-        this.listen('type', function() {
+        this.listen_('type', function() {
             this.class('panel panel-' + this.getControlStyle(), 'panel-default panel-link panel-primary panel-success panel-info panel-warning panel-danger');
         });
 
@@ -11620,7 +11640,7 @@ function Bootstrap(controls) {
     controls.typeRegister('bootstrap.ToggleBtn', ToggleBtn);
     
     
-    // bootstrap.Button
+    // bootstrap@Button
     // 
     // Parameters:
     //  style {'default','primary','success','info','warning','danger','link'} - one of the predefined style of button from bootstrap
@@ -11638,7 +11658,7 @@ function Bootstrap(controls) {
     }
     function Button(parameters, attributes) {
         this.initialize('bootstrap.Button', parameters, attributes, Button.template)
-            .listen('type', this, buttonTypeHandler);
+            .listen_('type', buttonTypeHandler);
     };
     Button.prototype = control_prototype;
     Button.template = function(it) {
@@ -11655,19 +11675,19 @@ function Bootstrap(controls) {
     // Splitbutton
     //
     function Splitbutton(parameters, attributes) {
-        this.initialize('bootstrap.Splitbutton', parameters, attributes, Splitbutton.template)
+        this.initialize('bootstrap.SplitButton', parameters, attributes, Splitbutton.template)
             ._class('btn-group')
             ._add('button:bootstrap.Button', {$icon:attributes.$icon})
             ._add('toggle:bootstrap.Button', {class:'dropdown-toggle', 'data-toggle':'dropdown', $text:'<span class="caret"></span>'})
             ._add('items:ul', {class:'dropdown-menu'})
-            .listen('type', function() {
+            .listen_('type', function() {
                 var btn_class = 'btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim();
                 this.button.class(btn_class);
                 this.toggle.class(btn_class);
             });
     };
     Splitbutton.prototype = control_prototype;
-    controls.typeRegister('bootstrap.Splitbutton', Splitbutton);
+    controls.typeRegister('bootstrap.SplitButton', Splitbutton);
     
     
     // BtnGroup
@@ -11749,6 +11769,25 @@ function Bootstrap(controls) {
     };
     FormGroup.prototype = control_prototype;
     controls.typeRegister('bootstrap.FormGroup', FormGroup);
+    
+    
+    // Modal
+    // 
+    function Modal(parameters, attributes) {
+        this.initialize('bootstrap.Modal', parameters, attributes, Modal.template)
+            ._class('modal fade')
+            ._attr('role', 'dialog')
+            ._add('header:div', {class:'modal-header'})
+            ._add('body:div', {class:'modal-body'})
+            ._add('footer:div', {class:'modal-footer'});
+        if (!attributes.hasOwnProperty('tabindex'))    attributes.tabindex = -1;
+        if (!attributes.hasOwnProperty('aria-hidden')) attributes['aria-hidden'] = true;
+    };
+    Modal.prototype = control_prototype;
+    Modal.template = function(it) {
+        return '<div' + it.printAttributes() + '><div class="modal-dialog"><div class="modal-content">' + it.printControls() + '</div></div></div>';
+    };
+    controls.typeRegister('bootstrap.Modal', Modal);
     
     
     // ControlLabel
@@ -12951,7 +12990,7 @@ if (typeof exports === 'object') {
 
 },{}],4:[function(require,module,exports){
 //     controls.js
-//     purpose: UI framework, code generation tool
+//     UI framework, code generation tool
 //     status: proposal, example, valid prototype, under development
 //     demo:   http://aplib.github.io/controls.js/
 //     issues: https://github.com/aplib/markdown-site-template/issues
@@ -12964,7 +13003,7 @@ if (typeof exports === 'object') {
         VERSION: '0.6.12'/*#.#.##*/,
         id_generator: 53504,
         // assignable default template engine
-        template: function(templ) { return new Function('return \'' + templ.replace(/'/g, "\\'") + '\'')(); },
+        template: function(templ) { return new Function('return \'' + templ.replace(/'/g, "\\'") + '\''); },
         subtypes: {} // Registered subtypes
     };
     
@@ -12984,29 +13023,37 @@ if (typeof exports === 'object') {
     //  
     //  example: bootstrap.Button#size=2;style=info
     //  
-    controls.controlInitialize = function(object, __type, parameters, _attributes, outer_template, inner_template) {
-
-        var attributes = _attributes || {};
+    controls.controlInitialize = function(object, __type, parameters, attributes, outer_template, inner_template) {
         
-        if (!attributes.id)
-            attributes.id = (++controls.id_generator).toString(16); // set per session uid
+        if (attributes) {
+            object.name = attributes.$name;
+            object.id = (attributes.id) ? attributes.id : (attributes.id = (++controls.id_generator).toString(16)); // set per session uid
+            
+            // default move $prime to $text
+            if (attributes.hasOwnProperty('$prime')) {
+                attributes.$text = attributes.$prime;
+                delete attributes.$prime;
+            }
+            object.attributes = attributes;
+        } else {
+            var id = object.id = (++controls.id_generator).toString(16); // set per session uid
+            object.attributes = {id:id};
+        }
         
-        object.id           = attributes.id;    // This should be a unique identifier. Value  will be assigned to the 'id' attribute of DOM element.
         object.__type       = __type;
         object.parameters   = parameters || {};
-        object.attributes   = attributes;       // The object contains data to generate html code,  $icon, class, style, $text etc
         object.controls     = [];               // This is a collection of nested objects
         
         if (outer_template)
-        Object.defineProperty(object, "outer_template", {
+        Object.defineProperty(object, 'outer_template', {
             enumerable: true, writable: true,
             value: outer_template
         });
 
         if (inner_template)
-        Object.defineProperty(object, "inner_template", {
+        Object.defineProperty(object, 'inner_template', {
             enumerable: true, writable: true,
-            value: (typeof(inner_template) === 'string') ? controls.template(inner_template) : inner_template
+            value: inner_template
         });
     
         return object;
@@ -13071,33 +13118,60 @@ if (typeof exports === 'object') {
     
     
 // >> Events
+
+    function force_event(object, type, capture) {
+        var events = object.events;
+        if (!events)
+            object.events = events = {};
+
+        var key = (capture) ? ('#'/*capture*/ + type) : type;
+        var event = events[key];
+        if (!event) {
+            events[key] = event = new controls.Event(object, type, capture);
+
+            // add DOM listener if attached
+            if (event.is_dom_event) {
+                var element = object._element;
+                if (element)
+                    element.addEventListener(type, event.raise, capture);
+            }
+        }
+        return event;
+    };
+
+    var dom_events =
+',change,DOMActivate,load,unload,abort,error,select,resize,scroll,blur,DOMFocusIn,DOMFocusOut,focus,focusin,focusout,\
+click,dblclick,mousedown,mouseenter,mouseleave,mousemove,mouseover,mouseout,mouseup,wheel,keydown,keypress,keyup,oncontextmenu,\
+compositionstart,compositionupdate,compositionend,DOMAttrModified,DOMCharacterDataModified,DOMNodeInserted,\
+DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtreeModified,';
     
-    controls.Event = function(listeners_data) {
-        var listeners = this.listeners = new Array();
+    controls.Event = function(default_call_this, type, capture, listeners_data) {
+        var listeners = this.listeners = [],
+            call_this = this.call_this = default_call_this; // owner of the event object
+        this.type = type;
+        this.capture = capture;
+        this.is_dom_event = (dom_events.indexOf(',' + type + ',') >= 0);
+        
+        // revive from JSON data
+        if (listeners_data)
+        for(var i = 0, c = listeners_data.length; i < c; i+=2) {
+            var listener_ = listeners_data[i];
+            listeners.push((typeof listener_ === 'function') ? listener_ : Function('event', listener_));
+            var c_this =  listeners_data[i+1];
+            listeners.push((c_this === call_this) ? null : call_this);
+        }
 
         this.raise = function() {
             for(var i = 0, c = listeners.length; i < c; i+=2)
-                listeners[i].apply(listeners[i+1], arguments);
+                listeners[i].apply(listeners[i+1] || call_this, arguments);
         };
-        
-//        // revive JSON
-//        if (listeners_data)
-//        {
-//            for(var i = 0, c = listeners_data.length; i < c; i+=2)
-//            {
-//                var json_listener = listeners_data[i];
-//                var listener_func = (typeof json_listener === 'function') ? json_listener : Function('event', json_listener);
-//                listeners.push(listener_func);
-//                listeners.push(listeners_data[i+1]);
-//            }
-//        }
     };
     controls.Event.prototype = {
         addListener: function(call_this/*optional*/, listener) {
-            if (typeof(call_this) === 'function')
-                this.listeners.push(call_this, this);
+            if (arguments.length > 1)
+                this.listeners.push(listener, (call_this === this.call_this) ? null : call_this);
             else
-                this.listeners.push(listener, call_this);
+                this.listeners.push(call_this, null);
         },
 
         removeListener: function(listener) {
@@ -13108,24 +13182,23 @@ if (typeof exports === 'object') {
         },
         
         clear: function() {
-            this.listeners = [];
-        }
+            this.listeners.length = 0;
+        },
 
-//        toJSON: function()
-//        {
-//            var json = [];
-//            var listeners = this.listeners;
-//                        
-//            // Serialize listeners
-//            
-//            for(var i = 0, c = listeners.length; i < c; i+=2) {
-//                var event_func = listeners[i];
-//                json.push(extract_func_code(event_func));
-//                json.push(listeners[i+1]);
-//            }
-//            
-//            return json;
-//        }
+        toJSON: function() {
+            var jsonlisteners = [],
+                listeners = this.listeners;
+            // Serialize listeners
+            for(var i = 0, c = listeners.length; i < c; i+=2) {
+                var event_func = listeners[i],
+                    call_this = listeners[i+1];
+                if (!event_func.no_serialize) {
+                    jsonlisteners.push(extract_func_code(event_func));
+                    jsonlisteners.push();
+                }
+            }
+            return {type:this.type, capture:this.capture, listeners:jsonlisteners};
+        }
     };
     
     // Post processing
@@ -13148,22 +13221,15 @@ if (typeof exports === 'object') {
     
     var data_object_common = {
         listen: function(call_this/*optional*/, listener) {
-            if (typeof(call_this) === 'function') {
-                listener = call_this;
-                call_this = this;
-            }
-            
-            if (!listener)
-                return this;
-            
-            if (!this.event)
-                this.event = new controls.Event(this);
-            
-            this.event.addListener(call_this, listener);
-            
+            var event = this.event || (this.event = new controls.Event(this));
+            event.addListener.apply(event, arguments);
             return this;
         },
-                
+        listen_: function(call_this/*optional*/, listener) {
+            if (typeof listener === 'function') listener.no_serialize = true;
+            else call_this.no_serialize = true;
+            return this.listen.apply(this, arguments);
+        },
         removeListener: function(listener) {
             var event = this.event;
             if (event)
@@ -13171,7 +13237,6 @@ if (typeof exports === 'object') {
             
             return this;
         },
-        
         subscribe: function(call_this/*optional*/, listener) {
             if (typeof(call_this) === 'function') {
                 listener = call_this;
@@ -13181,14 +13246,11 @@ if (typeof exports === 'object') {
             if (!listener)
                 return this;
             
-            if (!this.post_event)
-                this.post_event = new controls.Event(this);
-            
-            this.post_event.addListener(call_this, listener);
+            var post_event = this.post_event || (this.post_event = new controls.Event(this));
+            post_event.addListener.apply(post_event, arguments);
             
             return this;
         },
-        
         unsubscribe: function(listener) {
             var post_event = this.post_event;
             if (post_event)
@@ -13196,7 +13258,6 @@ if (typeof exports === 'object') {
             
             return this;
         },
-                
         raise: function() {
             var event = this.event;
             if (event)
@@ -13212,7 +13273,6 @@ if (typeof exports === 'object') {
                 }
             }
         },
-        
         set: function(name, value) {
             this.state_id++;
             this[name] = value;
@@ -13306,7 +13366,7 @@ if (typeof exports === 'object') {
             return controls.controlInitialize(this, __type, parameters, _attributes, outer_template, inner_template);
         };
         
-        Object.defineProperty(this, "name", {
+        Object.defineProperty(this, 'name', {
             enumerable: true, 
             get: function() { return this._name; },
             set: function(value) {
@@ -13330,7 +13390,7 @@ if (typeof exports === 'object') {
         });
         
         // The associated element of control
-        Object.defineProperty(this, "element", {
+        Object.defineProperty(this, 'element', {
             enumerable: true,
             get: function() { return this._element; },
             set: function(attach_to_element) {
@@ -13348,10 +13408,10 @@ if (typeof exports === 'object') {
                         if (event.is_dom_event) {
                             // remove event raiser from detached element
                             if (element)
-                                element.removeEventListener(event.event, event.raise, event.capture);
+                                element.removeEventListener(event.type, event.raise, event.capture);
                             // add event raiser as listener for attached element
                             if (attach_to_element)
-                                attach_to_element.addEventListener(event.event, event.raise, event.capture);
+                                attach_to_element.addEventListener(event.type, event.raise, event.capture);
                         }
                     }
                     this.raise('element', attach_to_element);
@@ -13433,7 +13493,6 @@ if (typeof exports === 'object') {
                 }
             },
         
-        
             length: { enumerable: true, get: function() { return this.controls.length; } },
             first:  { enumerable: true, get: function() { return this.controls[0]; } },
             last:   { enumerable: true, get: function() { return this.controls[this.controls.length-1]; } }
@@ -13474,54 +13533,61 @@ if (typeof exports === 'object') {
         // set template text or template function
         this.template = function(outer_template, inner_template) {
             if (outer_template) {
+                if (typeof outer_template === 'string')
+                    outer_template = controls.template(outer_template);
                 if (!this.hasOwnProperty("outer_template"))
-                    Object.defineProperty(this, "outer_template", { configurable: true, enumerable: true, writable: true });
-                
-                var type = typeof(outer_template);
-                if (type === 'string') {
-                    this.outer_template = controls.template(outer_template);        // template function
-                    this.outer_template_text = outer_template;                 // save template text for serialization
-                }
-                else if (type === 'function') {
+                    Object.defineProperty(this, "outer_template", { configurable:true, enumerable:true, writable:true, value:outer_template });
+                else
                     this.outer_template = outer_template;
-                    this.outer_template_text = '@func';
-                }
             }
-            
             if (inner_template) {
+                if (typeof outer_template === 'string')
+                    inner_template = controls.template(inner_template);
                 if (!this.hasOwnProperty("inner_template"))
-                    Object.defineProperty(this, "inner_template", { configurable: true, enumerable: true, writable: true });
-            
-                type = typeof(inner_template);
-                if (type === 'string') {
-                    this.inner_template = controls.template(inner_template);        // template function
-                    this.inner_template_text = inner_template;                 // save template text for serialization
-                }
-                else if (type === 'function') {
+                    Object.defineProperty(this, "inner_template", { configurable:true, enumerable:true, writable:true, value:inner_template });
+                else
                     this.inner_template = inner_template;
-                    this.inner_template_text = '@func';
-                }
             }
-            
-            if (this._element)
-                this.refresh();
+            return this;
         };
         
         this.toJSON = function() {
-            var json = { __type: this.type(), id: this.id, name: this.name, attributes: this.attributes, controls: this.controls };
+            var json = {
+                __type: this.type(),
+                attributes: this.attributes
+            };
             
-            var outer_template_text = this.outer_template_text;
-            if (outer_template_text)
-                json.outer_template = (outer_template_text === '@func')
-                    ? '' + this.outer_template
-                    : this.outer_template_text;
-                    
-            var inner_template_text = this.inner_template_text;
-            if (inner_template_text)
-                json.inner_template = (inner_template_text === '@func')
-                    ? '' + this.inner_template
-                    : this.inner_template_text;
-                    
+            var name = this.name;
+            if (name)
+                json.name = name;
+            
+            var ctrls = this.controls;
+            if (ctrls.length)
+                json.controls = ctrls;
+            
+            if (this.hasOwnProperty('outer_template'))
+                json.outer_template = extract_func_code(this.outer_template);
+            if (this.hasOwnProperty('inner_template'))
+                json.inner_template = extract_func_code(this.inner_template);
+            
+            var events = this.events;
+            if (events) {
+                var jevents = [];
+                for(var prop in events) {
+                    var event = events[prop],
+                        listeners = event.listeners,
+                        serialize = false;
+                    for(var i = 0, c = listeners.length; i < c; i+=2)
+                        if (!listeners[i].no_serialize) {
+                            serialize = true;
+                            break;
+                        }
+                    if (serialize)
+                        jevents.push(event);
+                }
+                if (jevents.length)
+                    json.events = jevents;
+            }
             return json;
         };
         
@@ -13564,7 +13630,9 @@ if (typeof exports === 'object') {
         
         // Attach to DOM element
         this.attach = function(some) {
-            this.element = (typeof(some) === 'object') ? (some._element || some) : document.getElementById(some || this.id);
+            this.element = (!arguments.length)
+                ? document.getElementById(this.id)
+                : (typeof(some) === 'string') ? document.getElementById(some) : (some && (some._element || some));
             return this;
         };
         
@@ -13572,10 +13640,8 @@ if (typeof exports === 'object') {
         this.attachAll = function() {
             if (!this._element)
                 this.element = document.getElementById(this.id);
-            
             for(var ctrls = this.controls, i = 0, c = ctrls.length; i < c; i++)
                 ctrls[i].attachAll();
-            
             return this;
         };
         
@@ -13620,63 +13686,66 @@ if (typeof exports === 'object') {
         
         // opcode {number} - 0 - insert before end, 1 - insert after begin, 2 - insert before, 3 - insert after
         this.createElement = function(node, opcode) {
-            var element = this._element;
+            var element = this._element,
+                parent = this.parent;
+        
             if (element)
-                throw new TypeError('Already exists!');
+                throw new TypeError('Element already exists!');
             
-            if (!node && this.parent) {
-                node = this.parent.element;
+            if (!node && parent) {
+                node = parent.element;
                 opcode = 0;
             }
             
-            if (node) {
-                if (node.insertAdjacentHTML) {
-                    var pos;
-                    switch(opcode) {
-                        case 1: pos = 'afterbegin'; break;
-                        case 2: pos = 'beforebegin'; break;
-                        case 3: pos = 'afterend'; break;
-                        default: pos = 'beforeend';
-                    }
-                    // illegal invocation on call this method before element completed
-                    node.insertAdjacentHTML(pos, this.outerHTML());
-                } else {
-                   
-                    var fragment = document.createDocumentFragment(),
-                        el = document.createElement('div');
-                    el.innerHTML = this.outerHTML();
-                    var buf = Array.prototype.slice.call(el.childNodes);
-                    for(var i = 0, c = buf.length; i < c; i++)
-                        fragment.appendChild(buf[i]);
-                    
-                    switch(opcode) {
-                        case 1:
-                            if (node.childNodes.length === 0)
-                                node.appendChild(fragment);
-                            else
-                                node.insertBefore(node.firstChild, fragment);
-                            break;
-                        case 2:
-                            var nodeparent = node.parentNode;
-                            if (nodeparent)
-                                nodeparent.insertBefore(fragment, node);
-                            break;
-                        case 3:
-                            var nodeparent = node.parentNode;
-                            if (nodeparent) {
-                                var next_node = node.nextSibling;
-                                if (next_node)
-                                    nodeparent.insertBefore(fragment, next_node);
-                                else
-                                    nodeparent.appendChild(fragment);
-                            }
-                            break;
-                        default:
+            if (!node)
+                throw new TypeError('Failed to create element!');
+            
+            if (node.insertAdjacentHTML) {
+                var pos;
+                switch(opcode) {
+                    case 1: pos = 'afterbegin'; break;
+                    case 2: pos = 'beforebegin'; break;
+                    case 3: pos = 'afterend'; break;
+                    default: pos = 'beforeend';
+                }
+                // illegal invocation on call this method before element completed
+                node.insertAdjacentHTML(pos, this.outerHTML());
+                
+            } else {
+
+                var fragment = document.createDocumentFragment(),
+                    el = document.createElement('div');
+                el.innerHTML = this.outerHTML();
+                var buf = Array.prototype.slice.call(el.childNodes);
+                for(var i = 0, c = buf.length; i < c; i++)
+                    fragment.appendChild(buf[i]);
+
+                switch(opcode) {
+                    case 1:
+                        if (node.childNodes.length === 0)
                             node.appendChild(fragment);
-                    }
+                        else
+                            node.insertBefore(node.firstChild, fragment);
+                        break;
+                    case 2:
+                        var nodeparent = node.parentNode;
+                        if (nodeparent)
+                            nodeparent.insertBefore(fragment, node);
+                        break;
+                    case 3:
+                        var nodeparent = node.parentNode;
+                        if (nodeparent) {
+                            var next_node = node.nextSibling;
+                            if (next_node)
+                                nodeparent.insertBefore(fragment, next_node);
+                            else
+                                nodeparent.appendChild(fragment);
+                        }
+                        break;
+                    default:
+                        node.appendChild(fragment);
                 }
             }
-            
             return this.attachAll();
         };
         
@@ -13698,38 +13767,6 @@ if (typeof exports === 'object') {
             return this;
         };
         
-        var dom_events =
-',change,DOMActivate,load,unload,abort,error,select,resize,scroll,blur,DOMFocusIn,DOMFocusOut,focus,focusin,focusout,\
-click,dblclick,mousedown,mouseenter,mouseleave,mousemove,mouseover,mouseout,mouseup,wheel,keydown,keypress,keyup,oncontextmenu,\
-compositionstart,compositionupdate,compositionend,DOMAttrModified,DOMCharacterDataModified,DOMNodeInserted,\
-DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtreeModified,';
-        function force_event(_this, type, capture) {
-            var events = _this.events;
-            if (!events) {
-                events = {};
-                _this.events = events;
-            }
-            
-            var key = (capture) ? ('#'/*capture*/ + type) : type;
-            var event = events[key];
-            if (!event) {
-                event = new controls.Event();
-                event.event = type;         // "event"
-                event.is_dom_event = !!(dom_events.indexOf(',' + type + ',') >= 0); // "event"
-                event.capture = capture;    // "capture"
-                events[key] = event;
-                
-                // DOM listener if attached
-                
-                if (dom_events.indexOf(type) >= 0) {
-                    var element = _this._element;
-                    if (element)
-                        element.addEventListener(type, event.raise, capture);
-                }
-            }
-            return event;
-        };
-        
         // Set or remove event listener. Event type may be DOM event as "click" or special control event as "type"
         //
         // type {string} - a string representing the event type to listen for. (without "on") example: "click"
@@ -13741,12 +13778,26 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (typeof(call_this) === 'function') {
                 capture = listener;
                 listener = call_this;
-                call_this = this;
+                call_this = null;
             }
             if (type && listener)
-            // listener as string acceptable:
                 force_event(this, type, capture)
-                    .addListener(call_this, (typeof listener === 'function') ? listener : Function('event', listener));
+                    .addListener(call_this, listener);
+            return this;
+        };
+        
+        // set listener and check listener as no_serialize
+        this.listen_ = function(type, call_this, listener, capture) {
+            if (typeof(call_this) === 'function') {
+                capture = listener;
+                listener = call_this;
+                call_this = null;
+            }
+            if (type && listener) {
+                force_event(this, type, capture)
+                    .addListener(call_this, listener);
+                listener.no_serialize = true;
+            }
             return this;
         };
         
@@ -13836,7 +13887,6 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 if (updated && this._element)
                     this.refresh();
             }
-            
             return attributes;
         };
         
@@ -13849,7 +13899,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.type = function(type, apply_inherited) {
             // >> get type
             
-            if (arguments.length === 0) {
+            if (!arguments.length) {
                 var inheritable = '', unheritable = '', parameters = this.parameters;
                 for(var prop in parameters) {
                     if (prop[0] !== '/') {
@@ -13876,8 +13926,10 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             // >> set type and parameters
             
-            var parameters = {}; // replace parameters collection
-            
+            var parameters = this.parameters; // rebuild parameters
+            for(var prop in parameters)
+                delete parameters[prop];
+                
             if (apply_inherited && this.parent) {
                 // get inheritable parameters from this object for transfer to the created object
 
@@ -13887,11 +13939,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     parameters[prop] = parent_parameters[prop];
             }
             
-            var __type = parse_type(type, parameters, this.__type);
-            if (__type)
-                this.__type = __type;
-            
-            this.parameters = parameters;
+            this.__type = parse_type(type, parameters, this.attributes) || this.__type;
 
             this.raise('type');
             
@@ -14050,27 +14098,29 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         };
         
         // Create control and insert to the .controls collection
+        // type - type, control or array of controls
+        // type format:
+        //  name:namespace.control`class1 classN#parameters/inheritable_parameters
+        // $prime - primary parameter to control
         //
-        // type
-        //  {string} - type and parameters like 'layout/float=left'
-        //  {object} - control object
-        //  {string, semicolon separated list}
-        //  {array} - array of any type arguments
-        // [repeats] {Number} - optional, specify the number of created controls
-        // [attrs_or_callback] {Object,Function} - pass attributes or callback function to initialize the created object
-        // [this_arg] {Object} - 'this' argument for callback call
-        //
-        this.insert = function(index, type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        this.insert = function(index, type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             if (!type)
                 return;
             
             // normalize arguments
             
-            if ('object function'.indexOf(typeof repeats) >= 0) {
+            if (typeof $prime === 'function') {
+                this_arg = attributes;
+                callback = $prime;
+                $prime = undefined;
+                attributes = undefined;
+            }
+            
+            if ($prime instanceof Object) {
                 this_arg = callback;
                 callback = attributes;
-                attributes = repeats;
-                repeats = 1;
+                attributes = $prime;
+                $prime = undefined;
             }
 
             if (typeof attributes === 'function') {
@@ -14078,16 +14128,12 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 callback = attributes;
                 attributes = undefined;
             }
-                
-            // type of first srgument
             
             if (Array.isArray(type)) {
                 // collection detected
                 var result;
-                
                 for(var i = index, c = index + type.length; i < c; i++)
-                    result = this.insert(i, type[i], repeats, attributes, callback, this_arg);
-                
+                    result = this.insert(i, type[i], $prime, attributes, callback, this_arg);
                 return result;
             }
             
@@ -14095,34 +14141,27 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 // it is a control?
                 var add_control = type;
                 if (add_control.hasOwnProperty('__type'))
-                    //add_control.parent = this;
                     setParent.call(type, this, index);
+                return add_control;
+            }
+            
+            var attrs = {class:''}, parameters = {};
+            
+            for(var prop in attributes)
+                attrs[prop] = attributes[prop];
                 
-                return;
-            }
-            
-            // parse name for new control
-            
-            var name;
-            var colonpos = type.indexOf(':');
-            var leftpos = type.indexOf('{');
-            if (colonpos >= 0 && (leftpos < 0 || colonpos < leftpos)) {
-                // name: syntax detected
-                name = type.substr(0, colonpos);
-                type = type.substr(colonpos + 1);
-            }
-            
-            // get inheritable parameters from this object for transfer to the created object
-            
-            var inheritable_parameters = this.parameters;
-            var parameters = {};
-            for(var prop in inheritable_parameters)
+            // transfer inheritable parameters to the created object
+            var this_parameters = this.parameters;
+            for(var prop in this_parameters)
             if (prop[0] === '/')
-                parameters[prop] = inheritable_parameters[prop];
+                parameters[prop] = this_parameters[prop];
             
             // resolve constructor
-            var __type = parse_type(type, parameters/*, this.__type*/);
-            var constructor = resolve_ctr(__type, parameters);
+            var __type = parse_type(type, parameters, attrs),
+                constructor = resolve_ctr(__type, parameters, attributes);
+
+            if ($prime)
+                attrs.$prime = $prime;
             
             // type error processing
             if (!constructor) {
@@ -14134,119 +14173,47 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     parameters['#{__type}'] = __type;
                     parameters['#{callback}'] = callback;
                     parameters['#{this_arg}'] = this_arg;
-                    constructor = resolve_ctr('controls.Stub', parameters);
+                    constructor = resolve_ctr('controls.stub', parameters);
                 }
             }
             
-            var result;
+            // move $parameters to attributes (unsafe)
+            for(var prop in parameters)
+                if (prop[0] === '$')
+                    attrs[prop.substr(1)] = parameters[prop];
             
-            // loop for create control(s)
-            
-            for(var i = 0, c = repeats || 1; i < c; i++) {
-                // prepare parameters and attributes
-                
-                var params = {},
-                    attrs = {class:''};
-                
-                for(var prop in parameters) {
-                    params[prop] = parameters[prop];
-                    if (prop[0] === '$')
-                        attrs[prop.substr(1)] = parameters[prop];
-                }
-                
-                if (attributes)
-                for(var prop in attributes)
-                    attrs[prop] = attributes[prop];
-            
-                // create control(s)
-                
-                var new_control = new constructor(params, attrs);
+            // create control
 
-                if (name)
-                    new_control.name = name;
-                
-                // reflect after creation
-                new_control.raise('type');
-                
-                // set parent property
-                setParent.call(new_control, this, index);
-            
-                // callback
-                if (callback)
-                    callback.call(this_arg || this, new_control);
-                
-                result = new_control;
-            }
+            var new_control = new constructor(parameters, attrs);
 
-            return result;
+            // reflect after creation
+            new_control.raise('type');
+
+            // set parent property
+            setParent.call(new_control, this, index);
+
+            // callback
+            if (callback)
+                callback.call(this_arg || this, new_control);
+
+            return new_control;
         };
         
-        this.add = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            return this.insert(this.controls.length, type, repeats, attributes, callback, this_arg);
+        this.add = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            return this.insert(this.controls.length, type, $prime, attributes, callback, this_arg);
         };
         
-        this._add = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            this.insert(this.controls.length, type, repeats, attributes, callback, this_arg);
+        this._add = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            this.insert(this.controls.length, type, $prime, attributes, callback, this_arg);
             return this;
         };
         
-        this.unshift = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            return this.insert(0, type, repeats, attributes, callback, this_arg);
+        this.unshift = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            return this.insert(0, type, $prime, attributes, callback, this_arg);
         };
         
-        this._unshift = function(type, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            this.insert(0, type, repeats, attributes, callback, this_arg);
-            return this;
-        };
-        
-        this.add_text = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            if (typeof repeats === 'object') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            attributes = attributes || {};
-            attributes.$text = text;
-            return this.add('controls.container', repeats, attributes, callback, this_arg);
-        };
-        
-        this._add_text = function(text, repeats, attributes, callback, this_arg) {
-            this.add_text(text, repeats, attributes, callback, this_arg);
-            return this;
-        };
-        
-        this.add_p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            if (typeof repeats === 'object') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            attributes = attributes || {};
-            attributes.$text = text;
-            return this.add('p', repeats, attributes, callback, this_arg);
-        };
-        
-        this._add_p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            this.add_p(text, repeats, attributes, callback, this_arg);
-            return this;
-        };
-        
-        this.add_templ = function(template, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-            if (typeof repeats === 'object') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = repeats;
-                repeats = 1;
-            }
-            attributes = attributes || {};
-            attributes.$template = template;
-            return this.add('controls.custom', repeats, attributes, callback, this_arg);
-        };
-        
-        this._add_templ = function(template, repeats, attributes, callback, this_arg) {
-            this.add_templ(template, repeats, attributes, callback, this_arg);
+        this._unshift = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            this.insert(0, type, $prime, attributes, callback, this_arg);
             return this;
         };
         
@@ -14292,7 +14259,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     if (post_mode)
                         data_object.subscribe(this, route_data_event);
                     else
-                        data_object.listen(this, route_data_event);
+                        data_object.listen_(this, route_data_event);
                 }
                 
                 route_data_event.call(this);
@@ -14300,12 +14267,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             return this;
         };
     
-        this.every      = function(delegate, thisArg)   { return this.controls.every(delegate,   thisArg || this); };
-        this.filter     = function(delegate, thisArg)   { return this.controls.filter(delegate,  thisArg || this); };
-        this.each       = function(delegate, thisArg)   { return this.controls.forEach(delegate, thisArg || this); };
-        this.forEach    = this.each;
-        this.map        = function(delegate, thisArg)   { return this.controls.map(delegate,     thisArg || this); };
-        this.some       = function(delegate, thisArg)   { return this.controls.some(delegate,    thisArg || this); };
+        this.every  = function(delegate, thisArg)   { return this.controls.every(delegate,   thisArg || this); };
+        this.filter = function(delegate, thisArg)   { return this.controls.filter(delegate,  thisArg || this); };
+        this.each   = this.forEach = function(delegate, thisArg)   { return this.controls.forEach(delegate, thisArg || this); };
+        this.map    = function(delegate, thisArg)   { return this.controls.map(delegate,     thisArg || this); };
+        this.some   = function(delegate, thisArg)   { return this.controls.some(delegate,    thisArg || this); };
     };
     
     function extract_func_code(func) {
@@ -14318,109 +14284,108 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         return func;
     }
     
-    // Parse full type to base __type and parameters
-    // 
-    // type {string} - type string include parameters
-    // parameters {object} - parameters (;-separated list) parsed from type string will be assigned to the passed parameters object
-    // namespace {string} - base type or context namespace example: 'bootstrap.Label' or 'bootstrap'
+    // Parse full type string
+    // type format:
+    //  name:namespace.control`class1 classN#parameters/inheritable_parameters 
+    // returns value: __type {string} - base type string
+    // parameters - parsed parameters
+    // attributes - parsed attributes and $name
     //
-    function parse_type(type, parameters, namespace) {
-        // remove {reference part}
-        if (type.slice(-1) === '}') {
-            var openpos = type.indexOf('{');
-            if (openpos >= 0) {
-                parameters['#{href}'] = type.substr(openpos + 1, type.length - openpos - 2);
-                type = type.substr(0, openpos).trim();
-            }
+    function parse_type(type, parameters, attributes) {
+        var start = 0,
+            colonpos = type.indexOf(':'),
+            dotpos = type.indexOf('.'),
+            gravepos = type.indexOf('`'),
+            numpos = type.indexOf('#'),
+            slashpos = type.indexOf('/'),
+            leftpos = type.indexOf('{');
+        
+        if (dotpos >= 0 && colonpos > dotpos)
+            colonpos = -1;
+        if (gravepos >= 0) {
+            if (colonpos > gravepos) colonpos = -1;
+            if (dotpos > gravepos) dotpos = -1;
         }
-        
-        // get __type
-        
-        var dotpos = type.indexOf('.'), slashpos = type.indexOf('/'), numberpos = type.indexOf('#');
-        
-        var typelen = -1;
-        if (slashpos >= 0)
-            typelen = slashpos;
-        if (numberpos >= 0 && (numberpos < typelen || typelen < 0))
-            typelen = numberpos;
-        
-        var __type = (typelen < 0) ? type : type.substr(0, typelen);
-        
-        // fix type prefix - namespace
-        if (__type && (dotpos < 0 || (typelen >= 0 && dotpos > typelen))) {
-            if (namespace) {
-                var dotpos = namespace.indexOf('.');
-                if (dotpos >= 0)
-                    namespace = namespace.substr(0, dotpos + 1);
-                else
-                    namespace += '.';
-            }
-            else
-                namespace = 'controls.';
-            
-            __type = namespace + __type;
+        if (numpos >= 0) {
+            if (colonpos > numpos) colonpos = -1;
+            if (dotpos > numpos) dotpos = -1;
+            if (gravepos > numpos) gravepos = -1;
         }
-        
-        if (arguments.length < 2)
-            return __type;
-        
-        // parse parameters
-            
-        if (typelen >= 0) {
-            var paramstr = type.substr(typelen);
-            var inheritable, unheritable;
-            
-            // unheritable starts with #
-            if (numberpos > slashpos)
-                unheritable = type.substr(numberpos + 1);
-            else if (numberpos >= 0)
-                unheritable = type.substr(numberpos + 1, slashpos - numberpos - 1);
-            // unheritable starts with /
-            if (slashpos > numberpos)
-                inheritable = type.substr(slashpos + 1);
-            else if (slashpos >= 0)
-                inheritable = type.substr(slashpos + 1, numberpos - slashpos - 1);
-            
-            if (inheritable) {
-                inheritable = inheritable.split(';'); // ';' - separated list
-                for(var i = 0, c = inheritable.length; i < c; i++) {
-                    var parameter = inheritable[i];
-                    if (parameter) {
-                        parameter = parameter.split('=');
-                        var parname = parameter[0], parvalue = parameter[1];
-                        if (parname) {
-                            if (parvalue === undefined)
-                                parvalue = true;
-                            else if (parvalue)
-                                parvalue = parvalue.trim();
-                                
-                            // inheritable writed to parameters hash under '/'+parametername key
-                            parameters['/' + parname.trim()] = parvalue;
-                        }
-                    }
-                }
-            }
+        if (slashpos >= 0) {
+            if (colonpos > slashpos) colonpos = -1;
+            if (dotpos > slashpos) dotpos = -1;
+            if (gravepos > slashpos) gravepos = -1;
+        }
+        if (leftpos >= 0) {
+            if (colonpos > leftpos) colonpos = -1;
+            if (dotpos > leftpos) dotpos = -1;
+            if (gravepos > leftpos) gravepos = -1;
+            if (slashpos > leftpos) slashpos = -1;
+        }
 
-            if (unheritable) {
-                unheritable = unheritable.split(';'); // ';' - separated list
-                for(var i = 0, c = unheritable.length; i < c; i++) {
-                    var parameter = unheritable[i];
-                    if (parameter) {
-                        parameter = parameter.split('=');
-                        var parname = parameter[0], parvalue = parameter[1];
-                        if (parname) {
-                            if (parvalue === undefined)
-                                parvalue = true;
-                            else if (parvalue)
-                                parvalue = parvalue.trim();
-                            
-                            parameters[parname.trim()] = parvalue;
-                        }
-                    }
-                }
+         // name:... syntax
+        if (colonpos >= 0) {
+            if (attributes)
+                attributes.$name = type.substr(0, colonpos);
+            start = colonpos + 1;
+        }
+
+        var namespace;
+        // namespace. syntax
+        if (dotpos >= 0) {
+            namespace = type.substr(start, 1 + dotpos - start);
+            start = dotpos + 1;
+        }
+        if (!namespace) namespace = 'controls.';
+        
+        var paramsbegin = numpos;
+        if (paramsbegin < 0 || (slashpos >= 0 && slashpos < paramsbegin))   paramsbegin = slashpos;
+        if (paramsbegin < 0 || (leftpos >= 0 && leftpos < paramsbegin))     paramsbegin = leftpos;
+        
+        // __type
+        var __type = namespace + type.substr(start, ((gravepos >= 0) ? gravepos : (paramsbegin >= 0) ? paramsbegin : type.length) - start);
+        
+        // .class1 classN  syntax
+        if (attributes) {
+            var cls = (gravepos < 0) ? '' : (paramsbegin >= 0) ? type.substr(gravepos + 1, paramsbegin - gravepos - 1) : type.substr(gravepos + 1);
+            if (cls || !cls.hasOwnProperty('class'))
+                attributes.class = (attributes.class) ? (attributes.class + ' ' + cls) : cls;
+        }
+        
+        if (leftpos >= 0) {
+            var rightpos = type.lastIndexOf('}');
+            // component source url
+            parameters['#{href}'] = type.substr(leftpos + 1, (rightpos >= 0) ? (rightpos - leftpos - 1) : (type.length - leftpos - 1));
+        }
+        
+        // parse /inheritable parameters
+        if (slashpos >= 0) {
+            var iparams = type.substr(slashpos + 1, ((numpos > slashpos) ? numpos : (leftpos > slashpos) ? leftpos : type.length) - slashpos - 1)
+                .split(';');
+            for(var i = 0, c = iparams.length; i < c; i++) {
+                var param = iparams[i],
+                    eqpos = param.indexOf('=');
+                if (eqpos >= 0)
+                    parameters['/' + param.substr(0, eqpos)] = param.substr(eqpos + 1);
+                else
+                    parameters['/' + param] = true;
             }
         }
         
+        // parse #unheritable parameters
+        if (numpos >= 0) {
+            var uparams = type.substr(numpos + 1, ((slashpos > numpos) ? slashpos : (leftpos > numpos) ? leftpos : type.length) - numpos - 1)
+                .split(';');
+            for(var i = 0, c = uparams.length; i < c; i++) {
+                var param = uparams[i],
+                    eqpos = param.indexOf('=');
+                if (eqpos >= 0)
+                    parameters[param.substr(0, eqpos)] = param.substr(eqpos + 1);
+                else
+                    parameters[param] = true;
+            }
+        }
+
         return __type;
     };
     
@@ -14489,50 +14454,46 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     
     // Create control
     //
-    // syntax: .create(type, attributes); .create(type, parameters, attributes);
-    // type - type and parameters
-    // parameters - optional, parameters
-    // attributes - optional, set attributes to control
-    // return created control
+    // syntax: controls.create(type, attributes); controls.create(type, parameters, attributes);
     //
-    controls.create = function(type, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-        switch(arguments.length) {
-            case 0:  throw new SyntaxError('Invalid Type argument value!');
-            case 1:  attributes = {}; parameters = {}; break;
-            case 2:
-                if (typeof parameters === 'function') {
-                    this_arg = attributes;
-                    callback = parameters;
-                    attributes = {};
-                    parameters = {};
-                }
-                else {
-                    attributes = parameters || {};
-                    parameters = {}; 
-                }
-                break;
-            default:
-                if (typeof attributes === 'function') {
-                    this_arg = callback;
-                    callback = attributes;
-                    attributes = parameters || {};
-                    parameters = {};
-                }
-                else if (typeof parameters === 'function') {
-                    this_arg = attributes;
-                    callback = parameters;
-                    attributes = {};
-                    parameters = {};
-                }
-                else {
-                    attributes = attributes || {};
-                    parameters = parameters || {};
-                }
+    controls.create = function(type, /*optional*/ $prime, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        var arglen = arguments.length;
+        if (typeof $prime !== 'string' || $prime instanceof Object) {
+            this_arg = callback;
+            callback = attributes;
+            attributes = parameters;
+            parameters = $prime;
+            $prime = undefined;
+            arglen++;
+        }
+        if (typeof parameters === 'function') {
+            this_arg = attributes;
+            callback = parameters;
+            parameters = {};
+            attributes = {};
+            arglen+=2;
+        }
+        else if (typeof attributes === 'function') {
+            this_arg = callback;
+            callback = attributes;
+            attributes = parameters;
+            parameters = {};
+            arglen++;
+        }
+        if (arglen === 3) {
+            attributes = parameters;
+            parameters = {};
         }
         
-        var __type = parse_type(type, parameters),
+        parameters = parameters || {};
+        attributes = attributes || {};
+        
+        var __type = parse_type(type, parameters, attributes),
             constructor = resolve_ctr(__type, parameters);
         
+        if ($prime)
+            attributes.$prime = $prime;
+            
         if (!constructor) {
             if (!type_error_mode)
                 throw new TypeError('Type ' + __type + ' not registered!');
@@ -14545,10 +14506,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 constructor = resolve_ctr('controls.Stub', parameters);
             }
         }    
-        
-        if (!attributes.class)
-            attributes.class = '';
-        
+
         for(var prop in parameters)
         if (prop[0] === '$')
             attributes[prop.substr(1)] = parameters[prop];
@@ -14565,40 +14523,6 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         return new_control;
     };
 
-    controls.text = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-        if (typeof repeats === 'object') {
-            this_arg = callback;
-            callback = attributes;
-            attributes = repeats;
-            repeats = 1;
-        }
-        attributes = attributes || {};
-        attributes.$text = text;
-        return controls.create('controls.container', repeats, attributes, callback, this_arg);
-    };
-
-    controls.p = function(text, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-        if (typeof repeats === 'object') {
-            this_arg = callback;
-            callback = attributes;
-            attributes = repeats;
-            repeats = 1;
-        }
-        return controls.create('controls.p', repeats, controls.extend({}, attributes), callback, this_arg);
-    };
-
-    controls.templ = function(template, /*optional*/ repeats, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-        if (typeof repeats === 'object') {
-            this_arg = callback;
-            callback = attributes;
-            attributes = repeats;
-            repeats = 1;
-        }
-        attributes = attributes || {};
-        attributes.$template = template;
-        return controls.create('controls.custom', repeats, attributes, callback, this_arg);
-    };
-        
     // controls.reviverJSON()
     // 
     // use with JSON.parse(json, controls.reviverJSON), this function restores controls
@@ -14609,8 +14533,16 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 __type = parse_type(value.__type, parameters),
                 constructor = resolve_ctr(__type, parameters);
             
-            if (!constructor)
-                throw new TypeError('controls.reviverJSON(): ' + __type + ' constructor not registered!');
+            if (!constructor) {
+                //throw new TypeError('controls.reviverJSON(): ' + __type + ' constructor not registered!');
+                console.log('controls.reviverJSON(): ' + __type + ' constructor not registered!');
+                // route to Stub
+                parameters['#{type}'] = value.__type; // pass original type
+                parameters['#{__type}'] = __type;
+//                parameters['#{callback}'] = callback;
+//                parameters['#{this_arg}'] = this_arg;
+                constructor = resolve_ctr('controls.stub', parameters);
+            }
             
             var new_control;
             
@@ -14625,7 +14557,6 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
 
             return new_control;
         }
-
         return value;
     };
     
@@ -14643,31 +14574,33 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (typeof(json_object) === 'object' && json_object.hasOwnProperty('__type'))
                 json_object = reviverJSON(null, json_object);
         }
-        
         return json_object;
     };
     
-    // Typical control revive function
+    // Default control revive function
     controls.reviveControl = function(constructor, parameters, data) {
         if (data) {
-            var control = new constructor(parameters, data.attributes);
+            var control = constructor.is_constructor ? new constructor(parameters, data.attributes) : constructor(parameters, data.attributes);
             if (data.controls)
                 control.controls = data.controls;
-            if (data.template)
-                control.template(data.template);
-
+            
+            var outer_template = data.outer_template;
+            if (outer_template)
+                control.template(new Function('it', outer_template));
+            
+            var inner_template = data.inner_template;
+            if (inner_template)
+                control.template(null, new Function('it', inner_template));
+            
             // Restore events
-
-//            var data_events = data.events; // json object collection of serialized controls.Event
-//            if (data_events)
-//            {
-//                var events = {};
-//                for(var key in data_events)
-//                    events[key] = new controls.Event(data_events[key]);
-//                
-//                control.events = events;
-//            }
-
+            var data_events = data.events; // json object collection of serialized controls.Event
+            if (data_events) {
+                var events = control.events = {};
+                for(var i = 0, c = data_events.length; i < c; i++) {
+                    var item = data_events[i];
+                    events[item.capture ? ('#' + item.type) : item.type] = new controls.Event(control, item.type, item.capture, item.listeners);
+                }
+            }
             return control;
         }
     };
@@ -14696,12 +14629,12 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     
     (function(){
         function gencode(tagname, closetag) {
-            return 'function c' + tagname + '(p, a) { controls.controlInitialize(this, \'controls.' + tagname + '\', p, a, c' + tagname + '.outer_template); }\
-c' + tagname + '.prototype = controls.control_prototype;'
+            return '\nfunction c' + tagname + '(p, a) { controls.controlInitialize(this, \'controls.' + tagname + '\', p, a, c' + tagname + '.outer_template); }\n\
+c' + tagname + '.prototype = controls.control_prototype;\n'
 + (closetag
-    ? 'c' + tagname + '.outer_template = function(it) { return \'<' + tagname + '\' + it.printAttributes() + \'>\' + (it.attributes.$text || \'\') + it.printControls() + \'</' + tagname + '>\'; };'
-    : 'c' + tagname + '.outer_template = function(it) { return \'<' + tagname + '\' + it.printAttributes() + \'>\'; };')
-+ 'controls.typeRegister(\'controls.' + tagname + '\', c' + tagname + ');';
+    ? 'c' + tagname + '.outer_template = function(it) { return \'<' + tagname + '\' + it.printAttributes() + \'>\' + (it.attributes.$text || \'\') + it.printControls() + \'</' + tagname + '>\'; };\n'
+    : 'c' + tagname + '.outer_template = function(it) { return \'<' + tagname + '\' + it.printAttributes() + \'>\'; };\n')
++ 'controls.typeRegister(\'' + tagname + '\', c' + tagname + ');\n';
         }
         
         Function('controls', 'a,abbr,address,article,aside,b,base,bdi,bdo,blockquote,button,canvas,cite,code,col,colgroup,command,datalist,dd,del,details,\
@@ -14726,19 +14659,23 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         controls.controlInitialize(this, 'controls.container', parameters, attributes, controls.default_inner_template);
     };
     Container.prototype = controls.control_prototype;
-    controls.typeRegister('controls.container', Container);
+    controls.typeRegister('container', Container);
     
     // Custom
     // 
     // set template after creating the control
     // 
     function Custom(parameters, attributes) {
+        if (attributes.$prime) {
+            attributes.$template = attributes.$prime;
+            delete attributes.$prime;
+        }
         controls.controlInitialize(this, 'controls.custom', parameters, attributes,
             attributes.$template || attributes.$outer_template,
             attributes.$inner_template);
     };
     Custom.prototype = controls.control_prototype;
-    controls.typeRegister('controls.custom', Custom);
+    controls.typeRegister('custom', Custom);
 
     // Stub
     // 
@@ -14806,27 +14743,27 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         };
     };
     Stub.prototype = controls.control_prototype;
-    controls.typeRegister('controls.stub', Stub);
+    controls.typeRegister('stub', Stub);
     
     // Head
     function Head(parameters, attributes) {
         controls.controlInitialize(this, 'controls.head', parameters, attributes, Head.template);
-        this.attach    = function() { return Head.prototype.attach.call(this, document.head); };
-        this.attachAll = function() { return Head.prototype.attachAll.call(this); };
+        this.attach    = function() { this.element = document.head; return this; };
+        this.attachAll = function() { this.element = document.head; return Head.prototype.attachAll.call(this); return this; };
     };
     Head.prototype = controls.control_prototype;
     Head.template = function(it) { return '<head>' + (it.attributes.$text || '') + it.printControls() + '</head>'; };
-    controls.typeRegister('controls.head', Head);
+    controls.typeRegister('head', Head);
     
     // Body
     function Body(parameters, attributes) {
         controls.controlInitialize(this, 'controls.body', parameters, attributes, Body.template);
-        this.attach    = function() { return Body.prototype.attach.call(this, document.body); };
-        this.attachAll = function() { return Body.prototype.attachAll.call(this); };
+        this.attach    = function() { this.element = document.body; return this; };
+        this.attachAll = function() { this.element = document.body; return Body.prototype.attachAll.call(this); return this; };
     };
     Body.prototype = controls.control_prototype;
     Body.template = function(it) { return '<body' + it.printAttributes('-id') + '>' + (it.attributes.$text || '') + it.printControls() + '</body>'; };
-    controls.typeRegister('controls.body', Body);
+    controls.typeRegister('body', Body);
     
 
     // Layouts /////////////////////////////////////////////////////////////////
@@ -14844,7 +14781,7 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         var clearfix = false; // use clearfix if float
         
         this.cellSet = new Container();
-        this.cellSet.listen('attributes', this, function(event) {
+        this.cellSet.listen_('attributes', this, function(event) {
             var attr_name = event.name,
                 attr_value = event.value,
                 remove = (attr_value === undefined || attr_value === null);
@@ -14862,7 +14799,7 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
             }
         });
         
-        this.listen('type', function() {
+        this.listen_('type', function() {
             var parameters = this.parameters,
                 floatvalue;
             
@@ -14884,14 +14821,14 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
             out += cell + ctrls[i].wrappedHTML() + '</div>';
         return out + (it.clearfix) ? '<div style="clear:both;"></div></div>' : '</div>';
     };
-    controls.typeRegister('controls.layout', Layout);
+    controls.typeRegister('layout', Layout);
 
     
     function List(parameters, attributes) {
         this.initialize('controls.list', parameters, attributes, List.template);
         
         this.itemSet = new Container();
-        this.itemSet.listen('attributes', this, function(event) {
+        this.itemSet.listen_('attributes', this, function(event) {
             var attr_name = event.name;
             var attr_value = event.value;
             var remove = (attr_value === undefined || attr_value === null);
@@ -14917,17 +14854,17 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
             out += item + ctrls[i].wrappedHTML() + '</li>';
         return out + '</ul>';
     };
-    controls.typeRegister('controls.list', List);
+    controls.typeRegister('list', List);
     
     
     // Input
     // 
     function Input(parameters, attributes) {
         this.initialize('controls.input', parameters, attributes, Input.template)
-        .listen('change', function() {
+        .listen_('change', function() {
             this.attributes.value = this.element.value;
         })
-        .listen('element', function(element) {
+        .listen_('element', function(element) {
             if (element)
                 element.value = this.attributes.value || '';
         });
@@ -14944,7 +14881,7 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
     };
     Input.prototype = controls.control_prototype;
     Input.template = function(it) { return '<input' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</input>'; };
-    controls.typeRegister('controls.input', Input);
+    controls.typeRegister('input', Input);
     
     
     // Select
@@ -14957,11 +14894,11 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         .bind(attributes.hasOwnProperty('$data')
             ? controls.create('DataArray', {$data: attributes.$data})
             : controls.create('DataArray'))
-        .listen('data', this.refreshInner) // event routed from data object
-        .listen('change', function() {
+        .listen_('data', this.refreshInner) // event routed from data object
+        .listen_('change', function() {
             this.attributes.value = this.element.value;
         })
-        .listen('element', function(element) {
+        .listen_('element', function(element) {
             if (element)
                 element.value = this.attributes.value;
         });
@@ -14980,7 +14917,7 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
     Select.prototype = controls.control_prototype;
     Select.template = function(it) { return '<select' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.data.map(function(item){ return '<option value=' + item + '>' + item + '</option>'; }).join('') + '</select>'; };
     Select.inner_template = function(it) { return (it.attributes.$text || '') + it.data.map(function(item){ return '<option value=' + item + '>' + item + '</option>'; }).join(''); };
-    controls.typeRegister('controls.select', Select);
+    controls.typeRegister('select', Select);
 
 
     // exports
@@ -15295,8 +15232,8 @@ InstallDots.prototype.compileAll = function() {
 
     function NavBar(parameters, attributes) {
         
-        controls.controlInitialize(this, 'controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template);
-        this.class('navbar navbar-default');
+        this.initialize('controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template)
+            .class('navbar navbar-default');
 
         // text contains two parts separated by '***', first part non togglable, second part is togglable
         var parts = (this.text() || '').split(/^\*\*\*/m);
@@ -15304,8 +15241,8 @@ InstallDots.prototype.compileAll = function() {
 
         // Brand part
         
-        this.add('header:div', {class:'navbar-header'});
-        this.header.template(function(it) {
+        this.add('header:div', {class:'navbar-header'})
+            .template(function(it) {
 return '<div' + it.printAttributes() + '>\
 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">\
 <span class="sr-only">Toggle navigation</span>\
@@ -15319,9 +15256,9 @@ return '<div' + it.printAttributes() + '>\
         
         // Collapsible part
         
-        this.add('collapse:div', {class:'collapse navbar-collapse navbar-ex1-collapse'});
+        this.add('collapse:div', {class:'collapse navbar-collapse navbar-ex1-collapse'})
+            .template($ENV.default_template, $ENV.default_inner_template);
         $DOC.processContent(this.collapse, parts.slice(-1)[0]);
-        this.collapse.template($ENV.default_template, $ENV.default_inner_template);
         
         this.applyPatches = function() {
             var element = this._element;
@@ -15357,8 +15294,7 @@ return '<div' + it.printAttributes() + '>\
         });
     };
     NavBar.prototype = controls.control_prototype;
-    function nav_template(it)
-    {
+    function nav_template(it) {
         return '<nav' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
     };
     controls.typeRegister('controls.navbar', NavBar);
@@ -16169,7 +16105,7 @@ this.text(), // additional css
 
                     /* ? if (!control._element) // element exists if placeholder ? */
                     control.createElement(text_node, 2/*before node*/);
-                    if (edit_mode === 2) {
+                    if (edit_mode === 2/*preview*/) {
                         control.source_node = text_node;
                         control.source_section = section_name;
                     }
@@ -16230,8 +16166,7 @@ this.text(), // additional css
         
         for(var name in sections)
         if (name) { // skip unnamed for compatibility
-            try
-            {
+            try {
                 var placeholder, content = sections[name];
                 if (content && content.placeholder) {
                     placeholder = content.placeholder;
@@ -16297,8 +16232,7 @@ this.text(), // additional css
     }
 
     // document transformation started after all libraries and user.js is loaded
-    $DOC.finalTransformation = function()
-    {
+    $DOC.finalTransformation = function() {
         if ($DOC.state)
             return;
         
@@ -16310,16 +16244,14 @@ this.text(), // additional css
         
         var processed_nodes = [];
         
-        var gen_flag = document.body && document.body.getAttribute('data-generator'),
-        page_ready = gen_flag && gen_flag.indexOf('embed-processed') >= 0;
-        if (page_ready) {
+        if ($DOC.auto) {
             
-            // page already generated
+            // html
             
             var timer = setInterval(function() { onresize(); }, 25);
             
             $DOC.onready(function() {
-                cbody.attachAll();
+                $DOC.cbody.attachAll();
                 onresize();
                 $(window).on('resize', onresize);
             });
@@ -16360,7 +16292,6 @@ this.text(), // additional css
             $DOC.onready(function() {
                 processSections(true, processed_nodes);
                 processSections(false, processed_nodes);
-                document.body.setAttribute('data-generator', 'MST/embed-processed');
                 onresize();
                 $(window).on('resize', onresize);
             });
@@ -16400,9 +16331,14 @@ this.text(), // additional css
                 onwindowload();
             else
                 window.addEventListener('load', onwindowload);
+        } else {
+            // raise 'load' event
+            var load_event = $DOC.forceEvent('load');
+            load_event.raise();
+            load_event.clear();
         }
     };
-    
+
     
     // Patches
     

@@ -205,7 +205,7 @@
 
                     /* ? if (!control._element) // element exists if placeholder ? */
                     control.createElement(text_node, 2/*before node*/);
-                    if (edit_mode === 2) {
+                    if (edit_mode === 2/*preview*/) {
                         control.source_node = text_node;
                         control.source_section = section_name;
                     }
@@ -266,8 +266,7 @@
         
         for(var name in sections)
         if (name) { // skip unnamed for compatibility
-            try
-            {
+            try {
                 var placeholder, content = sections[name];
                 if (content && content.placeholder) {
                     placeholder = content.placeholder;
@@ -333,8 +332,7 @@
     }
 
     // document transformation started after all libraries and user.js is loaded
-    $DOC.finalTransformation = function()
-    {
+    $DOC.finalTransformation = function() {
         if ($DOC.state)
             return;
         
@@ -346,16 +344,14 @@
         
         var processed_nodes = [];
         
-        var gen_flag = document.body && document.body.getAttribute('data-generator'),
-        page_ready = gen_flag && gen_flag.indexOf('embed-processed') >= 0;
-        if (page_ready) {
+        if ($DOC.auto) {
             
-            // page already generated
+            // html
             
             var timer = setInterval(function() { onresize(); }, 25);
             
             $DOC.onready(function() {
-                cbody.attachAll();
+                $DOC.cbody.attachAll();
                 onresize();
                 $(window).on('resize', onresize);
             });
@@ -396,7 +392,6 @@
             $DOC.onready(function() {
                 processSections(true, processed_nodes);
                 processSections(false, processed_nodes);
-                document.body.setAttribute('data-generator', 'MST/embed-processed');
                 onresize();
                 $(window).on('resize', onresize);
             });
@@ -436,9 +431,14 @@
                 onwindowload();
             else
                 window.addEventListener('load', onwindowload);
+        } else {
+            // raise 'load' event
+            var load_event = $DOC.forceEvent('load');
+            load_event.raise();
+            load_event.clear();
         }
     };
-    
+
     
     // Patches
     

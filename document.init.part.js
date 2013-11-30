@@ -1,4 +1,4 @@
-if (!$ENV) {
+/*if (!$ENV)*/ {
 
 $ENV = {
     dot: require('dot'),
@@ -13,18 +13,11 @@ $ENV = {
     
     // initialize $ENV
     
-    // marked patches
-    var marked = $ENV.marked;
     // Set default options except highlight which has no default
-    marked.setOptions({
+    $ENV.marked.setOptions({
       gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
     });
-    // todo: delete $ENV.markedPostProcess()
-    $ENV.markedPostProcess = function(text, options) {
-        var formatted = marked(text, options);
-        return formatted;
-    };
-    
+
     // default control templates
     $ENV.default_template = function(it) {
         return '<div' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</div>'; };
@@ -55,10 +48,13 @@ $ENV = {
             // edit mode
             if (url_params.edit && window.self === window.top)
                 options.edit_mode = 1; // editor
-            if (url_params.preview)
-                options.edit_mode = 2; // preview
-            
-            
+            if (url_params.preview) {
+                options.edit_mode = 2; // preview mode
+                // idgen shift in preview mode
+                // Preview mode is used for compiled html. Prevent conflict between already stored in html and newly created identifiers.
+                controls.id_generator = 200000;
+            }
+
             // "DOC" script element source for: root, script options
 
             var root = '', js_root_node = document.getElementById('DOC');
@@ -78,7 +74,7 @@ $ENV = {
             }
             this.root = root;
             
-            // real executing script element source for: codebase
+            // executing script element source for: codebase
             
             var executing = document.currentScript;
             if (!executing) {
@@ -142,16 +138,15 @@ $ENV = {
         
         forceEvent: function(name) {
             var events = this.events;
-            if (!events.hasOwnProperty(name))
-                events[name] = new controls.Event();
-            return events[name];
+            return events[name] || (events[name] = new controls.Event());
         },
         // on DOMContentLoaded or simulated if DOMContentLoaded is already raised
         onready: function(handler) {
             if (this.state === 2 || document.readyState === undefined || ' interactive complete'.indexOf(document.readyState) > 0)
                 handler();
             else
-                window.addEventListener('DOMContentLoaded', handler);
+                this.forceEvent('ready').addListener(handler);
+                //window.addEventListener('DOMContentLoaded', handler);
         },
         // Document transformation completed event
         onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
@@ -260,24 +255,31 @@ $ENV = {
                     callback(+1);
                 return;
             }
-            scripts_count++;
             var script = document.createElement('script');
             if (id)
                 script.id = id;
-            script.src = src;
-            script.async = true;
-            script.addEventListener('load', function() {
-                if (callback)
-                    callback(+1);
-                scripts_stated++;
-                $DOC.checkAllScriptsReady();
-            });
-            script.addEventListener('error', function() {
-                if (callback)
-                    callback(-1);
-                scripts_stated++;
-                $DOC.checkAllScriptsReady();
-            });
+            if (src.indexOf('(') >= 0) {
+                // raw script
+                script.innerHTML = src;
+            } else {
+                // load external script
+                script.src = src;
+                scripts_count++;
+                script.src = src;
+                script.async = true;
+                script.addEventListener('load', function() {
+                    if (callback)
+                        callback(+1);
+                    scripts_stated++;
+                    $DOC.checkAllScriptsReady();
+                });
+                script.addEventListener('error', function() {
+                    if (callback)
+                        callback(-1);
+                    scripts_stated++;
+                    $DOC.checkAllScriptsReady();
+                });
+            }
             document.head.appendChild(script);
         },
         // get the url relative to the root
@@ -419,7 +421,12 @@ $ENV = {
     // >> head transformation
     
     $DOC.headTransformation = function() {
-    
+        
+        if ($DOC.auto = document.head.hasAttribute('generator'))
+            return; // html
+        else // mw document
+            document.head.setAttribute('generator', 'markdown webdocs');
+
         this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
         if (this.options.icon)
             this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl(this.options.icon)});
@@ -541,25 +548,38 @@ $ENV = {
                 }
             }
         }
-        
-        // open editor
-        if (this.options.editable) {
-            if (edit_mode === 1 && window.top === window.self)
-                eval('/*include editor*/');
-            
-            window.addEventListener('keydown', function(event) {
-                if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
-                    if (edit_mode) {
-                        var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
-                        if (pos >= 0)
-                            window.location = url.slice(0, pos) + url.slice(pos + 5);
-                    } else
-                        window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
-                }
-            });
-        }
     };
+    
     $DOC.headTransformation();
     
-}).call(this);
+    window.addEventListener('DOMContentLoaded', function() {
+        var ready_event = $DOC.events.ready;
+        if (ready_event) {
+            ready_event.raise();
+            ready_event.clear();
+        }
+        if (scripts_count === 0)
+        window.addEventListener('load', function() {
+            $DOC.finalTransformation();
+        });
+    });
+
+    // open editor
+    if ($DOC.options.editable) {
+        if ($DOC.options.edit_mode === 1 && window.top === window.self)
+            eval('/*include editor*/');
+            //$DOC.appendScript('document.editor.js', '/*include editor*/');
+
+        window.addEventListener('keydown', function(event) {
+            if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
+                if ($DOC.options.edit_mode) {
+                    var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
+                    if (pos >= 0)
+                        window.location = url.slice(0, pos) + url.slice(pos + 5);
+                } else
+                    window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
+            }
+        });
+    }
+})();
 }

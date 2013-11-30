@@ -120,7 +120,7 @@ if (!controls) throw new TypeError('controls.js not found!');
 
     function span_template(it) {
         return '<span' + it.printAttributes() + '>'
-            + $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") )
+            + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") )
             + '</span>';
     }
     function Text(parameters, attributes) {

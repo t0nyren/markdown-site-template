@@ -1,127 +1,201 @@
 (function() { 'use strict';
-    var db, host, cpanel, controller, table, toolbar, tabheaders, options, code_edit, parser, preview;
-    if (this.top !== this.self || this['mw-document-editor']) return; this['mw-document-editor'] = true;
-    if (typeof $ENV !== 'undefined') initialize(); else { if (!this.defercqueue) this.defercqueue = []; this.defercqueue.push(initialize); }
+if (window.top !== window.self || window['mw-document-editor']) return; window['mw-document-editor'] = true;
+if (typeof $ENV !== 'undefined') initialize(); else { if (!window.defercqueue) window.defercqueue = []; window.defercqueue.push(initialize); }
+function initialize() {
+    var db, daourl, daoroot, host, cpanel, controller, table, toolbar, tabheaders, options, code_edit, parser, preview, timer0 = [], timer1 = [],
+        pubsettings;
 
-    function initialize() {
+    $(window).load(function() {
+        location.url = decodeURI(location.href.split('?')[0]);
         
-        $(window).load(function() {
-            db = new DB(location.origin + location.pathname, openEditor);
+        daourl = controls.create('DataObject');
+        daourl.key = location.url;
+        daourl.fromJSON = function(data) {
+            this.selected = data && data.selected;
+            this.sourceMw = data && data.sourceMw;
+            this.editMw   = data && data.editMw;
+            this.history  = data && data.history;
+            this.publish  = data && data.publish;
+            // validate restored data
+            if (!Array.isArray(this.history))
+                this.history = [];
+        };
+        daourl.toJSON = function() {
+            return {
+                key:        this.key,
+                selected:   this.selected,
+                sourceMw:   this.sourceMw,
+                editMw:     this.editMw,
+                history:    this.history
+            };
+        };
+        
+        daoroot = controls.create('DataObject');
+        var resolve = document.createElement('script');
+            resolve.setAttribute('src', $DOC.root);
+        daoroot.key = resolve.src.split('?')[0];    
+        daoroot.fromJSON = function(data) {
+            this.github  = data && data.github;
+        };
+        daoroot.toJSON = function() {
+            return {
+                key:    this.key,
+                github: this.github
+            };
+        };
+        
+        db = new DB({drafts:daourl, settings:daoroot}, function() {
+            db.restore(openEditor);
+        });
+    });
+
+    function openEditor() {
+
+        $DOC.cbody.attachAll();
+        $DOC.appendCSS('document.editor.css', '.tooltip, .popover { z-index:1200; }');
+
+        // parser-builder
+        parser = new Parser();
+
+        // preview
+        $DOC.cbody.add(preview = new Preview());
+        preview.createElement();
+
+        // toolbar
+
+        table = $DOC.cbody.add('div', {style:'overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;'});
+        toolbar = table.add('toolbar:div`clearfix', {style:'z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;'})
+            .listen('element', function(element) {
+                if (element)
+                    $(element).find('button,li,a').tooltip({placement:'bottom', container:'body', toggle:'tooltip'});
+            });
+            
+        // buttons revert, download, save
+
+        toolbar.add('save_group:bootstrap.BtnGroup`mar5', function(save_group) {
+            // revert button
+            save_group.add('revert:bootstrap.Button', {$icon:'backward', 'data-original-title':'Revert'})
+                .listen('click', function() {
+                    controller.revert();
+                });
+
+            // download button
+            save_group.add('download:a`btn btn-default', '<b class="glyphicon glyphicon-save"></b>',
+                {download:(location.url.slice(-1)[0] || 'document.html'), 'data-original-title':'Download'})
+                .listen('mousedown', setDataUrl)
+                .listen('focus', setDataUrl)
+                .listen('click', function(event) {
+                    try {
+                        // IE
+                        var blob = new Blob([controller.buildHTML()]);
+                        window.navigator.msSaveOrOpenBlob(blob, (location.url.split('/').slice(-1)[0] || 'document.html'));
+                        event.preventDefault();
+                        return;
+                    } catch(e) {}
+                });
+                function setDataUrl() {
+                    // download data:link chrome+ firefox+ opera+ ie- safari-
+                    // context menu 'Save link as...'. 
+                    controller.save();
+                    save_group.download.element.href = (window.navigator.appName.indexOf('etscape') > 0 ? 'data:unknown'/*Safari*/ : 'data:application'/*other*/) + '/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML());
+                }
+
+            // save button
+            save_group.add('save:bootstrap.SplitButton', {$icon:'floppy-disk', 'data-original-title':'Save'}, function(splitbutton) {
+                splitbutton.button
+                    ._class('disabled')
+                    .listen('click', function() {
+                        controller.write();
+                    });
+                splitbutton.toggle._class('disabled');
+                splitbutton.items.add('bootstrap.DropdownItem', {$icon:'resize-small'}).listen('click', function() {
+                    controller.write(0);
+                }).text('.mw');
+                splitbutton.items.add('bootstrap.DropdownItem', {$icon:'resize-full'}).listen('click', function() {
+                    controller.write(1);
+                }).text('.html + .mw');
+                splitbutton.items.add('bootstrap.DropdownItem', {$icon:'share-alt'}).listen('click', function() {
+                    controller.copy();
+                }).text('Copy');
+            });
+            
+            toolbar.add('cpanel:bootstrap.Button`hide fleft martop5 marbottom5 marleft5 padleft15 padright15', {$icon:'cog', 'data-original-title':'Control panel'})
+                .listen('click', function() {
+
+                });
+        });
+
+        // buttons fullscreen, flip, close
+
+        toolbar.add('bootstrap.Button`mar5 fright', {$icon:'remove', 'data-original-title':'Close editor (Ctrl-F12)'})
+            .listen('click', function() {
+                var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
+                if (pos >= 0)
+                    window.location = url.slice(0, pos) + url.slice(pos + 5);
+            });
+
+        var split = toolbar.add('bootstrap.Splitbutton`martop5 fright', {$icon:'fullscreen'});
+        split.button.listen('click', function() {
+            controller.mode = (controller.mode) ? 0 : 1;
+        });
+        var items = split.items;
+        items.add('bootstrap.DropdownItem', {$icon:'chevron-left'}).listen('click', function() {
+            controller.position = 1;
+        });
+        items.add('bootstrap.DropdownItem', {$icon:'chevron-right'}).listen('click', function() {
+            controller.position = 0;
+        });
+        items.add('bootstrap.DropdownItem', {$icon:'chevron-up'}).listen('click', function() {
+            controller.position = 2;
+        });
+        items.add('bootstrap.DropdownItem', {$icon:'chevron-down'}).listen('click', function() {
+            controller.position = 3;
         });
         
-        function openEditor() {
-            
-            $DOC.cbody.attachAll();
-            $DOC.appendCSS('document.editor.css', '.tooltip, .popover { z-index:1200; }');
-            
-            // parser-builder
-            parser = new Parser();
-            
-            // preview
-            $DOC.cbody.add(preview = new Preview());
-            preview.createElement();
-            
-            // toolbar
-            
-            table = $DOC.cbody.add('div', {style:'overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;'});
-            toolbar = table.add('toolbar:div', {class:'clearfix', style:'z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;'})
-                .listen('element', function(element) {
-                    if (element)
-                        $(element).find('button,li,a').tooltip({placement:'bottom', container:'body', toggle:'tooltip'});
-                });
-            
-            // buttons revert, download, save
-            
-            toolbar.add('save_group:bootstrap.BtnGroup', {class:'mar5'}, function(save_group) {
-                //toolbar.save_group.add('formatting:bootstrap.Button', {$icon:'font',      'data-original-title':'Formatting toolbar'});
-                
-                // revert button
-                save_group.add('revert:bootstrap.Button',   {$icon:'backward',  'data-original-title':'Revert'})
-                    .listen('click', function() {
-                        controller.revert();
-                    });
-                    
-                // download button
-                save_group.add('download:a', { download: (decodeURI(location.pathname).split('/').slice(-1)[0] || 'document.html'),
-                    class:'btn btn-default', $text:'<b class="glyphicon glyphicon-save"></b>', 'data-original-title':'Download'})
-                    .listen('mousedown', setDataUrl)
-                    .listen('focus', setDataUrl)
-                    .listen('click', function(event) {
-                        try {
-                            // IE
-                            var blob = new Blob([controller.buildHTML()]);
-                            window.navigator.msSaveOrOpenBlob(blob, (decodeURI(location.pathname).split('/').slice(-1)[0] || 'document.html'));
-                            event.preventDefault();
-                            return;
-                        } catch(e) {}
-                    });
-                    function setDataUrl() {
-                        // download data:link chrome+ firefox+ opera+ ie- safari-
-                        // context menu 'Save link as...'. 
-                        controller.save();
-                        save_group.download.element.href = (window.navigator.appName.indexOf('etscape') > 0 ? 'data:unknown'/*Safari*/ : 'data:application'/*other*/) + '/octet-stream;charset=utf-8,' + encodeURIComponent(controller.buildHTML());
-                    }
-                    
-                // save button
-                save_group
-                    .add('save:bootstrap.Button', {class:'btn btn-default disabled', $icon:'edit', 'data-original-title':'Save'})
-                        .listen('click', function() {
-                            controller.save();
-                            host.write(decodeURI(window.location.pathname), controller.buildHTML());
-                        });
-                        
-                toolbar.add('cpanel:bootstrap.Button', {class:'hide btn btn-default fleft martop5 marbottom5 marleft5 padleft15 padright15', $icon:'cog', 'data-original-title':'Control panel'})
-                    .listen('click', function() {
-
-                    });
-            });
-            
-            // buttons fullscreen, flip, close
-            
-            toolbar.add('bootstrap.Button', {class:'mar5 fright', $icon:'remove', 'data-original-title':'Close editor (Ctrl-F12)'})
+        toolbar.add('export_group:bootstrap.BtnGroup`mar5', function(export_group) {
+            export_group.add('github:bootstrap.Button', {'data-original-title':'Publish'})
+                ._icon('export')._text('GitHub')
                 .listen('click', function() {
-                    var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
-                    if (pos >= 0)
-                        window.location = url.slice(0, pos) + url.slice(pos + 5);
+                    pubsettings.getSettings(false, function(flag) {
+                        if (flag)
+                            pubsettings.publish();
+                    });
                 });
+            export_group.add('github:bootstrap.Button', {'data-original-title':'Publish settings'})
+                ._icon('cog')
+                .listen('click', function() {
+                    pubsettings.getSettings(true);
+                });
+        });
+        
+        
+        
+        
+        // tabheaders
+        toolbar.add(tabheaders = new TabHeaders());
 
-            var split = toolbar.add('bootstrap.Splitbutton', {class:'martop5 fright', $icon:'fullscreen'});
-            split.button.listen('click', function() {
-                controller.mode = (controller.mode) ? 0 : 1;
-            });
-            var items = split.items;
-            items.add('bootstrap.DropdownItem', {$icon:'chevron-left'}).listen('click', function() {
-                controller.position = 1;
-            });
-            items.add('bootstrap.DropdownItem', {$icon:'chevron-right'}).listen('click', function() {
-                controller.position = 0;
-            });
-            items.add('bootstrap.DropdownItem', {$icon:'chevron-up'}).listen('click', function() {
-                controller.position = 2;
-            });
-            items.add('bootstrap.DropdownItem', {$icon:'chevron-down'}).listen('click', function() {
-                controller.position = 3;
-            });
-            
-            // tabheaders
-            
-            toolbar.add(tabheaders = new TabHeaders());
-            
-            // code edit
+        // code edit
+        table.add(code_edit = new CodeEditor());
+        
+        // options page
+        table.add(options = new Options());
 
-            table.add(code_edit = new CodeEditor());
-            table.add(options = new Options());
-            
-            // create form
-            table.createElement();
-            
-            // app controller
-            controller = new Controller();
-            
-            // host adapter
-            host = new Host();
-        }
-     }
+        // create form
+        table.createElement();
+
+        // host adapter
+        host = new Host();
+
+        // app controller
+        controller = new Controller();
+        
+        // Publish settings
+        pubsettings = new PubSettings();
+        
+        // activators
+        setInterval(function() { for(var i = 0, c = timer0.length; i < c; i++) timer0[i](); }, 25);
+        setInterval(function() { for(var i = 0, c = timer1.length; i < c; i++) timer1[i](); }, 1000);
+    }
     
     
     // options page
@@ -161,9 +235,13 @@
         var code_edit = controls.create('textarea', {class:'form-control', style:'font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; '});
         
         code_edit.code_edit_resize = function() {
-            code_edit.element.style.height = ($(table.element).height() - $(toolbar.element).height()) + 'px';
+            var element = code_edit.element;
+            if (element) {
+                element.style.height = ($(table.element).height() - $(toolbar.element).height()) + 'px';
+            }
         };
         $(window).on('resize', code_edit.code_edit_resize);
+        timer1.push(code_edit.code_edit_resize);
         
         var mode = 0; // 0 - options, hide text area, 1 - html, 2 - section
         Object.defineProperty(code_edit, 'mode', {
@@ -213,14 +291,14 @@
         }
         code_edit.listen('change', checkForChanges, true);
         
-        setInterval(function() {
+        timer0.push(function() {
             checkForChanges();
             if (code_edit.modified)
             if (--code_edit.modified < 2) {
                 code_edit.modified = 0;
                 code_edit.raise('text', editvalue);
             }
-        }, 25);
+        });
         
         return code_edit;
     }
@@ -439,6 +517,36 @@
             }
         };
         
+        function html_entity_decode(text) {
+            var ta = document.createElement('textarea');
+            ta.innerHTML = text;
+            return ta.value;
+        }
+        preview.grabHTML= function() {
+            var doc = this.element && this.element.contentDocument,
+            $doc = this.$DOC,
+            // clone html document
+            clone = doc.documentElement.cloneNode(),
+            // remove text nodes
+            iterator = doc.createNodeIterator(clone, 0x80, null, false),
+            text_node = iterator.nextNode();
+            while(text_node) {
+                text_node.parentNode.removeChild(text_node);
+                text_node = iterator.nextNode();
+            }
+            var html = '<!DOCTYPE html>' + clone.outerHTML
+                // decode noscript node
+                .replace(/<noscript>([\s\S]*?)<\/noscript>/g, function(m,innerText) { return '<noscript>' + html_entity_decode(innerText) + '</noscript>'; }),
+            pos = html.lastIndexOf('</body>'),
+            cdom = '<script>$DOC.onload(function(){ if ($DOC.options.edit_mode) return;'
+             + '($DOC.chead = JSON.parse(unescape("' + escape(JSON.stringify($doc.chead)) + '"), controls.reviverJSON)).attachAll();'
+             + '($DOC.cbody = JSON.parse(unescape("' + escape(JSON.stringify($doc.cbody)) + '"), controls.reviverJSON)).attachAll();'
+             + '$DOC.vars = JSON.parse(unescape("' + escape(JSON.stringify($doc.vars)) + '"), controls.reviverJSON);'
+             + 'for(var prop in $DOC.vars) { var v = $DOC.vars[prop]; if (v.__type) v.attachAll(); }'
+             + '});</script>';
+            return html.slice(0, pos) + cdom + html.slice(pos);
+        };
+        
         return preview;
     }
     
@@ -492,9 +600,12 @@
                     
                     var sections = {}, seccontrols = {};
                 
-                    var doc = document.implementation.createHTMLDocument('');
-                    var docelement = doc.documentElement;
-                    docelement.innerHTML = /<html[\s\S]*?>([\s\S]*)<\/html>/mi.exec(html)[1];
+                    var doc = document.implementation.createHTMLDocument(''),
+                        docelement = doc.documentElement;
+                    
+                    var match = /<html[\s\S]*?>([\s\S]*)<\/html>/mi.exec(html);
+                    if (match)
+                        docelement.innerHTML = match[1];
 
                     var chtml = controls.create('div'); // root control
                     var nodes = [], nodecontrols = [];
@@ -542,8 +653,9 @@
                             }
                         } else if (node === docelement) {
                             // incorrect parsing <html> tag
-                                
-                            control.opentag = '<!DOCTYPE html>\n' + /(<html[\s\S]*?>)[\s\S]*?<head/mi.exec(html)[1] + '\n';
+                            // control === chtml
+                            var match = /(<html[\s\S]*?>)[\s\S]*?<head/mi.exec(html);
+                            control.opentag = '<!DOCTYPE html>\n' + (match ? match[1] : '<html>') + '\n';
                             control.closetag = '\n</html>';
                         } else {
                             // create template for no text node control
@@ -582,8 +694,6 @@
                         ctitle = null;
                     }
                     
-                    
-                    
                     // << key elements
                     
                     this.chtml = chtml;
@@ -611,7 +721,7 @@
     
     
     function Controller() {
-        var source_html;
+        var controller = this;
         
         // on parser update html
         parser.listen(function() {
@@ -700,23 +810,54 @@
             preview.updateNamedSection(name, value, parser.chtml.innerHTML());
         };
 
-        // save()
+        // save changes to db
         this.save = function() {
             this.checkEdits();
             
-            var data = db.dataobject.data;
-            data.selected = tabheaders.selected && tabheaders.selected.text;
-            data.html = this.edit_html;
-            if (data.html === source_html)
-                data.delete = true;
-            db.dataobject.raise();
+            daourl.selected = tabheaders.selected && tabheaders.selected.text;
+            daourl.editMw = this.edit_html;
+            // delete record if source not modified
+            if (daourl.html === host.mwHtml)
+                daourl.delete = true;
+            daourl.raise();
             
             this.modified = 0;
         };
-
+        
+        // write or publish edited document
+        this.write = function() {
+            this.save();
+            if (arguments.length)
+                host.fileMode = arguments[0];
+            if (host.fileMode){
+                if (host.write(controller.buildHTML(), preview.grabHTML()))
+                    db.onReady(function() { location.reload(); });
+            }
+            else
+                if (host.write(controller.buildHTML()))
+                    db.onReady(function() { location.reload(); });
+        };
+        
+        this.copy = function() {
+            this.save();
+            var new_name = window.prompt('Enter file name', host.fileName);
+            if (new_name && new_name !== host.fileName) {
+                if (host.fileMode) {
+                    var write_path = host.writeTo(new_name, controller.buildHTML(), preview.grabHTML());
+                    if (write_path)
+                        db.onReady(function() { window.location = write_path; });
+                }
+                else {
+                    var write_path = host.writeTo(new_name, controller.buildHTML());
+                    if (write_path)
+                        db.onReady(function() { window.location = write_path; });
+                }
+            }
+        };
+        
         // revert()
         this.revert = function() {
-            this.edit_html = source_html;
+            this.edit_html = host.mwHtml;
             this.updateCodeEdit();
             this.modified = 2;
             setTimeout(function() { window.location.reload(); }, 300);
@@ -731,10 +872,12 @@
 
         var mode = 0, position = 0, hpadding = 600, vpadding = 500;
         function setStyle(ptop, pright, pbottom, pleft, pwidth, pheight, ttop, tright, tbottom, tleft, twidth, theight) {
-            var style = preview.element.style;
-            style.top = ptop; style.right = pright; style.bottom = pbottom; style.left = pleft; style.width = pwidth; style.height = pheight;
-            style = table.element.style;
-            style.top = ttop; style.right = tright; style.bottom = tbottom; style.left = tleft; style.width = twidth; style.height = theight;
+            if (preview.element) {
+                var style = preview.element.style;
+                style.top = ptop; style.right = pright; style.bottom = pbottom; style.left = pleft; style.width = pwidth; style.height = pheight;
+                style = table.element.style;
+                style.top = ttop; style.right = tright; style.bottom = tbottom; style.left = tleft; style.width = twidth; style.height = theight;
+            }
         }
         function relayout() {
             if (mode) {
@@ -795,119 +938,314 @@
 
 
         // initialize
-        db.restore(function() {
-            $.ajax({url:location.href, type:'GET', dataType:'html'})
-                .done(function(response) {
-                    var default_selected = localStorage && localStorage.getItem('default selected page');
-                    tabheaders.lastSelected = db.dataobject.data.selected || default_selected || tabheaders.data[0];
-                    source_html = response.replace(/\r/g, '');
-                    controller.edit_html = db.dataobject.data.html || source_html;
-                    tabheaders.checkSelection();
-                });
-        });
+        var default_selected = localStorage && localStorage.getItem('default selected page');
+        tabheaders.lastSelected = daourl.selected || default_selected || tabheaders.data[0];
+        this.edit_html = daourl.editMw || host.mwHtml || '';
+        tabheaders.checkSelection();
+        if (host.writable) {
+            toolbar.save_group.save.button.class(null, 'disabled');
+            toolbar.save_group.save.toggle.class(null, 'disabled');
+        }
         
-        setInterval(function() {
+        timer0.push(function() {
             if (this.modified && --this.modified < 2) {
                 this.modified = 0;
                 this.save();
             }
-        }.bind(this), 25);
+        }.bind(this));
+    }
+    
+    function PubSettings() {
+        // check github settings
+        this.getSettings = function(force_open, callback) {
+            var github = daoroot.github || (daoroot.github = {}),
+                user = github.user || '',
+                apikey = sessionStorage.getItem('github-apikey') || '',
+                repo = github.repo || '',
+                branch = github.branch || 'gh-pages',
+                rootpath = github.rootpath || '';
+        
+            // input settings
+            if (force_open || !user || !apikey || !repo || !rootpath || !branch) {
+                var modal = $DOC.cbody.github_modal;
+                if (!modal) {
+                    modal = $DOC.cbody.github_modal = $DOC.cbody.add(githubSettingsModalForm());
+                    modal.createElement();
+                    modal.close.listen('click', function() {
+                        $(modal.element).modal('hide');
+                        if (callback)
+                            callback(false);
+                    });
+                    modal.OK.listen('click', function() {
+                        var github = daoroot.github || (daoroot.github = {});
+                        github.user = modal.user.value || '';
+                        sessionStorage.setItem('github-apikey', modal.apikey.value || ''),
+                        github.repo = modal.repo.value || '';
+                        github.branch = modal.branch.value || 'gh-pages';
+                        github.rootpath = modal.rootpath.value || '';
+                        daoroot.raise();
+                        $(modal.element).modal('hide');
+                        if (callback)
+                            callback(github.user && modal.apikey.value && github.repo && github.branch);
+                    });
+                    modal.Cancel.listen('click', function() {
+                        $(modal.element).modal('hide');
+                        if (callback)
+                            callback(false);
+                    });
+                }
+                modal.user.value = user;
+                modal.apikey.value = apikey;
+                modal.repo.value = repo;
+                modal.branch.value = branch;
+                modal.rootpath.value = rootpath;
+                $(modal.element).modal('show');
+            } else {
+                if (callback)
+                    callback(true);
+            }
+        };
+        
+        this.publish = function() {
+            $DOC.appendScript('github.api.js', 'github.js', function() {
+                var github = daoroot.github || (daoroot.github = {});
+                
+                var githubapi = new Github({
+                    username: github.user,
+                    password: sessionStorage.getItem('github-apikey'),
+                    auth: "basic"
+                });
+
+                var repo = githubapi.getRepo(github.user, github.repo),
+                    mw_html = controller.buildHTML(),
+                    rootpath = (github.rootpath ? (github.rootpath + '/') : ''),
+                    fname = rootpath + host.fileName,
+                    fnameMw = rootpath + host.fileMwName;
+                    
+                if (host.fileMode) {
+                    var html = preview.grabHTML();
+                    
+                    repo.write(github.branch, fnameMw, mw_html, '---', function(err) {
+                        if (err) console.log(err);
+                    });
+                    // simultaneous api requests not supported, delay 3 sec
+                    setTimeout(function() {
+                        repo.write(github.branch, fname, html, '---', function(err) {
+                            if (err) console.log(err);
+                        });
+                    }, 3000);
+                } else {
+                    repo.write(github.branch, fname, mw_html, '---', function(err) {
+                        if (err) console.log(err);
+                    });
+                }
+            });
+        };
+        
+        function githubSettingsModalForm() {
+            var modal = controls.create('bootstrap.modal', {style:'z-index:1200;', disabled:true});
+            modal.close = modal.header.add('button`close', '&times;', {type:'button'});
+            modal.header.add('h4`modal-title', 'Publish on GitHub');
+            modal.body
+                .add('bootstrap.Form')
+                ._add('bootstrap.FormGroup', function(grp) {
+                    grp.add('bootstrap.ControlLabel', 'Username:');
+                    modal.user = grp.add('bootstrap.ControlInput');
+                })
+                ._add('bootstrap.FormGroup', function(grp) {
+                    grp._add('bootstrap.ControlLabel', 'API key:');
+                    modal.apikey = grp.add('bootstrap.ControlInput');
+                })
+                ._add('bootstrap.FormGroup', function(grp) {
+                    grp._add('bootstrap.ControlLabel', 'Repository:');
+                    modal.repo = grp.add('bootstrap.ControlInput');
+                })
+                ._add('bootstrap.FormGroup', function(grp) {
+                    grp._add('bootstrap.ControlLabel', 'Branch:');
+                    modal.branch = grp.add('bootstrap.ControlInput');
+                })
+                ._add('bootstrap.FormGroup', function(grp) {
+                    grp._add('bootstrap.ControlLabel', 'Document root path:');
+                    modal.rootpath = grp.add('bootstrap.ControlInput');
+                });
+            modal.OK = modal.footer.add('bootstrap.Button#primary', 'OK');
+            modal.Cancel = modal.footer.add('bootstrap.Button', 'Cancel');
+            return modal;
+        }
     }
     
     function Host() {
-        this.environment = 0; //  1 - node-webkit, 2 - hosted
-        this.fileName = getFName(location.href); // page file name
+        this.environment = 0;   //  1 - node-webkit, 2 - hosted
+        this.writable = 0;
+        this.errorState = -1/*not initialized*/;
+        this.mwHtml = '';       // markdown webdocs source file
+        this.fileMode = 0;      // fileMode - 0 - one .html file, 1 - separate .html and .mw.html
         
-        function getFName(path) {
-            var pos = path.lastIndexOf('/');
-            if (pos >= 0) path = path.slice(pos + 1);
-            pos = path.lastIndexOf('\\');
-            if (pos >= 0) path = path.slice(pos + 1);
-            return path;
+        var url = location.url;
+        var sep = url.lastIndexOf('/'), asep = url.lastIndexOf('\\');
+        sep = (asep > sep) ? asep : sep;
+        this.path = url.slice(0, sep + 1);
+        this.fileName = url.slice(sep + 1);
+        getMwFileName(this);
+
+        function getMwFileName(owner) {
+            var fileName = owner.fileName, fileMwName = owner.fileMwName;
+            // location != *.html
+            if (fileName.slice(-5) !== '.html') {
+                // location == *.mw
+                if (fileName.slice(-3) === '.mw') {
+                    fileMwName = fileName;
+                    fileName = fileName.slice(0, fileName.length - 3);
+                // location != *.mw
+                } else
+                    fileMwName = fileName + '.mw';
+            }
+            // location == *.mw.html
+            else if (fileName.slice(-8) === '.mw.html') {
+                fileName = fileName.slice(0, fileName.length - 8);
+                fileMwName = fileName + '.mw.html';
+                fileName += '.html';
+            } else {
+                fileMwName = fileName.slice(0, fileName.length - 5) + '.mw.html';
+            }
+            owner.fileName = fileName;
+            owner.fileMwName = fileMwName;
         }
         
         // node-webkit
         if (typeof nwDispatcher !== 'undefined' && location.protocol === 'file:') {
             this.environment = 1;
-            this.editable = true;
-            toolbar.save_group.save.class(null, 'disabled');
+            this.writable = true;
+            var fs = require('fs'),
+                mwFilePath = this.path.slice(8)/*file:*/ +  this.fileMwName,
+                filePath = this.path.slice(8)/*file:*/ +  this.fileName;
+        
+            try {
+                if (fs.existsSync(mwFilePath)) {
+                    this.fileMode = 1;
+                    // .mw.html must be mw
+                    this.mwHtml = fs.readFileSync(mwFilePath).toString().replace(/\r/g, '');
+                } else
+                    // .html can be mw
+                    this.mwHtml = fs.readFileSync(filePath).toString().replace(/\r/g, '');
+                this.errorState = 0;
+            } catch(e) {
+                this.errorState = 1;
+            }
             
             // write file
-            var fs = require('fs');
-            this.write = function(fname, data) {
+            this.write = function(mw_doc, html) {
+                if (this.writable && !this.errorState) 
                 try {
-                    fs.writeFileSync(getFName(fname), data);
-                    db.reloadOnReady();
+                    if (this.fileMode) {
+                        fs.writeFileSync(mwFilePath, mw_doc);
+                        fs.writeFileSync(filePath, html);
+                    } else {
+                        fs.writeFileSync(filePath, mw_doc);
+                        try {
+                            fs.unlinkSync(mwFilePath);
+                        } catch(e) {}
+                    }
+                    return filePath;
                 } catch(e) {console.log(e);
                     // write fail
                 };
             };
             
-        // hosted webapplication
-        } else if (location.protocol !== 'file:') {
-            var href = location.href, pos = href.lastIndexOf('/'), curl /*controller url*/ = href.slice(0, pos) + '/@';
-
-            this.write = function(fname, data) {
-                if (curl)
-                $.ajax({url:curl, type:'POST', dataType:'json', contentType:'application/json; charset=UTF-8', async:0, data:JSON.stringify({command:'write', url:fname, data:data})})
-                    .done(function(response) {
-                        if (response.result === 'success')
-                            db.reloadOnReady();
-                    });
-            };
-
-            if (curl)
-            $.ajax({url:curl, type:'POST', dataType:'json', contentType:'application/json; charset=UTF-8', data:JSON.stringify({command:'options'})})
-                .done(function(response) {
-                    if (response.result === 'success') {
-                        this.environment = 2;
-                        if (this.editable = response.editable)
-                            toolbar.save_group.save.class(null, 'disabled');
+            this.writeTo = function(filename, mw_doc, html) {
+                if (this.writable && !this.errorState) 
+                try {
+                    var names = {fileName:filename};
+                    getMwFileName(names);
+                    var mwWritePath = this.path.slice(8)/*file:*/ + names.fileMwName,
+                        writePath = this.path.slice(8)/*file:*/ + names.fileName;
+                        
+                    if (this.fileMode) {
+                        fs.writeFileSync(mwWritePath, mw_doc);
+                        fs.writeFileSync(writePath, html);
+                    } else {
+                        fs.writeFileSync(writePath, mw_doc);
+                        try {
+                            fs.unlinkSync(mwWritePath);
+                        } catch(e) {}
                     }
+                    return writePath;
+                } catch(e) {console.log(e);
+                    // write fail
+                };
+            };
+            
+        } else {
+            if (location.protocol === 'file:')
+                /* Can not get .mw file and handle errors in 'file:' mode. */
+                this.errorState = 1;
+            var host = this;
+            $.ajax({url:this.path + this.fileMwName, type:'GET', dataType:'html', async:0})
+                .done(function(data) {
+                    host.mwHtml = data.replace(/\r/g, '');
+                })
+                .fail(function(e, status, xhr) {
+                    $.ajax({url:this.path + this.fileName, type:'GET', dataType:'html', async:0})
+                        .done(function(data) {
+                            // html can be mw
+                            host.mwHtml = data.replace(/\r/g, '');
+                        })
+                        .fail(function() {
+                            // source not retrieved, prevent writing
+                            this.errorState = 1;
+                        });
                 });
         }
+        // hosted webapplication
+//        } else if (location.protocol !== 'file:') {
+//            var href = location.href, pos = href.lastIndexOf('/'), curl /*controller url*/ = href.slice(0, pos) + '/@';
+//
+//            this.write = function(fname, data) {
+//                if (curl)
+//                $.ajax({url:curl, type:'POST', dataType:'json', contentType:'application/json; charset=UTF-8', async:0, data:JSON.stringify({command:'write', url:fname, data:data})})
+//                    .done(function(response) {
+//                        if (response.result === 'success')
+//                            db.onReady(function() { location.reload(); });
+//                    });
+//            };
+//
+//            if (curl)
+//            $.ajax({url:curl, type:'POST', dataType:'json', contentType:'application/json; charset=UTF-8', data:JSON.stringify({command:'options'})})
+//                .done(function(response) {
+//                    if (response.result === 'success') {
+//                        this.environment = 2;
+//                        if (this.editable = response.editable)
+//                            toolbar.save_group.save.class(null, 'disabled');
+//                    }
+//                });
+//        }
     }
     
     // Database engine adapter
     // If not supported both indexedDB and webSQL no call ready callback and error message
-    function DB(pageid, onready) {
-        var db = this, modified, indexeddb, websqldb, restored/*dataobject is restored*/;
+    function DB(tables, onready) {
+        var db = this, indexeddb, websqldb;
+        this.errorState = -1/*not initialized*/;
         
-        // dataobject attribute 'data' contains stored data object
-        var dataobject = db.dataobject = controls.create('DataObject');
-        dataobject.data = {key:pageid, history:[]};
-        dataobject.listen(function() {
-            modified = true;
-        });
-        setInterval(function() {
-            if (modified) {
-                db.write();
+        for(var prop in tables) {
+            var dataobject = tables[prop];
+            dataobject.listen(function() {
+                this.modified = true;
+            });
+        }
+        
+        timer0.push(function() {
+            for(var prop in tables) {
+                var dataobject = tables[prop];
+                if (dataobject.modified)
+                    db.write();
             }
-        }, 25);
-
+        });
         
-//        // try to open ldbserver
-//        var cldb = $DOC.cbody.add('iframe', {src:'http://aplib.github.io/ldbserver.html', style:'display:none;'});
-//        cldb.createElement();
-//        // ldbserver open error
-//        cldb.listen('error', function() {
-//        });
-//        cldb.listen('load', function() {
-//            try {
-//                var iframe_window = db.element.contentWindow;
-//                if (iframe_window.location.href === this.attributes.src) {
-//                    // iframe not redirected, ldbserver successful opened
-//                    return;
-//                }
-//            } catch(e) {}
-//            // ldbserver open error
-//        });
-        
-
         if (window.indexedDB) {
-
             try {
-                var request = window.indexedDB.open('markdown-webdocs.editor.db', 1.0); // duplication?
+                // indexedDB.deleteDatabase
+                var request = window.indexedDB.open('markdown-webdocs.editor.db', 1.0);
 
                 request.onsuccess = function(event) { 
                     indexeddb = event.target.result;
@@ -916,7 +1254,8 @@
 
                 request.onupgradeneeded = function(event) {
                     indexeddb = event.target.result;
-                    indexeddb.createObjectStore('drafts', {keyPath: 'key'});
+                    for(var prop in tables)
+                        indexeddb.createObjectStore(prop, {keyPath: 'key'});
                     onready();
                 };
 
@@ -937,25 +1276,31 @@
 
             db.restore = function(callback) {
                 try {
-                    var request = indexeddb.transaction(['drafts'], 'readonly').objectStore('drafts').get(pageid);
-                    request.onsuccess = function(event) {
-                        var data = dataobject.data;
-                        controls.extend(data, event.target.result);
-
-                        // validate restored data
-                        data.key = pageid;
-                        if (!Array.isArray(data.history))
-                            data.history = [];
-
-                        restored = true;
-                        modified = false;
-                        if (callback)
-                            callback();
-                    };
-                    request.onerror = function(event) {
-                        console.log(event);
-                    };
+                    var tr = indexeddb.transaction(Object.keys(tables), 'readonly'),
+                        requests = 0, stated = 0;
+                    for(var prop in tables) {
+                        var dataobject = tables[prop],
+                            request = tr.objectStore(prop).get(dataobject.key);
+                        requests++;
+                        request.onsuccess = function(event) {
+                            dataobject = tables[event.target.source.name];
+                            dataobject.fromJSON(event.target.result);
+                            dataobject.modified = false;
+                            stated++;
+                            if (stated === requests) {
+                                db.errorState = 0;
+                                if (callback)
+                                    callback();
+                            }
+                        };
+                        request.onerror = function(event) {
+                            console.log(event);
+                            this.errorState = 1;
+                        };
+                    }
                 } catch (e) {
+                    console.log(e);
+                    this.errorState = 1;
                     // db scheme error
                     // todo
                 }
@@ -963,23 +1308,36 @@
 
             db.write = function() {
 
-                if (restored)
-
+                if (!this.errorState)
                 try {
-                    var store = indexeddb.transaction(['drafts'], 'readwrite').objectStore('drafts'),
-                    data = dataobject.data;
-
-                    if (data.delete) {
-                        delete data.delete;
-                        store.delete(pageid);
-                    }
-                    else
-                        store.put(data);
+                    var tr = indexeddb.transaction(Object.keys(tables), 'readwrite');
                     
-                    if (localStorage)
-                        localStorage.setItem('default selected page', data.selected);
+                    for(var prop in tables) {
+                        var dataobject = tables[prop];
+                        if (dataobject.modified) {
+                            var store = tr.objectStore(prop);
+                        
+                            // delete command
+                            if (dataobject.delete) {
+                                delete dataobject.delete;
+                                store.delete(dataobject.key);
+                            }
+                            else {
+                                var request = store.put(dataobject.toJSON());
+                                request.onsuccess = function() {
+                                };
+                                request.onerror = function(err) {
+                                    console.log(err);
+                                };
+                            }
+                            
+                            dataobject.modified = false;
+                            
+                            if (dataobject.selected && localStorage)
+                                localStorage.setItem('default selected page', dataobject.selected);
+                        }
+                    }
 
-                    modified = false;
                 } catch (e) {
                     console.log(e);
                     // db scheme error
@@ -996,7 +1354,7 @@
 
             // web SQL engine
             try {
-                var websqldb = window.openDatabase('markdown-webdocs.editor.db', '1.0', 'markdow webdocs drafts', 0);
+                var websqldb = window.openDatabase('markdown-webdocs.editor.db', '1.0', 'markdow webdocs editor', 0);
                 if (!websqldb) {
                     NoIDBError();
                     return;
@@ -1005,9 +1363,9 @@
                 // check table
                 websqldb.transaction(
                     function(tx){
-                        tx.executeSql(
-                            'CREATE TABLE IF NOT EXISTS drafts (key TEXT NOT NULL PRIMARY KEY, value TEXT)',
-                            [], null/*onsuccess*/, NoIDBError/*onerror*/);
+                        for(var prop in tables)
+                            tx.executeSql('CREATE TABLE IF NOT EXISTS ' + prop + ' (key TEXT NOT NULL PRIMARY KEY, value TEXT)',
+                                [], null/*onsuccess*/, NoIDBError/*onerror*/);
                     },
                     NoIDBError/*onerror*/,
                     onready/*onreadytransaction*/
@@ -1021,30 +1379,31 @@
                 try {
                     websqldb.transaction(
                         function(tx){
-                            tx.executeSql(
-                                'SELECT value FROM drafts WHERE key = ? LIMIT 1',
-                                [pageid],
-                                /*onsuccess*/function(tx, result) {
-                                    var data = dataobject.data;
-
-                                    if (result.rows.length) {
-                                        try {
-                                            controls.extend(data, JSON.parse(result.rows.item(0).value));
-                                        } catch (e) {}
-                                    }
-
-                                    // validate restored data
-                                    if (!Array.isArray(data.history))
-                                        data.history = [];
-
-                                    restored = true;
-                                    modified = false;
-                                    if (callback)
-                                        callback();
-                                },
-                                /*onerror*/function(event){
-                                    console.log(event);
-                                });
+                            var requests = 0, stated = 0;
+                            for(var prop in tables) {
+                                var dataobject = tables[prop];
+                                tx.executeSql('SELECT value FROM ' + prop + ' WHERE key = ? LIMIT 1',
+                                    [dataobject.key],
+                                    function(tx, result) { // onsuccess
+                                        if (result.rows.length) {
+                                            try {
+                                                dataobject.fromJSON(JSON.parse(result.rows.item(0).value));
+                                            } catch (e) {
+                                                dataobject.fromJSON({});
+                                            }
+                                            dataobject.modified = false;
+                                        }
+                                        stated++;
+                                        if (stated === requests) {
+                                            db.errorState = 0;
+                                            if (callback)
+                                                callback();
+                                        }
+                                    },
+                                    function(event){ // onerror
+                                        console.log(event);
+                                    });
+                            }
                         },
                         /*onerror*/function(){
                             console.log(event);
@@ -1059,39 +1418,41 @@
             };
 
             db.write = function() {
-                if (restored)
+                if (!errorState)
                 try {
                     websqldb.transaction(
                         function(tx){
-                            var data = dataobject.data;
-                            if (data.delete) {
-                                delete data.delete;
-                                tx.executeSql(
-                                'DELETE FROM drafts WHERE key = ?',
-                                [pageid],
-                                /*onsuccess*/function(tx, result) {
-
-                                },
-                                /*onerror*/function(event){
-                                    console.log(event);
-                                });
-                            }
-                            else {
-                                tx.executeSql(
-                                'INSERT OR REPLACE INTO drafts (key, value) VALUES (?, ?)',
-                                [pageid, JSON.stringify(data)],
-                                /*onsuccess*/function(tx, result) {
-
-                                },
-                                /*onerror*/function(event){
-                                    console.log(event);
-                                });
+                            for(var prop in tables) {
+                                var dataobject = tables[prop];
+                                
+                                // delete command
+                                if (dataobject.delete) {
+                                    delete dataobject.delete;
+                                    tx.executeSql(
+                                    'DELETE FROM ' + prop + ' WHERE key = ?',
+                                    [dataobject.key],
+                                    function(tx, result) { // onsuccess
+                                    },
+                                    function(event){ // onerror
+                                        console.log(event);
+                                    });
+                                }
+                                else {
+                                    tx.executeSql(
+                                    'INSERT OR REPLACE INTO ' + prop + ' (key, value) VALUES (?, ?)',
+                                    [dataobject.key, JSON.stringify(dataobject)],
+                                    function(tx, result) { // onsuccess
+                                    },
+                                    function(event){ // onerror
+                                        console.log(event);
+                                    });
+                                }
                             }
                         },
-                        /*onerror*/function(){
+                        function(){ // onerror
                             console.log(event);
                         },
-                        /*onreadytransaction*/function(){
+                        function(){ // onreadytransaction
                         }
                     );
                     modified = false;
@@ -1103,29 +1464,26 @@
             };
         }
         
-        db.reloadOnReady = function reload(message) {
+        db.onReady = function reload(callback) {
             setTimeout(function() {
-                location.reload();
+                callback();
             }, 400);
         };
         
         function NoIDBError() { errorMessage('<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.'); }
     }
     
-
-    // utilites panel
-    function Utilities() {
-        var utilities = controls.create('div', {class:'pad20'});
-        return utilities;
-    }
-    
     
     function errorMessage(message) {
         // alert message
-        $DOC.cbody.attachAll();
-        $DOC.cbody.unshift('alert:div', {$text:message, class:'mar20 alert alert-warning col1-sm-offset-3 col-sm-6', style:'z-index:1200;'});
-        $DOC.cbody.alert.createElement();
+        $DOC.cbody
+            .attachAll()
+            .add('div', {style:'position:fixed; left:0; top:0; width:100%; height:100%; background-color:white; opacity:0.9; z-index:1201;'})
+            .createElement();
+        $DOC.cbody
+            .add('alert:div.mar20 alert alert-warning col1-sm-offset-3 col-sm-6', {$text:message, style:'position:fixed; left:25px; top:25px; z-index:1202;'})
+            .createElement();
     }
 
-
-}).call(function() { return this || (typeof window !== 'undefined' ? window : global); }());
+}
+})();

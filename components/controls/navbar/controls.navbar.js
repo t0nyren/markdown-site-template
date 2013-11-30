@@ -8,8 +8,8 @@
 
     function NavBar(parameters, attributes) {
         
-        controls.controlInitialize(this, 'navbar', parameters, attributes, nav_template, $ENV.default_inner_template);
-        this.class('navbar navbar-default');
+        this.initialize('controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template)
+            .class('navbar navbar-default');
 
         // text contains two parts separated by '***', first part non togglable, second part is togglable
         var parts = (this.text() || '').split(/^\*\*\*/m);
@@ -17,13 +17,13 @@
 
         // Brand part
         
-        this.add('header:div', {class:'navbar-header'});
-        this.header.template(function(it) {
+        this.add('header:div', {class:'navbar-header'})
+            .template(function(it) {
 return '<div' + it.printAttributes() + '>\
 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">\
 <span class="sr-only">Toggle navigation</span>\
 <span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button>'
-+ $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") )
++ $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") )
 .replace(/<a href/ig, '<a class="navbar-brand" href')
 + '</div>'; 
         });
@@ -32,9 +32,9 @@ return '<div' + it.printAttributes() + '>\
         
         // Collapsible part
         
-        this.add('collapse:div', {class:'collapse navbar-collapse navbar-ex1-collapse'});
+        this.add('collapse:div', {class:'collapse navbar-collapse navbar-ex1-collapse'})
+            .template($ENV.default_template, $ENV.default_inner_template);
         $DOC.processContent(this.collapse, parts.slice(-1)[0]);
-        this.collapse.template($ENV.default_template, $ENV.default_inner_template);
         
         this.applyPatches = function() {
             var element = this._element;
@@ -70,11 +70,10 @@ return '<div' + it.printAttributes() + '>\
         });
     };
     NavBar.prototype = controls.control_prototype;
-    function nav_template(it)
-    {
-        return '<nav' + it.printAttributes() + '>' + $ENV.markedPostProcess( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
+    function nav_template(it) {
+        return '<nav' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
     };
-    controls.typeRegister('navbar', NavBar);
+    controls.typeRegister('controls.navbar', NavBar);
 
 
-}).call(this);
+})();

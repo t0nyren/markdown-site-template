@@ -17,7 +17,7 @@ function initialize() {
     
     var script_loaded = 0, load_controls = [],
         script_template = controls['controls.script'].outer_template,
-        preload_template = controls.doT.template('<div{{=it.printAttributes()}}>loading...</div>');
+        preload_template = function(it) { return '<div' + it.printAttributes() + '>loading...</div>'; };
     
     // call for each load_controls on MathJax.js loaded
     function onload() {
