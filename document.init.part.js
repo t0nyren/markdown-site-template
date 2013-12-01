@@ -86,9 +86,10 @@ $ENV = {
                 }
             }
             if (executing) {
-                if (executing.src) {
+                var src = executing.getAttribute('src');
+                if (src) {
                     // components is always loaded from path of the executing script
-                    var origin = executing.src.split('/').slice(0, -1).join('/');
+                    var origin = src.split('/').slice(0, -1).join('/');
                     this.codebase = origin;
                     this.components = origin + '/components/';
                 }

@@ -81,7 +81,7 @@ function initialize() {
 
             // download button
             save_group.add('download:a`btn btn-default', '<b class="glyphicon glyphicon-save"></b>',
-                {download:(location.url.slice(-1)[0] || 'document.html'), 'data-original-title':'Download'})
+                {download:(location.url.split('/').slice(-1)[0] || 'document.html'), 'data-original-title':'Download'})
                 .listen('mousedown', setDataUrl)
                 .listen('focus', setDataUrl)
                 .listen('click', function(event) {
@@ -110,10 +110,10 @@ function initialize() {
                 splitbutton.toggle._class('disabled');
                 splitbutton.items.add('bootstrap.DropdownItem', {$icon:'resize-small'}).listen('click', function() {
                     controller.write(0);
-                }).text('.mw');
+                }).text('.html');
                 splitbutton.items.add('bootstrap.DropdownItem', {$icon:'resize-full'}).listen('click', function() {
                     controller.write(1);
-                }).text('.html + .mw');
+                }).text('.html + .mw.html');
                 splitbutton.items.add('bootstrap.DropdownItem', {$icon:'share-alt'}).listen('click', function() {
                     controller.copy();
                 }).text('Copy');
