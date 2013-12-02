@@ -963,11 +963,15 @@ function initialize() {
                 user = github.user || '',
                 repo = github.repo || '',
                 branch = github.branch || 'gh-pages',
-                github_path = daourl.github_path || '',
+                names = getMwFileName({fileName:daourl.github_path}),
                 apikey = sessionStorage.getItem('github-apikey') || '';
         
+                if (!names.fileName)
+                    // /repo/path
+                    names = getMwFileName({fileName:location.pathname.split('/').slice(2).join('/')});
+        
             // input settings
-            if (force_open || !user || !apikey || !repo || !github_path || !branch) {
+            if (force_open || !user || !apikey || !repo || !names.fileName || !branch) {
                 var modal = $DOC.cbody.github_modal;
                 if (!modal) {
                     modal = $DOC.cbody.github_modal = $DOC.cbody.add(githubSettingsModalForm());
@@ -984,23 +988,24 @@ function initialize() {
                         github.repo = modal.repo.value || '';
                         github.branch = modal.branch.value || 'gh-pages';
                         daoroot.raise();
-                        daourl.github_path = modal.github_path.value || '';
+                        daourl.github_path = modal.path.value || '';
                         daourl.raise();
                         $(modal.element).modal('hide');
-                        if (callback)
-                            callback(github.user && github.repo && github.branch && modal.apikey.value);
+                        if (modal.callback)
+                            modal.callback(github.user && github.repo && github.branch && daourl.github_path && modal.apikey.value);
                     });
                     modal.Cancel.listen('click', function() {
                         $(modal.element).modal('hide');
-                        if (callback)
-                            callback(false);
+                        if (modal.callback)
+                            modal.callback(false);
                     });
                 }
                 modal.user.value = user;
                 modal.apikey.value = apikey;
                 modal.repo.value = repo;
                 modal.branch.value = branch;
-                modal.github_path.value = github_path;
+                modal.path.value = names.fileName;
+                modal.callback = callback;
                 $(modal.element).modal('show');
             } else {
                 if (callback)
@@ -1018,27 +1023,22 @@ function initialize() {
             });
 
             var repo = githubapi.getRepo(github.user, github.repo),
-                mw_html = controller.buildHTML(),
-                github_path = daourl.github_path;
-            if (github_path.slice(-1) !== '/')
-                github_path += '/';
-            var fname = github_path + host.fileName,
-                fnameMw = github_path + host.fileMwName;
+                mw_html = controller.buildHTML();
+                var names = getMwFileName({fileName:daourl.github_path});
 
             if (host.fileMode) {
                 var html = preview.grabHTML();
-
-                repo.write(github.branch, fnameMw, mw_html, '---', function(err) {
+                repo.write(github.branch, names.mwFileName, mw_html, '---', function(err) {
                     if (err) console.log(err);
                 });
                 // simultaneous api requests not supported, delay 3 sec
                 setTimeout(function() {
-                    repo.write(github.branch, fname, html, '---', function(err) {
+                    repo.write(github.branch, names.fileName, html, '---', function(err) {
                         if (err) console.log(err);
                     });
                 }, 3000);
             } else {
-                repo.write(github.branch, fname, mw_html, '---', function(err) {
+                repo.write(github.branch, names.fileName, mw_html, '---', function(err) {
                     if (err) console.log(err);
                 });
             }
@@ -1064,7 +1064,7 @@ function initialize() {
                 })
                 ._add('bootstrap.FormGroup', function(grp) {
                     grp._add('bootstrap.ControlLabel', 'Path in repository:');
-                    modal.github_path = grp.add('bootstrap.ControlInput');
+                    modal.path = grp.add('bootstrap.ControlInput');
                 })
                 ._add('bootstrap.FormGroup', function(grp) {
                     grp._add('bootstrap.ControlLabel', 'API key:');
@@ -1076,6 +1076,27 @@ function initialize() {
         }
     }
     
+    function getMwFileName(data) {
+        var fileName = data.fileName, mwFileName = data.mwFileName;
+        if (!fileName)
+            return data;
+        // location != *.html
+        if (fileName.slice(-5) !== '.html') {
+            return getMwFileName({fileName:fileName + '.html'});
+        }
+        // location == *.mw.html
+        else if (fileName.slice(-8) === '.mw.html') {
+            fileName = fileName.slice(0, fileName.length - 8);
+            mwFileName = fileName + '.mw.html';
+            fileName += '.html';
+        } else {
+            mwFileName = fileName.slice(0, fileName.length - 5) + '.mw.html';
+        }
+        data.fileName = fileName;
+        data.mwFileName = mwFileName;
+        return data;
+    }
+        
     function Host() {
         this.environment = 0;   //  1 - node-webkit, 2 - hosted
         this.writable = 0;
@@ -1090,36 +1111,14 @@ function initialize() {
         this.fileName = url.slice(sep + 1);
         getMwFileName(this);
 
-        function getMwFileName(owner) {
-            var fileName = owner.fileName, fileMwName = owner.fileMwName;
-            // location != *.html
-            if (fileName.slice(-5) !== '.html') {
-                // location == *.mw
-                if (fileName.slice(-3) === '.mw') {
-                    fileMwName = fileName;
-                    fileName = fileName.slice(0, fileName.length - 3);
-                // location != *.mw
-                } else
-                    fileMwName = fileName + '.mw';
-            }
-            // location == *.mw.html
-            else if (fileName.slice(-8) === '.mw.html') {
-                fileName = fileName.slice(0, fileName.length - 8);
-                fileMwName = fileName + '.mw.html';
-                fileName += '.html';
-            } else {
-                fileMwName = fileName.slice(0, fileName.length - 5) + '.mw.html';
-            }
-            owner.fileName = fileName;
-            owner.fileMwName = fileMwName;
-        }
+        
         
         // node-webkit
         if (typeof nwDispatcher !== 'undefined' && location.protocol === 'file:') {
             this.environment = 1;
             this.writable = true;
             var fs = require('fs'),
-                mwFilePath = this.path.slice(8)/*file:*/ +  this.fileMwName,
+                mwFilePath = this.path.slice(8)/*file:*/ +  this.mwFileName,
                 filePath = this.path.slice(8)/*file:*/ +  this.fileName;
         
             try {
@@ -1157,9 +1156,8 @@ function initialize() {
             this.writeTo = function(filename, mw_doc, html) {
                 if (this.writable && !this.errorState) 
                 try {
-                    var names = {fileName:filename};
-                    getMwFileName(names);
-                    var mwWritePath = this.path.slice(8)/*file:*/ + names.fileMwName,
+                    var names = getMwFileName({fileName:filename}),
+                        mwWritePath = this.path.slice(8)/*file:*/ + names.mwFileName,
                         writePath = this.path.slice(8)/*file:*/ + names.fileName;
                         
                     if (this.fileMode) {
@@ -1182,7 +1180,7 @@ function initialize() {
                 /* Can not get .mw file and handle errors in 'file:' mode. */
                 this.errorState = 1;
             var host = this;
-            $.ajax({url:this.path + this.fileMwName, type:'GET', dataType:'html', async:0})
+            $.ajax({url:this.path + this.mwFileName, type:'GET', dataType:'html', async:0})
                 .done(function(data) {
                     host.mwHtml = data.replace(/\r/g, '');
                 })
