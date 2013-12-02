@@ -960,9 +960,9 @@ function initialize() {
         // check github settings
         this.getSettings = function(force_open, callback) {
             var github = daoroot.github || (daoroot.github = {}),
-                user = github.user || '',
-                repo = github.repo || '',
-                branch = github.branch || 'gh-pages',
+                user = github.user,
+                repo = github.repo,
+                branch = github.branch,
                 names = getMwFileName({fileName:daourl.github_path}),
                 apikey = sessionStorage.getItem('github-apikey') || '';
         
@@ -972,6 +972,10 @@ function initialize() {
         
             // input settings
             if (force_open || !user || !apikey || !repo || !names.fileName || !branch) {
+                user = user || location.host.split('.')[0];
+                repo = repo || location.pathname.split('/')[1];
+                branch = branch || 'gh-pages';
+                
                 var modal = $DOC.cbody.github_modal;
                 if (!modal) {
                     modal = $DOC.cbody.github_modal = $DOC.cbody.add(githubSettingsModalForm());
