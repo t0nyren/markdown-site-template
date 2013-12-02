@@ -15,7 +15,7 @@ function initialize() {
             this.sourceMw = data && data.sourceMw;
             this.editMw   = data && data.editMw;
             this.history  = data && data.history;
-            this.publish  = data && data.publish;
+            this.github_path  = data && data.github_path;
             // validate restored data
             if (!Array.isArray(this.history))
                 this.history = [];
@@ -26,7 +26,8 @@ function initialize() {
                 selected:   this.selected,
                 sourceMw:   this.sourceMw,
                 editMw:     this.editMw,
-                history:    this.history
+                history:    this.history,
+                github_path:    this.github_path
             };
         };
         
@@ -982,8 +983,9 @@ function initialize() {
                         sessionStorage.setItem('github-apikey', modal.apikey.value || ''),
                         github.repo = modal.repo.value || '';
                         github.branch = modal.branch.value || 'gh-pages';
-                        daourl.github_path = modal.github_path.value || '';
                         daoroot.raise();
+                        daourl.github_path = modal.github_path.value || '';
+                        daourl.raise();
                         $(modal.element).modal('hide');
                         if (callback)
                             callback(github.user && github.repo && github.branch && modal.apikey.value);
