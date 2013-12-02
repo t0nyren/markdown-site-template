@@ -960,13 +960,13 @@ function initialize() {
         this.getSettings = function(force_open, callback) {
             var github = daoroot.github || (daoroot.github = {}),
                 user = github.user || '',
-                apikey = sessionStorage.getItem('github-apikey') || '',
                 repo = github.repo || '',
                 branch = github.branch || 'gh-pages',
-                rootpath = github.rootpath || '';
+                github_path = daourl.github_path || '',
+                apikey = sessionStorage.getItem('github-apikey') || '';
         
             // input settings
-            if (force_open || !user || !apikey || !repo || !rootpath || !branch) {
+            if (force_open || !user || !apikey || !repo || !github_path || !branch) {
                 var modal = $DOC.cbody.github_modal;
                 if (!modal) {
                     modal = $DOC.cbody.github_modal = $DOC.cbody.add(githubSettingsModalForm());
@@ -982,11 +982,11 @@ function initialize() {
                         sessionStorage.setItem('github-apikey', modal.apikey.value || ''),
                         github.repo = modal.repo.value || '';
                         github.branch = modal.branch.value || 'gh-pages';
-                        github.rootpath = modal.rootpath.value || '';
+                        daourl.github_path = modal.github_path.value || '';
                         daoroot.raise();
                         $(modal.element).modal('hide');
                         if (callback)
-                            callback(github.user && modal.apikey.value && github.repo && github.branch);
+                            callback(github.user && github.repo && github.branch && modal.apikey.value);
                     });
                     modal.Cancel.listen('click', function() {
                         $(modal.element).modal('hide');
@@ -998,7 +998,7 @@ function initialize() {
                 modal.apikey.value = apikey;
                 modal.repo.value = repo;
                 modal.branch.value = branch;
-                modal.rootpath.value = rootpath;
+                modal.github_path.value = github_path;
                 $(modal.element).modal('show');
             } else {
                 if (callback)
@@ -1017,9 +1017,11 @@ function initialize() {
 
             var repo = githubapi.getRepo(github.user, github.repo),
                 mw_html = controller.buildHTML(),
-                rootpath = (github.rootpath ? (github.rootpath + '/') : ''),
-                fname = rootpath + host.fileName,
-                fnameMw = rootpath + host.fileMwName;
+                github_path = daourl.github_path;
+            if (github_path.slice(-1) !== '/')
+                github_path += '/';
+            var fname = github_path + host.fileName,
+                fnameMw = github_path + host.fileMwName;
 
             if (host.fileMode) {
                 var html = preview.grabHTML();
@@ -1051,10 +1053,6 @@ function initialize() {
                     modal.user = grp.add('bootstrap.ControlInput');
                 })
                 ._add('bootstrap.FormGroup', function(grp) {
-                    grp._add('bootstrap.ControlLabel', 'API key:');
-                    modal.apikey = grp.add('bootstrap.ControlInput');
-                })
-                ._add('bootstrap.FormGroup', function(grp) {
                     grp._add('bootstrap.ControlLabel', 'Repository:');
                     modal.repo = grp.add('bootstrap.ControlInput');
                 })
@@ -1063,8 +1061,12 @@ function initialize() {
                     modal.branch = grp.add('bootstrap.ControlInput');
                 })
                 ._add('bootstrap.FormGroup', function(grp) {
-                    grp._add('bootstrap.ControlLabel', 'Document root path:');
-                    modal.rootpath = grp.add('bootstrap.ControlInput');
+                    grp._add('bootstrap.ControlLabel', 'Path in repository:');
+                    modal.github_path = grp.add('bootstrap.ControlInput');
+                })
+                ._add('bootstrap.FormGroup', function(grp) {
+                    grp._add('bootstrap.ControlLabel', 'API key:');
+                    modal.apikey = grp.add('bootstrap.ControlInput');
                 });
             modal.OK = modal.footer.add('bootstrap.Button#primary', 'OK');
             modal.Cancel = modal.footer.add('bootstrap.Button', 'Cancel');
