@@ -121,6 +121,8 @@ bfy.on('exit', function()
             'LICENSE',
             
             'components\\controls.css.html',
+            'components\\controls.navbar.html',
+            'components\\controls.footer-layout.html',
             'components\\controls.alert.html',
             'components\\controls.panel.html',
             'components\\controls.collapse.html',

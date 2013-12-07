@@ -15314,7 +15314,7 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
 function initialize() {
     
     function NavBar(parameters, attributes) {
-        
+        attributes.role = 'navigation';
         this.initialize('controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template)
             .class('navbar navbar-default');
 

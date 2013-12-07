@@ -18,6 +18,8 @@ $DOC.parseContent(function(){/*
  * [Editor]({{=$DOC.root}}docs/editor.html?edit)
 * [Components]({{=$DOC.root}}index.html)
  * [CSS]({{=$DOC.root}}components/controls.css.html)
+ * [Navigation bar]({{=$DOC.root}}components/controls.navbar.html)
+ * [Footer layout]({{=$DOC.root}}components/controls.footer-layout.html)
  * [Alert]({{=$DOC.root}}components/controls.alert.html)
  * [Panel]({{=$DOC.root}}components/controls.panel.html)
  * [Collapse]({{=$DOC.root}}components/controls.collapse.html)
