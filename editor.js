@@ -162,11 +162,11 @@ function initialize() {
                             pubsettings.publish();
                     });
                 });
-            export_group.add('github:bootstrap.Button', {'data-original-title':'Publish settings'})
-                ._icon('cog')
-                .listen('click', function() {
-                    pubsettings.getSettings(true);
-                });
+//            export_group.add('github:bootstrap.Button', {'data-original-title':'Publish settings'})
+//                ._icon('cog')
+//                .listen('click', function() {
+//                    pubsettings.getSettings(true);
+//                });
         });
         
         
@@ -462,18 +462,19 @@ function initialize() {
             update_inner_html = inner_html;
             sections_keys = _sections_keys;
 
-            var doc = this.element && this.element.contentDocument,
+            var element = this.element,
                 $doc = this.$DOC;
-            if (doc && $doc) {
-
-                var html = doc.getElementsByTagName('html')[0];
+            if (element && $doc) {
+                var doc = element.contentDocument,
+                    win = element.contentWindow,
+                    html = doc.getElementsByTagName('html')[0];
                 if (html) {
                     $doc.initialize();
                     // update html
                     html.innerHTML = inner_html;
                     // reproduce document
                     $doc.headTransformation();
-                    if ($doc.options.userjs) {
+                    if (win.$OPT.userjs) {
                         $doc.loadUserJS(); // final transformation started after script loaded
                     } else {
                         setTimeout(function(){
@@ -539,7 +540,7 @@ function initialize() {
                 // decode noscript node
                 .replace(/<noscript>([\s\S]*?)<\/noscript>/g, function(m,innerText) { return '<noscript>' + html_entity_decode(innerText) + '</noscript>'; }),
             pos = html.lastIndexOf('</body>'),
-            cdom = '<script>$DOC.onload(function(){ if ($DOC.options.edit_mode) return;'
+            cdom = '<script>$DOC.onload(function(){ if ($OPT.edit_mode) return;'
              + '($DOC.chead = JSON.parse(unescape("' + escape(JSON.stringify($doc.chead)) + '"), controls.reviverJSON)).attachAll();'
              + '($DOC.cbody = JSON.parse(unescape("' + escape(JSON.stringify($doc.cbody)) + '"), controls.reviverJSON)).attachAll();'
              + '$DOC.vars = JSON.parse(unescape("' + escape(JSON.stringify($doc.vars)) + '"), controls.reviverJSON);'
@@ -968,12 +969,12 @@ function initialize() {
         
                 if (!names.fileName)
                     // /repo/path
-                    names = getMwFileName({fileName:location.pathname.split('/').slice(2).join('/')});
+                    names = getMwFileName({fileName:decodeURIComponent(location.pathname).split('/').slice(2).join('/')});
         
             // input settings
-            if (force_open || !user || !apikey || !repo || !names.fileName || !branch) {
+//            if (force_open || !user || !apikey || !repo || !names.fileName || !branch) {
                 user = user || location.host.split('.')[0];
-                repo = repo || location.pathname.split('/')[1];
+                repo = repo || decodeURIComponent(location.pathname).split('/')[1];
                 branch = branch || 'gh-pages';
                 
                 var modal = $DOC.cbody.github_modal;
@@ -994,7 +995,6 @@ function initialize() {
                         daoroot.raise();
                         daourl.github_path = modal.path.value || '';
                         daourl.raise();
-                        $(modal.element).modal('hide');
                         if (modal.callback)
                             modal.callback(github.user && github.repo && github.branch && daourl.github_path && modal.apikey.value);
                     });
@@ -1011,10 +1011,10 @@ function initialize() {
                 modal.path.value = names.fileName;
                 modal.callback = callback;
                 $(modal.element).modal('show');
-            } else {
-                if (callback)
-                    callback(true);
-            }
+//            } else {
+//                if (callback)
+//                    callback(true);
+//            }
         };
         
         this.publish = function() {
@@ -1029,7 +1029,9 @@ function initialize() {
             var repo = githubapi.getRepo(github.user, github.repo),
                 mw_html = controller.buildHTML();
                 var names = getMwFileName({fileName:daourl.github_path});
-
+            
+            var modal = $DOC.cbody.github_modal;
+            
             if (host.fileMode) {
                 var html = preview.grabHTML();
                 repo.write(github.branch, names.mwFileName, mw_html, '---', function(err) {
@@ -1039,11 +1041,15 @@ function initialize() {
                 setTimeout(function() {
                     repo.write(github.branch, names.fileName, html, '---', function(err) {
                         if (err) console.log(err);
+                        else
+                            $(modal && modal.element).modal('hide');
                     });
                 }, 3000);
             } else {
                 repo.write(github.branch, names.fileName, mw_html, '---', function(err) {
                     if (err) console.log(err);
+                    else
+                        $(modal && modal.element).modal('hide');
                 });
             }
         };
@@ -1071,7 +1077,7 @@ function initialize() {
                     modal.path = grp.add('bootstrap.ControlInput');
                 })
                 ._add('bootstrap.FormGroup', function(grp) {
-                    grp._add('bootstrap.ControlLabel', 'API key:');
+                    grp._add('bootstrap.ControlLabel', 'Personal access token:');
                     modal.apikey = grp.add('bootstrap.ControlInput');
                 });
             modal.OK = modal.footer.add('bootstrap.Button#primary', 'OK');
@@ -1086,10 +1092,10 @@ function initialize() {
             return data;
         // location != *.html
         if (fileName.slice(-5) !== '.html') {
-            return getMwFileName({fileName:fileName + '.html'});
-        }
+            data.fileName += '.html';
+            return getMwFileName(data);
         // location == *.mw.html
-        else if (fileName.slice(-8) === '.mw.html') {
+        } else if (fileName.slice(-8) === '.mw.html') {
             fileName = fileName.slice(0, fileName.length - 8);
             mwFileName = fileName + '.mw.html';
             fileName += '.html';
@@ -1114,8 +1120,7 @@ function initialize() {
         this.path = url.slice(0, sep + 1);
         this.fileName = url.slice(sep + 1);
         getMwFileName(this);
-
-        
+        var _this = this;
         
         // node-webkit
         if (typeof nwDispatcher !== 'undefined' && location.protocol === 'file:') {
@@ -1184,12 +1189,12 @@ function initialize() {
                 /* Can not get .mw file and handle errors in 'file:' mode. */
                 this.errorState = 1;
             var host = this;
-            $.ajax({url:this.path + this.mwFileName, type:'GET', dataType:'html', async:0})
+            $.ajax({url:_this.path + _this.mwFileName, type:'GET', dataType:'html', async:0})
                 .done(function(data) {
                     host.mwHtml = data.replace(/\r/g, '');
                 })
                 .fail(function(e, status, xhr) {
-                    $.ajax({url:this.path + this.fileName, type:'GET', dataType:'html', async:0})
+                    $.ajax({url:_this.path + _this.fileName, type:'GET', dataType:'html', async:0})
                         .done(function(data) {
                             // html can be mw
                             host.mwHtml = data.replace(/\r/g, '');

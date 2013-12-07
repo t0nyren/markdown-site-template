@@ -1,9 +1,10 @@
-//     controls.layout.js
+//     controls.footer-layout
 //     (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
-//     license: MIT
+// built-in Markdown webdocs component
 
-(function() { "use strict";
-    var controls = $ENV.controls;
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
 
     function FooterLayout(parameters, attributes) {
         
@@ -63,4 +64,4 @@
     controls.typeRegister('footer-layout', FooterLayout);
 
 
-}).call(this);
+}})();

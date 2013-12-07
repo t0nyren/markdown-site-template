@@ -9,7 +9,7 @@
     if ($DOC.state)
         return;
 
-    // load queued components
+    // load queued components before user.js
     if (window.defercqueue) {
         var q = window.defercqueue;
         delete window.defercqueue;
@@ -59,13 +59,13 @@
         }
     };
     
-    // $DOC.options.off - turn off filters and component translation
+    // $DOC.components_off - turn off filters and component translation
     $DOC.processContent = function(collection, content) {
         
         if (!content)
             return;
         
-        if (this.options.off) {
+        if (this.components_off) {
             this.addTextContainer(collection, content);
             return;
         }
@@ -146,7 +146,7 @@
     
     $DOC.processTextNode = processTextNode;
     function processTextNode(text_node, value) {
-        var sections = $DOC.sections, edit_mode = $DOC.options.edit_mode;
+        var sections = $DOC.sections, edit_mode = $OPT.edit_mode;
         
         if (edit_mode) {
             // remove controls if already created for this text_node
@@ -336,8 +336,6 @@
         if ($DOC.state)
             return;
         
-        var edit_mode = $DOC.options.edit_mode;
-        
         $DOC.state = 1;
         $DOC.cbody.attach();
         $DOC.listen('section', patches);
@@ -379,7 +377,7 @@
             else
                 window.addEventListener('load', onwindowload);
             
-        } else if (edit_mode !== 1 /*page not processed in edit mode*/) {
+        } else if ($OPT.edit_mode !== 1 /*page not processed in edit mode*/) {
             
             // page transformation
             

@@ -1,10 +1,11 @@
 //     controls.page-layout.js Page layout manager
-//     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
+//     (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
-// require controls.js
+// built-in Markdown webdocs component
 
-(function() { "use strict";
-    var controls = $ENV.controls;
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
 
     function PageLayout(parameters, attributes) {
         
@@ -100,5 +101,4 @@ this.text(), // additional css
     PageLayout.prototype = controls.control_prototype;
     controls.typeRegister('page-layout', PageLayout);
 
-
-}).call(this);
+}})();

@@ -1,21 +1,11 @@
 //     controls.css.js
 //     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
-// require controls.js
+// built-in Markdown webdocs component
 
-(function() { "use strict"; // #604 >>
-var controls;
-if (typeof module !== 'undefined' && typeof require !== 'undefined' && module.exports) {
-    controls = require('controls');
-    module.exports = true;
-} else if (typeof define === 'function' && define.amd)
-    define(['controls'], function(c) { controls = c; return true; });
-else
-    controls = this.controls;
-if (!controls) throw new TypeError('controls.js not found!');
-// << #604
-    
-    
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
     
     var transforms = ',matrix,translate,translateX,translateY,scale,scaleX,scaleY,rotate,skewX,skewY,matrix3d,translate3d,translateZ,scale3d,scaleZ,rotate3d,rotateX,rotateY,rotateZ,perspective,';
     
@@ -23,9 +13,6 @@ if (!controls) throw new TypeError('controls.js not found!');
     function  Felement(__type, parameters, attributes, css) {
         
         var control = controls.create(__type, parameters, attributes);
-        
-//        // generated css class name
-//        control.cssClassName = 'auto-' + control.id;
         
         // >> parse style from parameters 
         
@@ -51,40 +38,10 @@ if (!controls) throw new TypeError('controls.js not found!');
             style += 'transform:' + transform + ';-webkit-transform:' + transform + ';-moz-transform:' + transform + ';';
         }
         if (style) {
-//            style = '.' + control.cssClassName + '{' + style + '}';
-//            control.attributes.style = undefined;
             control.attributes.style = style;
         }
         
         // << parse style from parameters
-        
-        
-//        // >> css text normalization
-//        
-//        if (css) {
-//            
-//            if (style)
-//                style += ' ';
-//                
-//            var classname = '.' + control.cssClassName;
-//            
-//            if (css.indexOf('{') < 0) {
-//                css = '.' + control.cssClassName + '{' + css + '}';
-//            } else if (css.indexOf(classname) < 0) {
-//                css = classname + css.trim();
-//            }
-//            
-//            style += css;
-//        }
-//        
-//        // << css text normalization
-//        
-//        if (style) {
-//            // build css element
-//            // style = style.replace(/;/g, ' !important;');
-//            
-//            $DOC.appendCSS(control.cssClassName, style);
-//        }
         
         return control;
     }
@@ -92,8 +49,7 @@ if (!controls) throw new TypeError('controls.js not found!');
     function process_inner_text(control) {
         // process markup at this level
         var inner_text = control.attributes.$text;
-        if (inner_text)
-        {
+        if (inner_text) {
             $DOC.processContent(control, inner_text);
             control.attributes.$text = undefined;
         }
@@ -105,7 +61,6 @@ if (!controls) throw new TypeError('controls.js not found!');
         var control = Felement('div', parameters, attributes);
         control.template($ENV.default_template, $ENV.default_inner_template);
         process_inner_text(control);
-//        control.class(control.cssClassName);
         return control;
     };
     controls.factoryRegister('block', Block);
@@ -127,16 +82,16 @@ if (!controls) throw new TypeError('controls.js not found!');
         var control = Felement('span', parameters, attributes);
         control.template(span_template, $ENV.default_inner_template);
         process_inner_text(control);
-//        control.class(control.cssClassName);
         return control;
     };
     controls.factoryRegister('text', Text);
     
     
     function  Off(parameters, attributes) {
-        var off_mode = $DOC.options.off;
+        var off_mode = $DOC.components_off;
+        $DOC.components_off = true;
         var off_text = controls.create('container', parameters, attributes);
-        $DOC.options.off = off_mode;
+        $DOC.components_off = off_mode;
         return off_text;
     }
     controls.factoryRegister('off', Off);
@@ -178,4 +133,4 @@ if (!controls) throw new TypeError('controls.js not found!');
     controls.factoryRegister('escape', Escape);
 
 
-}).call(this);
+}})();

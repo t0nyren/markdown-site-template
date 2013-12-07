@@ -1,11 +1,12 @@
 //     controls.navbar.js Boostrap-compatible navigation bar
-//     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
+//     (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
+// built-in Markdown webdocs component
 
-(function() { "use strict";
-
-    var controls = $ENV.controls;
-
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
+    
     function NavBar(parameters, attributes) {
         
         this.initialize('controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template)
@@ -73,7 +74,6 @@ return '<div' + it.printAttributes() + '>\
     function nav_template(it) {
         return '<nav' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
     };
-    controls.typeRegister('controls.navbar', NavBar);
+    controls.typeRegister('navbar', NavBar);
 
-
-})();
+}})();

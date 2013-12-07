@@ -1,18 +1,17 @@
-/*if (!$ENV)*/ {
-
-$ENV = {
-    dot: require('dot'),
-    controls: require('controls'),
-    marked: require('./temp/marked'),
-    'bootstrap.controls': require('./temp/bootstrap.controls.js')
-};
-
 (function() { 'use strict';
-    $ENV.controls.template = $ENV.dot.template;
-    var extend = $ENV.controls.extend;
-    
+
     // initialize $ENV
     
+    $ENV = {
+        dot: require('dot'),
+        controls: require('controls'),
+        marked: require('./temp/marked'),
+        'bootstrap.controls': require('./temp/bootstrap.controls.js')
+    };
+    
+    $ENV.controls.template = $ENV.dot.template;
+    var extend = $ENV.controls.extend;
+
     // Set default options except highlight which has no default
     $ENV.marked.setOptions({
       gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
@@ -37,23 +36,11 @@ $ENV = {
             url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
     }});
     
-    var default_options = $DOC.options, scripts_count = 0, scripts_stated = 0;
+    var scripts_count = 0, scripts_stated = 0;
     $DOC = {
         initialize: function() {
             
             this.urlParams = extend({}, url_params);
-            this.options = extend({}, default_options);
-            var options = this.options;
-            
-            // edit mode
-            if (url_params.edit && window.self === window.top)
-                options.edit_mode = 1; // editor
-            if (url_params.preview) {
-                options.edit_mode = 2; // preview mode
-                // idgen shift in preview mode
-                // Preview mode is used for compiled html. Prevent conflict between already stored in html and newly created identifiers.
-                controls.id_generator = 200000;
-            }
 
             // "DOC" script element source for: root, script options
 
@@ -91,14 +78,28 @@ $ENV = {
                     // components is always loaded from path of the executing script
                     var origin = src.split('/').slice(0, -1).join('/');
                     this.codebase = origin;
-                    this.components = origin + '/components/';
+                    this.components = origin + (origin ? '/' : '') + 'components/';
                 }
-                options.userjs = executing.getAttribute('userjs') || options.userjs;
-                options.icon = executing.getAttribute('icon') || options.icon;
-                var editable = executing.getAttribute('editable') || options.editable;
-                options.editable = (editable === 'false') ? false : editable;
+                $OPT.userjs = executing.getAttribute('userjs') || $OPT.userjs;
+                $OPT.icon = executing.getAttribute('icon') || $OPT.icon;
+                var editable = executing.getAttribute('editable') || $OPT.editable;
+                $OPT.editable = (editable === 'false' || editable === '0') ? false : !!editable;
             }
 
+            // edit mode
+            if ($OPT.editable) {
+                if (url_params.edit && window.self === window.top)
+                    $OPT.edit_mode = 1; // editor
+                if (url_params.preview) {
+                    $OPT.edit_mode = 2; // preview mode
+                    // idgen shift in preview mode
+                    // Preview mode is used for compiled html. Prevent conflict between already stored in html and newly created identifiers.
+                    controls.id_generator = 200000;
+                }
+            }
+            // prevent options changes 
+//            Object.freeze($OPT);
+            
             // State
             this.state = 0; // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
             
@@ -293,7 +294,7 @@ $ENV = {
         },
         // load user.js scripts
         loadUserJS: function() {
-            var userjs = this.options.userjs;
+            var userjs = $OPT.userjs;
             if (userjs) {
                 userjs = userjs.split(',');
                 for(var i = 0, c = userjs.length; i < c; i++)
@@ -308,6 +309,12 @@ $ENV = {
         },
         
         appendCSS: function(id, css, callback, position) {
+            if (arguments.length === 1 || typeof css === 'function') {
+                position = callback;
+                callback = css;
+                css = id;
+                id = '';
+            }
             var head = document.head, exists = document.getElementById(id),
                 israwcss = (css.indexOf('{') >= 0);
             if (!exists) {
@@ -317,7 +324,7 @@ $ENV = {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
                     link.type = 'text/css';
-                    link.id = id;
+                    id && (link.id = id);
                     link.auto = true;
                     link.href = css;
                     if (callback) {
@@ -428,8 +435,8 @@ $ENV = {
             document.head.setAttribute('generator', 'markdown webdocs');
 
         this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-        if (this.options.icon)
-            this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl(this.options.icon)});
+        if ($OPT.icon)
+            this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl($OPT.icon)});
 
         // document style
 
@@ -515,9 +522,8 @@ $ENV = {
 .center {text-align:center;vertical-align:middle;} .hcenter {text-align:center;} .vcenter {vertical-align:middle;} .bottom {vertical-align:bottom;}'
  + ['0','5','10','15','20'].map(function(val) { return '.mar' + val + '{margin:' + val + 'px}.martop' + val + '{margin-top:' + val + 'px}.marright' + val + '{margin-right:' + val + 'px}.marbottom' + val + '{margin-bottom:' + val + 'px}.marleft' + val + '{margin-left:' + val + 'px}.pad' + val + '{padding:' + val + 'px}.padtop' + val + '{padding-top:' + val + 'px}.padright' + val + '{padding-right:' + val + 'px}.padbottom' + val + '{padding-bottom:' + val + 'px}.padleft' + val + '{padding-left:' + val + 'px}'; }).join('')
 );     
-        var edit_mode = this.options.edit_mode;
         
-        if (theme && edit_mode !== 1) {
+        if (theme && $OPT.edit_mode !== 1) {
             // theme loading and confirmed flag
             this.appendCSS('theme.css', this.getRootUrl('mods/' + theme + '/' + theme + '.css'), function(state) {
                 if (state < 0 && theme_confirmed)
@@ -528,7 +534,7 @@ $ENV = {
             this.appendScript('theme.js', this.getRootUrl('mods/' + theme + '/' + theme + '.js'));
         }
         // load bootstrap.css if not theme or previous load error
-        if (!theme || !theme_confirmed || edit_mode === 1) {
+        if (!theme || !theme_confirmed || $OPT.edit_mode === 1) {
             var bcss = document.getElementById('bootstrap.css');
             if (!bcss) {
                 // check boostrap.css load
@@ -542,7 +548,7 @@ $ENV = {
                 }
                 if (!bcss) {
                     var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css';
-                    this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + '/bootstrap.css'), function(state) {
+                    this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + (this.codebase ? '/' : '') + 'bootstrap.css'), function(state) {
                         if (state < 0) $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
                     }, 'afterbegin');
                 }
@@ -564,15 +570,15 @@ $ENV = {
         });
     });
 
-    // open editor
-    if ($DOC.options.editable) {
-        if ($DOC.options.edit_mode === 1 && window.top === window.self)
+
+    if ($OPT.editable) {
+        if ($OPT.edit_mode === 1 && window.top === window.self)
             eval('/*include editor*/');
             //$DOC.appendScript('document.editor.js', '/*include editor*/');
 
         window.addEventListener('keydown', function(event) {
             if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
-                if ($DOC.options.edit_mode) {
+                if ($OPT.edit_mode) {
                     var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
                     if (pos >= 0)
                         window.location = url.slice(0, pos) + url.slice(pos + 5);
@@ -581,5 +587,6 @@ $ENV = {
             }
         });
     }
+    
 })();
-}
+

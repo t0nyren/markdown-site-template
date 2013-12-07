@@ -36,12 +36,7 @@ bfy.on('exit', function()
     replace('document.api.js', /\(function\(\)\{ return this \|\| \(0,eval\)\('this'\); \}\(\)\).doT = doT;/, 'this.doT=doT;');
     // <-- BUG FIXES
     
-    // Include editor.js
-    replace('document.api.js', '/*include editor*/', fs.readFileSync('editor.min.js', 'utf-8')
-            .replace(/\\/g, '\\\\')
-            .replace(/'/g, '\\\'')
-            .replace(/\r\n/g, '\\n\\\r\n'));
-    
+   
     // -> DOCUMENT.LESS.JS
     concat([
         'document.api.js',
@@ -57,6 +52,14 @@ bfy.on('exit', function()
     // >> output
         'document.less.js');
     // << output
+    
+
+    // Include editor.js
+    replace('document.less.js', '/*include editor*/', fs.readFileSync('editor.min.js', 'utf-8')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, '\\\'')
+        .replace(/\r\n/g, '\\n\\\r\n'));
+    
     
     
     // -> DOCUMENT.JS
@@ -84,11 +87,11 @@ bfy.on('exit', function()
         // -> DOCUMENT.JS
         // -> DOCUMENT.MIN.JS
         var options = 
-'var $ENV, $DOC = { options: {\n\
+'var $DOC,$ENV,$OPT = {\n\
     userjs: "",\n\
     icon: "",\n\
     editable: true\n\
-}};\n\n';
+};\n\n';
         fs.writeFileSync('document.api.js',  options + fs.readFileSync('document.api.js'));
         fs.writeFileSync('document.less.js', options + fs.readFileSync('document.less.js'));
         fs.writeFileSync('document.js',      options + fs.readFileSync('document.js'));

@@ -1,21 +1,11 @@
 //     controls.tabpanel.js
-//     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
+//     (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     License: MIT
-// require controls.js
+// built-in Markdown webdocs component
 
-(function() { "use strict"; // #604 >>
-var controls;
-if (typeof module !== 'undefined' && typeof require !== 'undefined' && module.exports) {
-    controls = require('controls');
-    module.exports = CTabPanel;
-} else if (typeof define === 'function' && define.amd)
-    define(['controls'], function(c) { controls = c; return CTabPanel; });
-else
-    controls = this.controls;
-if (!controls) throw new TypeError('controls.js not found!');
-// << #604
-
-
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
 
     function CTabPanel(parameters, attributes) {
         
@@ -82,4 +72,4 @@ if (!controls) throw new TypeError('controls.js not found!');
     controls.factoryRegister('tabpage', tabpage_factory);
     
 
-}).call(this);
+}})();

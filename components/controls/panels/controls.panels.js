@@ -1,19 +1,11 @@
 //     controls.panels.js
-//     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
+//     (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     License: MIT
-// require controls.js
+// built-in Markdown webdocs component
 
-(function() { "use strict"; // #604 >>
-var controls;
-if (typeof module !== 'undefined' && typeof require !== 'undefined' && module.exports) {
-    controls = require('controls');
-    module.exports = Collapse;
-} else if (typeof define === 'function' && define.amd)
-    define(['controls'], function(c) { controls = c; return Collapse; });
-else
-    controls = this.controls;
-if (!controls) throw new TypeError('controls.js not found!');
-// << #604
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
 
 var bootstrap = controls.bootstrap;
     
@@ -152,4 +144,4 @@ var bootstrap = controls.bootstrap;
     controls.factoryRegister('iwell', iWell);
     
     
-}).call(this);
+}})();
