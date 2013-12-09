@@ -81,8 +81,11 @@ function initialize() {
                 });
 
             // download button
+            var dfname = location.url.split('/').slice(-1)[0];
+            if (dfname.toLowerCase().slice(-5) !== '.html')
+                dfname += '.html';
             save_group.add('download:a`btn btn-default', '<b class="glyphicon glyphicon-save"></b>',
-                {download:(location.url.split('/').slice(-1)[0] || 'document.html'), 'data-original-title':'Download'})
+                {download:(dfname || 'document.html'), 'data-original-title':'Download'})
                 .listen('mousedown', setDataUrl)
                 .listen('focus', setDataUrl)
                 .listen('click', function(event) {
