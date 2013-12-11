@@ -51,7 +51,10 @@ function initialize() {
     });
 
     function openEditor() {
-
+                
+        // host adapter
+        host = new Host();
+        
         $DOC.cbody.attachAll();
         $DOC.appendCSS('document.editor.css', '.tooltip, .popover { z-index:1200; }');
 
@@ -81,18 +84,17 @@ function initialize() {
                 });
 
             // download button
-            var dfname = location.url.split('/').slice(-1)[0];
-            if (dfname.toLowerCase().slice(-5) !== '.html')
-                dfname += '.html';
+            var dfname = host.fileName || 'document.html';
+            if (dfname.toLowerCase().slice(-5) !== '.html') dfname += '.html';
             save_group.add('download:a`btn btn-default', '<b class="glyphicon glyphicon-save"></b>',
-                {download:(dfname || 'document.html'), 'data-original-title':'Download'})
+                {download:dfname, 'data-original-title':'Download'})
                 .listen('mousedown', setDataUrl)
                 .listen('focus', setDataUrl)
                 .listen('click', function(event) {
                     try {
                         // IE
                         var blob = new Blob([controller.buildHTML()]);
-                        window.navigator.msSaveOrOpenBlob(blob, (location.url.split('/').slice(-1)[0] || 'document.html'));
+                        window.navigator.msSaveOrOpenBlob(blob, dfname);
                         event.preventDefault();
                         return;
                     } catch(e) {}
@@ -186,9 +188,6 @@ function initialize() {
 
         // create form
         table.createElement();
-
-        // host adapter
-        host = new Host();
 
         // app controller
         controller = new Controller();
