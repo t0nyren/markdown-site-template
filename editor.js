@@ -1,6 +1,6 @@
 (function() { 'use strict';
 if (window.top !== window.self || window['mw-document-editor']) return; window['mw-document-editor'] = true;
-if (typeof $ENV !== 'undefined') initialize(); else { if (!window.defercqueue) window.defercqueue = []; window.defercqueue.push(initialize); }
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
 function initialize() {
     var db, daourl, daoroot, host, cpanel, controller, table, toolbar, tabheaders, options, code_edit, parser, preview, timer0 = [], timer1 = [],
         pubsettings;
