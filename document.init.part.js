@@ -429,7 +429,7 @@
     
     $DOC.headTransformation = function() {
         
-        if ($DOC.auto = document.head.hasAttribute('generator'))
+        if ($DOC.mode = document.head.hasAttribute('generator'))
             return; // html
         else // mw document
             document.head.setAttribute('generator', 'markdown webdocs');

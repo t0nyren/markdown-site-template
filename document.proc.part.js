@@ -342,7 +342,7 @@
         
         var processed_nodes = [];
         
-        if ($DOC.auto) {
+        if ($DOC.mode) {
             
             // html
             

@@ -541,14 +541,14 @@ function initialize() {
             var html = '<!DOCTYPE html>' + clone.outerHTML
                 // decode noscript node
                 .replace(/<noscript>([\s\S]*?)<\/noscript>/g, function(m,innerText) { return '<noscript>' + html_entity_decode(innerText) + '</noscript>'; }),
-            pos = html.lastIndexOf('</body>'),
-            cdom = '<script>$DOC.onload(function(){ if ($OPT.edit_mode) return;'
-             + '($DOC.chead = JSON.parse(unescape("' + escape(JSON.stringify($doc.chead)) + '"), controls.reviverJSON)).attachAll();'
-             + '($DOC.cbody = JSON.parse(unescape("' + escape(JSON.stringify($doc.cbody)) + '"), controls.reviverJSON)).attachAll();'
+                pos = html.lastIndexOf('</body>');
+            return html.substr(0, pos) + '<script>$DOC.onready(function() { if ($OPT.edit_mode) return;'
+             + '$DOC.chead = JSON.parse(unescape("' + escape(JSON.stringify($doc.chead)) + '"), controls.reviverJSON);'
+             + '$DOC.cbody = JSON.parse(unescape("' + escape(JSON.stringify($doc.cbody)) + '"), controls.reviverJSON);'
              + '$DOC.vars = JSON.parse(unescape("' + escape(JSON.stringify($doc.vars)) + '"), controls.reviverJSON);'
-             + 'for(var prop in $DOC.vars) { var v = $DOC.vars[prop]; if (v.__type) v.attachAll(); }'
-             + '});</script>';
-            return html.slice(0, pos) + cdom + html.slice(pos);
+             + '$DOC.onload(function(){ $DOC.chead.attachAll(); $DOC.cbody.attachAll(); for(var prop in $DOC.vars) { var v = $DOC.vars[prop]; if (v.__type) v.attachAll(); } });'
+             + '});</script>'
+             + html.substr(pos);
         };
         
         return preview;
