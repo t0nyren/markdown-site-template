@@ -18,12 +18,14 @@ function initialize() {
         'msdn-like-theme':'MSDN-like'
     };
 
-
     // check the browser support localStorage
     if (typeof localStorage !== 'undefined')
     $DOC.onload(function() {
         var exists = $DOC.vars.theme_switcher_menu_item;
-        if (!exists) {
+        if (exists) {
+            if ($DOC.mode)
+                exists.deleteElement();
+        } else {
             var navbar_ul = $('.navbar-collapse > ul').first();
             if (navbar_ul) {
                 // create mods submenu
