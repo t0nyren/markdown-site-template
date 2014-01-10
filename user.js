@@ -5,19 +5,19 @@ $DOC.mod('theme-switcher');
 $DOC.parseContent(function(){/*
 
 <!--fixed-top-bar
-%navbar(
+[navbar]
 [Home]({{=$DOC.root}}index.html)
 ***
 * [Docs]({{=$DOC.root}}index.html)
- * [Blog]({{=$DOC.root}}blog.html)
- * [Layout]({{=$DOC.root}}docs/layout.html)
  * [CML (Component Markdown Language)]({{=$DOC.root}}docs/CML.html)
- * [Components overview]({{=$DOC.root}}docs/components.html)
+ * [CSS]({{=$DOC.root}}components/controls.css.html)
+ * [Layout]({{=$DOC.root}}docs/layout.html)
  * [URL parameters]({{=$DOC.root}}docs/url-parameters.html)
  * [API]({{=$DOC.root}}docs/api.html)
  * [Editor]({{=$DOC.root}}docs/editor.html?edit)
+ * [Blog]({{=$DOC.root}}blog.html)
 * [Components]({{=$DOC.root}}index.html)
- * [CSS]({{=$DOC.root}}components/controls.css.html)
+ * [Overview]({{=$DOC.root}}docs/components.html)
  * [Navigation bar]({{=$DOC.root}}components/controls.navbar.html)
  * [Footer layout]({{=$DOC.root}}components/controls.footer-layout.html)
  * [Alert]({{=$DOC.root}}components/controls.alert.html)
@@ -33,7 +33,7 @@ $DOC.parseContent(function(){/*
  * [Google Charts]({{=$DOC.root}}components/gcharts/Google%20Charts.html)
  * [d3js.org]({{=$DOC.root}}components/d3/d3.html)
  * [Code highlighting]({{=$DOC.root}}components/controls.highlight.html)
-)%navbar
+[/navbar]
 -->
 
 <!--header-panel
@@ -47,8 +47,8 @@ $DOC.parseContent(function(){/*
 
 // another example of creating a named section
 $DOC.sections['footer-panel'] =
-'%footer-layout#scheme=line(\
+'[footer-layout scheme=line]\
 * © 2013 [aplib on GitHub](https://github.com/aplib/markdown-site-template) MIT\n\
 ***\n\
 * [Free download template from GitHub](http://aplib.github.io/markdown-site-template/markdown-site-template.zip)\
-)%footer-layout';
+[/footer-layout]';

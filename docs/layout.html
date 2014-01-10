@@ -7,10 +7,9 @@
 </head>
 <body>
 
-<!--%block#$class=header-panel;padding=27px 50px 0px 50px(
+<!--[block`header-panel padding:27px 50px 0px 50px;]
 # Markdown webdocs
-### Simple Markdown site template
-)%block-->
+### Simple Markdown site template-->
 
 <!--fixed-top-bar->header-panel-->
 
@@ -67,7 +66,7 @@ footer fixed at the bottom edge of the page, always visible, not scrolled.
 ## Layout
 
 To display a certain section of the page insert named section in the text:
-<pre><code>%encode(%off(&lt;!--right-side-panel
+<pre><code>[encode][off]&lt;!--right-side-panel
 Example Navigation:
 
 * [Home](index.html)
@@ -75,7 +74,7 @@ Example Navigation:
   * [Pre-defined section names](index.html#pre-defined-section-names-)
 * [Layout](layout.html)
 --&gt;
-)%off)%encode</code></pre>
+[/off][/encode]</code></pre>
 
 ### Default layout scheme
 
@@ -89,11 +88,11 @@ Example Navigation:
 </table>
 </small>
 
-Predefined order ($DOC.order) of the sections can be overriden by placeholders %encode(%off(&lt;!--section-name--&gt;)%off)%encode
-Previously defined sections can be overriden or removed by %encode(%off(&lt;!--section-name --&gt;)%off)%encode
+Predefined order ($DOC.order) of the sections can be overriden by placeholders [encode][off]&lt;!--section-name--&gt;[/off][/encode]
+Previously defined sections can be overriden or removed by [encode][off]&lt;!--section-name --&gt;[/off][/encode]
 
 Predefined layout scheme can be overridden in several ways:
-* by adding sections with customized blocks (syntax %encode(%off(&lt;!--%block#$class=...( ... )%block--&gt;)%off)%encode
+* by adding sections with customized block (syntax [encode][off]&lt;!--[block`some css style] ... --&gt;[/off][/encode]
 * by customizing CSS table
 * by using bootstrap grid system within the sections
 * by using special layout components
@@ -110,6 +109,7 @@ Predefined layout scheme can be overridden in several ways:
 -->
 
 
+
 <!--right-side-panel
 <br>
 Example Navigation:
@@ -119,12 +119,11 @@ Example Navigation:
 * [Grid example](#more-complex-layout-can-be-created-by-using-bootstrap-grid-system-)
 
 <br>
-%well#display=inline-block;padding=16px;border-radius=4px;background-color=#fcf5b9;box-shadow=1px 1px 5px #888888(
- This is the right side panel. The layout of this column is adaptive.  
-)%well
+[well`display:inline-block; padding:16px; border-radius:4px; background-color:#fcf5b9; box-shadow:1px 1px 5px #888888;] This is the right side panel. The layout of this column is adaptive. [/well]
+
 -->
 
-<!--%block#$class=fixed-right-side-panel;width=200px;box-shadow=0px -1px 3px #888888(
+<!--[block`fixed-right-side-panel width:200px; box-shadow:0px -1px 3px #888888]
 <br>
 Example Navigation:
 
@@ -133,25 +132,25 @@ Example Navigation:
 * [Grid example](#more-complex-layout-can-be-created-by-using-bootstrap-grid-system-)
 
 <br>
-%well#display=inline-block;padding=16px;border-radius=4px;background-color=#fcf5b9;box-shadow=1px 1px 5px #888888(
+[well`display:inline-block; padding:16px; border-radius:4px; background-color:#fcf5b9; box-shadow:1px 1px 5px #888888]
   This is the fixed right side panel, it is always visible.
-)%well
+[/well]
 
-)%block-->
+-->
 
 <!--footer-bar
 ***
-%block#$class=col-md-offset-1( ### More complex layout can be created by using bootstrap grid system. )%block
+[block`col-md-offset-1] ### More complex layout can be created by using bootstrap grid system. [/block]
 <br>
-%block#$class=row(
-  %well#$class=col-md-4 col-md-offset-1( More complex layout )%well
-  %well#$class=col-md-3 col-md-offset-3( can be created )%well
-)%block
+[block`row]
+  [well`col-md-4 col-md-offset-1] More complex layout [/well]
+  [well`col-md-3 col-md-offset-3] can be created [/well]
+[/block]
 
-%block#$class=row(
-  %well#$class=col-md-3 col-md-offset-3( by using )%well
-  %well#$class=col-md-3 col-md-offset-1( bootstrap grid system )%well
-)%block
+[block`row]
+  [well`col-md-3 col-md-offset-3] by using [/well]
+  [well`col-md-3 col-md-offset-1] bootstrap grid system [/well]
+[/block]
 
 ***
 -->
@@ -161,5 +160,7 @@ Example Navigation:
 
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
+
 </body>
 </html>

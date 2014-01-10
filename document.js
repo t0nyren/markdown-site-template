@@ -10863,7 +10863,7 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
         'bootstrap.controls': require('./temp/bootstrap.controls.js')
     };
     
-    $ENV.controls.template = $ENV.dot.template;
+    $ENV.controls.template = $ENV.dot.template; // default template engine
     var extend = $ENV.controls.extend;
 
     // Set default options except highlight which has no default
@@ -10871,14 +10871,16 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
       gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
     });
 
-    // default control templates
-    $ENV.default_template = function(it) {
-        return '<div' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</div>'; };
-    $ENV.default_inline_template = function(it) {
-        return '<span' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</span>'; };
-    $ENV.default_inner_template = function(it) {
-        return $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ); };
-    
+    // get default control template
+    var templatesHash = {};
+    $ENV.getDefaultTemplate = function(tag) {
+        return templatesHash[tag || ''] || (templatesHash[tag || ''] = new Function('it',
+'var attributes = it.attributes, controls = it.controls, result = attributes.$text || "";\n\
+for(var i = 0, c = controls.length; i < c; i++)\n\
+ result += controls[i].wrappedHTML();\n\
+return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(result) + "</' + tag + '>";') : '$ENV.marked(result);')) );
+    };
+        
     // initialize $DOC
     
     var url_params = {};
@@ -11027,7 +11029,8 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
         },
         // move section to placeholder location
         sectionPlaceholder: function(name, text_node) {
-            var sections = this.sections, exists = sections[name];
+            var sections = this.sections,
+                exists = sections[name];
             // move exists node
             if (exists) {
                 if (exists.__type) {
@@ -11136,6 +11139,23 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
                 });
             }
             document.head.appendChild(script);
+        },
+        // {id1:url1, id2:url2 ...}
+        appendScripts: function(hash, callback) {
+            var started = 0, loaded = 0;
+            for(var prop in hash) {
+                started++;
+                this.appendScript(prop, hash[prop], function(state) {
+                    if (state > 0)
+                        loaded++;
+                    if (callback) {
+                        if (loaded >= started)
+                            callback(1);
+                        else if (state < 0)
+                            callback(-1);
+                    }
+                });
+            }
         },
         // get the url relative to the root
         getRootUrl: function(url) {
@@ -11445,289 +11465,7 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
 })();
 
 
-},{"./temp/bootstrap.controls.js":4,"./temp/marked":5,"controls":6,"dot":3}],2:[function(require,module,exports){
-// doT.js
-// 2011, Laura Doktorova, https://github.com/olado/doT
-// Licensed under the MIT license.
-
-(function() {
-	"use strict";
-
-	var doT = {
-		version: '1.0.1',
-		templateSettings: {
-			evaluate:    /\{\{([\s\S]+?(\}?)+)\}\}/g,
-			interpolate: /\{\{=([\s\S]+?)\}\}/g,
-			encode:      /\{\{!([\s\S]+?)\}\}/g,
-			use:         /\{\{#([\s\S]+?)\}\}/g,
-			useParams:   /(^|[^\w$])def(?:\.|\[[\'\"])([\w$\.]+)(?:[\'\"]\])?\s*\:\s*([\w$\.]+|\"[^\"]+\"|\'[^\']+\'|\{[^\}]+\})/g,
-			define:      /\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g,
-			defineParams:/^\s*([\w$]+):([\s\S]+)/,
-			conditional: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
-			iterate:     /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
-			varname:	'it',
-			strip:0,
-			append:		true,
-			selfcontained: false
-		},
-		template: undefined, //fn, compile template
-		compile:  undefined  //fn, for express
-	};
-
-	if (typeof module !== 'undefined' && module.exports) {
-		module.exports = doT;
-	} else if (typeof define === 'function' && define.amd) {
-		define(function(){return doT;});
-	} else {
-		this.doT=doT;
-	}
-
-	function encodeHTMLSource() {
-		var encodeHTMLRules = { "&": "&#38;", "<": "&#60;", ">": "&#62;", '"': '&#34;', "'": '&#39;', "/": '&#47;' },
-			matchHTML = /&(?!#?\w+;)|<|>|"|'|\//g;
-		return function() {
-			return this ? this.replace(matchHTML, function(m) {return encodeHTMLRules[m] || m;}) : this;
-		};
-	}
-	String.prototype.encodeHTML = encodeHTMLSource();
-
-	var startend = {
-		append: { start: "'+(",      end: ")+'",      endencode: "||'').toString().encodeHTML()+'" },
-		split:  { start: "';out+=(", end: ");out+='", endencode: "||'').toString().encodeHTML();out+='"}
-	}, skip = /$^/;
-
-	function resolveDefs(c, block, def) {
-		return ((typeof block === 'string') ? block : block.toString())
-		.replace(c.define || skip, function(m, code, assign, value) {
-			if (code.indexOf('def.') === 0) {
-				code = code.substring(4);
-			}
-			if (!(code in def)) {
-				if (assign === ':') {
-					if (c.defineParams) value.replace(c.defineParams, function(m, param, v) {
-						def[code] = {arg: param, text: v};
-					});
-					if (!(code in def)) def[code]= value;
-				} else {
-					new Function("def", "def['"+code+"']=" + value)(def);
-				}
-			}
-			return '';
-		})
-		.replace(c.use || skip, function(m, code) {
-			if (c.useParams) code = code.replace(c.useParams, function(m, s, d, param) {
-				if (def[d] && def[d].arg && param) {
-					var rw = (d+":"+param).replace(/'|\\/g, '_');
-					def.__exp = def.__exp || {};
-					def.__exp[rw] = def[d].text.replace(new RegExp("(^|[^\\w$])" + def[d].arg + "([^\\w$])", "g"), "$1" + param + "$2");
-					return s + "def.__exp['"+rw+"']";
-				}
-			});
-			var v = new Function("def", "return " + code)(def);
-			return v ? resolveDefs(c, v, def) : v;
-		});
-	}
-
-	function unescape(code) {
-		return code.replace(/\\('|\\)/g, "$1").replace(/[\r\t\n]/g, ' ');
-	}
-
-	doT.template = function(tmpl, c, def) {
-		c = c || doT.templateSettings;
-		var cse = c.append ? startend.append : startend.split, needhtmlencode, sid = 0, indv,
-			str  = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
-
-		str = ("var out='" + (c.strip ? str.replace(/(^|\r|\n)\t* +| +\t*(\r|\n|$)/g,' ')
-					.replace(/\r|\n|\t|\/\*[\s\S]*?\*\//g,''): str)
-			.replace(/'|\\/g, '\\$&')
-			.replace(c.interpolate || skip, function(m, code) {
-				return cse.start + unescape(code) + cse.end;
-			})
-			.replace(c.encode || skip, function(m, code) {
-				needhtmlencode = true;
-				return cse.start + unescape(code) + cse.endencode;
-			})
-			.replace(c.conditional || skip, function(m, elsecase, code) {
-				return elsecase ?
-					(code ? "';}else if(" + unescape(code) + "){out+='" : "';}else{out+='") :
-					(code ? "';if(" + unescape(code) + "){out+='" : "';}out+='");
-			})
-			.replace(c.iterate || skip, function(m, iterate, vname, iname) {
-				if (!iterate) return "';} } out+='";
-				sid+=1; indv=iname || "i"+sid; iterate=unescape(iterate);
-				return "';var arr"+sid+"="+iterate+";if(arr"+sid+"){var "+vname+","+indv+"=-1,l"+sid+"=arr"+sid+".length-1;while("+indv+"<l"+sid+"){"
-					+vname+"=arr"+sid+"["+indv+"+=1];out+='";
-			})
-			.replace(c.evaluate || skip, function(m, code) {
-				return "';" + unescape(code) + "out+='";
-			})
-			+ "';return out;")
-			.replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r')
-			.replace(/(\s|;|\}|^|\{)out\+='';/g, '$1').replace(/\+''/g, '')
-			.replace(/(\s|;|\}|^|\{)out\+=''\+/g,'$1out+=');
-
-		if (needhtmlencode && c.selfcontained) {
-			str = "String.prototype.encodeHTML=(" + encodeHTMLSource.toString() + "());" + str;
-		}
-		try {
-			return new Function(c.varname, str);
-		} catch (e) {
-			if (typeof console !== 'undefined') console.log("Could not create a template function: " + str);
-			throw e;
-		}
-	};
-
-	doT.compile = function(tmpl, def) {
-		return doT.template(tmpl, null, def);
-	};
-}());
-
-},{}],3:[function(require,module,exports){
-/* doT + auto-compilation of doT templates
- *
- * 2012, Laura Doktorova, https://github.com/olado/doT
- * Licensed under the MIT license
- *
- * Compiles .def, .dot, .jst files found under the specified path.
- * It ignores sub-directories.
- * Template files can have multiple extensions at the same time.
- * Files with .def extension can be included in other files via {{#def.name}}
- * Files with .dot extension are compiled into functions with the same name and
- * can be accessed as renderer.filename
- * Files with .jst extension are compiled into .js files. Produced .js file can be
- * loaded as a commonJS, AMD module, or just installed into a global variable
- * (default is set to window.render).
- * All inline defines defined in the .jst file are
- * compiled into separate functions and are available via _render.filename.definename
- *
- * Basic usage:
- * var dots = require("dot").process({path: "./views"});
- * dots.mytemplate({foo:"hello world"});
- *
- * The above snippet will:
- * 1. Compile all templates in views folder (.dot, .def, .jst)
- * 2. Place .js files compiled from .jst templates into the same folder.
- *    These files can be used with require, i.e. require("./views/mytemplate").
- * 3. Return an object with functions compiled from .dot templates as its properties.
- * 4. Render mytemplate template.
- */
-
-var fs = require("fs"),
-	doT = module.exports = require("./doT");
-
-doT.process = function(options) {
-	//path, destination, global, rendermodule, templateSettings
-	return new InstallDots(options).compileAll();
-};
-
-function InstallDots(o) {
-	this.__path 		= o.path || "./";
-	if (this.__path[this.__path.length-1] !== '/') this.__path += '/';
-	this.__destination	= o.destination || this.__path;
-	if (this.__destination[this.__destination.length-1] !== '/') this.__destination += '/';
-	this.__global		= o.global || "window.render";
-	this.__rendermodule	= o.rendermodule || {};
-	this.__settings 	= o.templateSettings ? copy(o.templateSettings, copy(doT.templateSettings)) : undefined;
-	this.__includes		= {};
-}
-
-InstallDots.prototype.compileToFile = function(path, template, def) {
-	def = def || {};
-	var modulename = path.substring(path.lastIndexOf("/")+1, path.lastIndexOf("."))
-		, defs = copy(this.__includes, copy(def))
-		, settings = this.__settings || doT.templateSettings
-		, compileoptions = copy(settings)
-		, defaultcompiled = doT.template(template, settings, defs)
-		, exports = []
-		, compiled = ""
-		, fn;
-
-	for (var property in defs) {
-		if (defs[property] !== def[property] && defs[property] !== this.__includes[property]) {
-			fn = undefined;
-			if (typeof defs[property] === 'string') {
-				fn = doT.template(defs[property], settings, defs);
-			} else if (typeof defs[property] === 'function') {
-				fn = defs[property];
-			} else if (defs[property].arg) {
-				compileoptions.varname = defs[property].arg;
-				fn = doT.template(defs[property].text, compileoptions, defs);
-			}
-			if (fn) {
-				compiled += fn.toString().replace('anonymous', property);
-				exports.push(property);
-			}
-		}
-	}
-	compiled += defaultcompiled.toString().replace('anonymous', modulename);
-	fs.writeFileSync(path, "(function(){" + compiled
-		+ "var itself=" + modulename + ";"
-		+ addexports(exports)
-		+ "if(typeof module!=='undefined' && module.exports) module.exports=itself;else if(typeof define==='function')define(function(){return itself;});else {"
-		+ this.__global + "=" + this.__global + "||{};" + this.__global + "['" + modulename + "']=itself;}}());");
-};
-
-function addexports(exports) {
-	for (var ret ='', i=0; i< exports.length; i++) {
-		ret += "itself." + exports[i]+ "=" + exports[i]+";";
-	}
-	return ret;
-}
-
-function copy(o, to) {
-	to = to || {};
-	for (var property in o) {
-		to[property] = o[property];
-	}
-	return to;
-}
-
-function readdata(path) {
-	var data = fs.readFileSync(path);
-	if (data) return data.toString();
-	console.log("problems with " + path);
-}
-
-InstallDots.prototype.compilePath = function(path) {
-	var data = readdata(path);
-	if (data) {
-		return doT.template(data,
-					this.__settings || doT.templateSettings,
-					copy(this.__includes));
-	}
-};
-
-InstallDots.prototype.compileAll = function() {
-	console.log("Compiling all doT templates...");
-
-	var defFolder = this.__path,
-		sources = fs.readdirSync(defFolder),
-		k, l, name;
-
-	for( k = 0, l = sources.length; k < l; k++) {
-		name = sources[k];
-		if (/\.def(\.dot|\.jst)?$/.test(name)) {
-			console.log("Loaded def " + name);
-			this.__includes[name.substring(0, name.indexOf('.'))] = readdata(defFolder + name);
-		}
-	}
-
-	for( k = 0, l = sources.length; k < l; k++) {
-		name = sources[k];
-		if (/\.dot(\.def|\.jst)?$/.test(name)) {
-			console.log("Compiling " + name + " to function");
-			this.__rendermodule[name.substring(0, name.indexOf('.'))] = this.compilePath(defFolder + name);
-		}
-		if (/\.jst(\.dot|\.def)?$/.test(name)) {
-			console.log("Compiling " + name + " to file");
-			this.compileToFile(this.__destination + name.substring(0, name.indexOf('.')) + '.js',
-					readdata(defFolder + name));
-		}
-	}
-	return this.__rendermodule;
-};
-
-},{"./doT":2,"fs":7}],4:[function(require,module,exports){
+},{"./temp/bootstrap.controls.js":2,"./temp/marked":3,"controls":4,"dot":6}],2:[function(require,module,exports){
 //     controls.bootstrap.js
 //     purpose: twitter bootstrap VCL for using with controls.js
 //     http://aplib.github.io/controls.js/bootstrap.controls-demo.html
@@ -11741,7 +11479,7 @@ InstallDots.prototype.compileAll = function() {
 
 function Bootstrap(controls) {
     var bootstrap = this;
-    bootstrap.VERSION = '0.6.15'/*#.#.##*/;
+    bootstrap.VERSION = '0.7.01'/*#.#.##*/;
     if (!controls)
         throw new TypeError('controls.bootstrap.js: controls.js not found!');
     if (controls.bootstrap && controls.bootstrap.VERSION >= bootstrap.VERSION)
@@ -11815,26 +11553,23 @@ function Bootstrap(controls) {
     // Panel
     // 
     function Panel(parameters, attributes) {
-        this.initialize('bootstrap.Panel', parameters, attributes);
-        this.body = this.add('div', {class:'panel-body'});
-        Object.defineProperty(this, 'header', { enumerable: true, get: function() {
-            var _header = this._header;
-            if (!_header) {
-                 _header = this.insert(0, 'div', {class:'panel-heading panel-title'});
-                 _header._name = 'header';
-                 this._header = _header;
-            }
-            return _header;
-        } });
-        Object.defineProperty(this, 'footer', { enumerable: true, get: function() {
-            var _footer = this._footer;
-            if (!_footer) {
-                 _footer = this.add('div', {class:'panel-footer'});
-                 _footer._name = 'header';
-                 this._footer = _footer;
-            }
-            return _footer;
-        } });
+        this.initialize('bootstrap.Panel', parameters, attributes)
+            .add('body:div`panel-body', attributes.$text);
+        attributes.$text = undefined;
+    
+        if (parameters.header) {
+            if (typeof parameters.header === 'string')
+                this.insert(0, 'header:div`panel-heading panel-title', parameters.header);
+            else
+                this.insert(0, 'header:div`panel-heading panel-title');
+        }
+        
+        if (parameters.footer) {
+            if (typeof parameters.footer === 'string')
+                this.add('footer:div`panel-footer', parameters.footer);
+            else
+                this.add('footer:div`panel-footer');
+        }
     
         this.listen_('type', function() {
             this.class('panel panel-' + this.getControlStyle(), 'panel-default panel-link panel-primary panel-success panel-info panel-warning panel-danger');
@@ -11843,11 +11578,6 @@ function Bootstrap(controls) {
         this.text = function(_text) {
             return this.body.text(_text);
         };
-        
-        if (attributes.$text) {
-            this.body.text(attributes.$text);
-            attributes.$text = undefined;
-        }
     };
     Panel.prototype = control_prototype;
     controls.typeRegister('bootstrap.Panel', Panel);
@@ -12157,7 +11887,7 @@ function Bootstrap(controls) {
     if (typeof window !== 'undefined') new Bootstrap(window.controls);
 })();
 
-},{"controls":6}],5:[function(require,module,exports){
+},{"controls":4}],3:[function(require,module,exports){
 var global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {};/**
  * marked - a markdown parser
  * Copyright (c) 2011-2013, Christopher Jeffrey. (MIT Licensed)
@@ -13324,7 +13054,7 @@ if (typeof exports === 'object') {
   return this || (typeof window !== 'undefined' ? window : global);
 }());
 
-},{}],6:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 //     controls.js
 //     UI framework, code generation tool
 //     status: proposal, example, valid prototype, under development
@@ -13336,14 +13066,19 @@ if (typeof exports === 'object') {
 (function() { 'use strict';
 
     var controls = {
-        VERSION: '0.6.15'/*#.#.##*/,
+        VERSION: '0.7.01'/*#.#.##*/,
         id_generator: 53504,
         // assignable default template engine
-        template: function(templ) { return new Function('return \'' + templ.replace(/'/g, "\\'") + '\''); },
+        //template: function(templ) { return new Function('return \'' + templ.replace('\n', '\\\n').replace(/'/g, "\\'") + '\''); },
+        template: function(templ) {
+            return new Function('return \'' + templ.replace(/'|\n/g, function(substr) {
+                return {"'":"\\'", "\n":"\\n\\\n"}[substr];
+            }) + '\'');
+        },
         subtypes: {} // Registered subtypes
     };
     
-    var IDENTIFIERS = ',add,attach,attributes,class,data,element,first,id,__type,controls,last,name,each,forEach,parameters,parent,remove,style,';
+    var IDENTIFIERS = ',add,_add,attach,attr,_attr,attrs,attributes,class,controls,data,delete,each,element,findFirst,findLast,first,forEach,id,insert,_insert,__type,last,length,name,parameters,parent,refresh,remove,style,template,';
     var ENCODE_HTML_MATCH = /&(?!#?\w+;)|<|>|"|'|\//g;
     var ENCODE_HTML_PAIRS = { "<": "&#60;", ">": "&#62;", '"': '&#34;', "'": '&#39;', "&": "&#38;", "/": '&#47;' };
     var DECODE_HTML_MATCH = /&#(\d{1,8});/g;    
@@ -13362,8 +13097,8 @@ if (typeof exports === 'object') {
     controls.controlInitialize = function(object, __type, parameters, attributes, outer_template, inner_template) {
         
         if (attributes) {
-            object.name = attributes.$name;
             object.id = (attributes.id) ? attributes.id : (attributes.id = (++controls.id_generator).toString(16)); // set per session uid
+            object.name = attributes.$name;
             
             // default move $prime to $text
             if ('$prime' in attributes) {
@@ -13375,12 +13110,10 @@ if (typeof exports === 'object') {
                 delete attributes.$prime;
             }
             object.attributes = attributes;
-        } else {
-            var id = object.id = (++controls.id_generator).toString(16); // set per session uid
-            object.attributes = {id:id};
-        }
+        } else
+            object.attributes = {id:(object.id = (++controls.id_generator).toString(16))}; // set per session uid
         
-        object.__type       = __type;
+        object.__type       = (__type.indexOf('.') >= 0) ? __type : ('controls.' + __type);
         object.parameters   = parameters || {};
         object.controls     = [];               // This is a collection of nested objects
         
@@ -13479,12 +13212,9 @@ if (typeof exports === 'object') {
      * @returns {controls.Event} Collection of a specified type
      */
     function force_event(object, type, capture) {
-        var events = object.events;
-        if (!events)
-            object.events = events = {};
-
-        var key = (capture) ? ('#'/*capture*/ + type) : type;
-        var event = events[key];
+        var events = object.events || (object.events = {}),
+            key = (capture) ? ('#'/*capture*/ + type) : type,
+            event = events[key];
         if (!event) {
             events[key] = event = new controls.Event(object, type, capture);
 
@@ -13580,15 +13310,16 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             return this;
         },
         listen_: function(call_this/*optional*/, listener) {
-            if (typeof listener === 'function') listener.no_serialize = true;
-            else call_this.no_serialize = true;
+            if (typeof listener === 'function')
+                listener.no_serialize = true;
+            else
+                call_this.no_serialize = true;
             return this.listen.apply(this, arguments);
         },
         removeListener: function(listener) {
             var event = this.event;
             if (event)
                 event.removeListener(listener);
-            
             return this;
         },
         subscribe: function(call_this/*optional*/, listener) {
@@ -13609,7 +13340,6 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             var post_event = this.post_event;
             if (post_event)
                 post_event.removeListener(listener);
-            
             return this;
         },
         raise: function() {
@@ -13702,11 +13432,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         array.last_operation = 0;                  // Last state-changing operation
         array.last_changed   = undefined;          // Last changed property name or index
         
-        if (parameters && parameters.adapter) {
-            this.adapter = controls.create(parameters.adapter);
-            if (!this.adapter)
-                throw new TypeError('Invalid data adapter type "' + parameters.adapter + '"!');
-        }
+        if (parameters && parameters.adapter)
+        if (!(this.adapter = controls.create(parameters.adapter)))
+            throw new TypeError('Invalid data adapter type "' + parameters.adapter + '"!');
         
         return array;
     }
@@ -13719,59 +13447,6 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.initialize = function(__type, parameters, _attributes, outer_template, inner_template) {
             return controls.controlInitialize(this, __type, parameters, _attributes, outer_template, inner_template);
         };
-        
-        Object.defineProperty(this, 'name', {
-            enumerable: true, 
-            get: function() { return this._name; },
-            set: function(value) {
-                if (IDENTIFIERS.indexOf(',' + value + ',') >= 0)
-                    throw new SyntaxError('Invalid name "' + value + '"!');
-
-                var name = this._name;
-                if (value !== name) {
-                    this._name = value;
-
-                    var parent = this._parent;
-                    if (parent) {
-                        if (name && parent.hasOwnProperty(name) && parent[name] === this)
-                            delete parent[name];
-
-                        if (value)
-                            parent[value] = this;
-                    }
-                }
-            }
-        });
-        
-        // The associated element of control
-        Object.defineProperty(this, 'element', {
-            enumerable: true,
-            get: function() { return this._element; },
-            set: function(attach_to_element) {
-                if (arguments.length === 0)
-                    return this._element;
-
-                var element = this._element;
-                if (attach_to_element !== element) {
-                    this._element = attach_to_element;
-
-                    var events = this.events;
-                    if (events)
-                    for(var event_type in events) {
-                        var event = events[event_type];
-                        if (event.is_dom_event) {
-                            // remove event raiser from detached element
-                            if (element)
-                                element.removeEventListener(event.type, event.raise, event.capture);
-                            // add event raiser as listener for attached element
-                            if (attach_to_element)
-                                attach_to_element.addEventListener(event.type, event.raise, event.capture);
-                        }
-                    }
-                    this.raise('element', attach_to_element);
-                }
-            }
-        });
         
         function setParent(value, index) {
             var parent = this._parent;
@@ -13810,12 +13485,60 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         }
         
         Object.defineProperties(this, {
+            // name of the control
+            name: {
+                enumerable: true, 
+                get: function() { return this._name; },
+                set: function(value) {
+                    if (IDENTIFIERS.indexOf(',' + value + ',') >= 0)
+                        throw new SyntaxError('Invalid name "' + value + '"!');
+
+                    var name = this._name;
+                    if (value !== name) {
+                        this._name = value;
+
+                        var parent = this._parent;
+                        if (parent) {
+                            if (name && parent.hasOwnProperty(name) && parent[name] === this)
+                                delete parent[name];
+
+                            if (value)
+                                parent[value] = this;
+                        }
+                    }
+                }
+            },
+            // The associated element of control
+            element: {
+                enumerable: true,
+                get: function() { return this._element; },
+                set: function(attach_to_element) {
+                    var element = this._element;
+                    if (attach_to_element !== element) {
+                        this._element = attach_to_element;
+
+                        var events = this.events;
+                        if (events)
+                        for(var event_type in events) {
+                            var event = events[event_type];
+                            if (event.is_dom_event) {
+                                // remove event raiser from detached element
+                                if (element)
+                                    element.removeEventListener(event.type, event.raise, event.capture);
+                                // add event raiser as listener for attached element
+                                if (attach_to_element)
+                                    attach_to_element.addEventListener(event.type, event.raise, event.capture);
+                            }
+                        }
+                        this.raise('element', attach_to_element);
+                    }
+                }
+            },
             parent: {
                 enumerable: true,
                 get: function() { return this._parent; },
                 set: setParent
             },
-        
             wrapper: {
                 enumerable: true,
                 get: function() { return this._wrapper; },
@@ -13840,17 +13563,203 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         //                        wrapper_controls.splice(index, 1);
 
                             value_controls.push(this);
-
-                            // TODO value.refresh();
                         }
                     }
                 }
             },
-        
-            length: { enumerable: true, get: function() { return this.controls.length; } },
-            first:  { enumerable: true, get: function() { return this.controls[0]; } },
-            last:   { enumerable: true, get: function() { return this.controls[this.controls.length-1]; } }
+            length: {
+                enumerable: true,
+                get: function() {
+                    return this.controls.length;
+                }
+            }
         });
+        
+        this.find = function(selector, by_attrs, recursive) {
+            if (arguments.length < 3)
+                recursive = true;
+            var controls = this.controls,
+                result = [];
+            if (typeof selector === 'object' || typeof by_attrs === 'object') {
+                for(var i = 0, c = controls.length; i < c; i++) {
+                    var control = controls[i];
+                    // by properties
+                    if (selector)
+                    for(var prop in selector)
+                    if (control[prop] === selector[prop])
+                        result.push(control);
+                    // by attributes
+                    else if (by_attrs) {
+                        var attributes = control.attributes;
+                        for(var prop in by_attrs)
+                        if (attributes[prop] === by_attrs[prop])
+                            result.push(control);
+                    }
+                    // find recursively
+                    else if (recursive) {
+                        var finded = control.find(selector, by_attrs, recursive);
+                        if (finded.length)
+                            result.push.apply(result, finded);
+                    }
+                }
+            } else if (!selector) {
+                return controls[0];
+            } else if (typeof selector === 'string') {
+                return callWithSelector.call(this, this.find, selector);
+            } else if (typeof selector === 'function') {
+                for(var i = 0, c = controls.length; i < c; i++) {
+                    var control = controls[i];
+                    if (selector(control))
+                        result.push(control);
+                    // find recursively
+                    else if (recursive) {
+                        var finded = control.find(selector, by_attrs, recursive);
+                        if (finded.length)
+                            result.push.apply(result, finded);
+                    }
+                }
+            }
+        };
+        
+        this.select = function(selector, by_attrs) {
+            return this.find(selector, by_attrs, false);
+        };
+                
+        this.first = function(selector, by_attrs) {
+            return this.findFirst(selector, by_attrs, false);
+        };
+        
+        /**
+         * 
+         * @param {string,function} selector (string) format name:type`class#id, (object) Control property values for comparing
+         * @param {type} attrs Control attribute values for comparing
+         * @returns {object} matched control
+         */
+        this.findFirst = function(selector, by_attrs, recursive) {
+            if (arguments.length < 3)
+                recursive = true;
+            var controls = this.controls;
+            if (typeof selector === 'object' || typeof by_attrs === 'object') {
+                for(var i = 0, c = controls.length; i < c; i++) {
+                    var control = controls[i];
+                    // by properties
+                    if (selector)
+                    for(var prop in selector)
+                    if (control[prop] === selector[prop])
+                        return control;
+                    // by attributes
+                    if (by_attrs) {
+                        var attributes = control.attributes;
+                        for(var prop in by_attrs)
+                        if (attributes[prop] === by_attrs[prop])
+                            return control;
+                    }
+                    // find recursively
+                    if (recursive) {
+                        var finded = control.findFirst(selector, by_attrs, recursive);
+                        if (finded)
+                            return finded;
+                    }
+                }
+            } else if (!selector) {
+                return controls[0];
+            } else if (typeof selector === 'string') {
+                return callWithSelector.call(this, this.findFirst, selector);
+            } else if (typeof selector === 'function') {
+                for(var i = 0, c = controls.length; i < c; i++) {
+                    var control = controls[i];
+                    if (selector(control))
+                        return control;
+                    // find recursively
+                    if (recursive) {
+                        var finded = control.findFirst(selector, by_attrs, recursive);
+                        if (finded)
+                            return finded;
+                    }
+                }
+            }
+        };
+        
+        this.last = function(selector, by_attrs) {
+            return this.findLast(selector, by_attrs, false);
+        };
+        
+        this.findLast = function(selector, by_attrs, recursive) {
+            if (arguments.length < 3)
+                recursive = true;
+            var controls = this.controls;
+            if (typeof selector === 'object' || typeof by_attrs === 'object') {
+                for(var i = controls.length - 1; i >= 0; i--) {
+                    var control = controls[i];
+                    // by properties
+                    if (selector)
+                    for(var prop in selector)
+                    if (control[prop] === selector[prop])
+                        return control;
+                    // by attributes
+                    if (by_attrs) {
+                        var attributes = control.attributes;
+                        for(var prop in by_attrs)
+                        if (attributes[prop] === by_attrs[prop])
+                            return control;
+                    }
+                    // find recursively
+                    if (recursive) {
+                        var finded = control.findLast(selector, by_attrs, recursive);
+                        if (finded)
+                            return finded;
+                    }
+                }
+            } else if (!selector) {
+                return controls[0];
+            } else if (typeof selector === 'string') {
+                return callWithSelector.call(this, this.findLast, selector);
+            } else if (typeof selector === 'function') {
+                for(var i = controls.length - 1; i >= 0; i--) {
+                    var control = controls[i];
+                    if (selector(control))
+                        return control;
+                    // find recursively
+                    if (recursive) {
+                        var finded = control.findLast(selector, by_attrs, recursive);
+                        if (finded)
+                            return finded;
+                    }
+                }
+            }
+        };
+        
+        function callWithSelector(method, selector) {
+            // name:...
+            var name, type = selector, colonpos = selector.indexOf(':');
+            if (colonpos >= 0) {
+                name = selector.substr(0, colonpos);
+                type = selector.substr(colonpos + 1);
+            }
+            // `...
+            var clss, gravepos = type.indexOf('`');
+            if (gravepos >= 0) {
+                type = selector.substr(0, gravepos);
+                clss = selector.substr(gravepos + 1);
+            }
+            // #...
+            var num, numpos = type.indexOf('#');
+            if (numpos >= 0) {
+                type = selector.substr(0, numpos);
+                num = selector.substr(numpos + 1);
+            }
+            
+            if (type && type.indexOf('.') < 0)
+                type = 'controls.' + type;
+            
+            var by_props, by_attrs;
+            if (type)   (by_props || (by_props = {})).__type = type;
+            if (name)   (by_props || (by_props = {})).name = name;
+            if (clss)   (by_attrs || (by_attrs = {})).class = clss;
+            return method.call(this, by_props, by_attrs);
+        }
+        
+        
         
         // default html template
         this.outer_template = function(it) { return '<div' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</div>'; };
@@ -13958,24 +13867,24 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 if (!element.parentNode) {
                     // orphaned element
                     this._element = undefined;
-                }
-                else
-                try {
-                    // Setting .outerHTML breaks hierarchy DOM, so you need a complete re-initialisation bindings to DOM objects.
-                    // Remove wherever possible unnecessary calls .refresh()
+                } else {
+                    try {
+                        // Setting .outerHTML breaks hierarchy DOM, so you need a complete re-initialisation bindings to DOM objects.
+                        // Remove wherever possible unnecessary calls .refresh()
 
-                    var html = this.outerHTML();
-                    if (html !== element.outerHTML) {
-                        this.detachAll();
-                        element.outerHTML = html;
-                        this.attachAll();
+                        var html = this.outerHTML();
+                        if (html !== element.outerHTML) {
+                            this.detachAll();
+                            element.outerHTML = html;
+                            this.attachAll();
+                        }
                     }
-                }
-                catch (e) {
-                    // Uncaught Error: NoModificationAllowedError: DOM Exception 7
-                    //  1. ? xml document
-                    //  2. ? "If the element is the root node" ec orphaned element
-                    this._element = undefined;
+                    catch (e) {
+                        // Uncaught Error: NoModificationAllowedError: DOM Exception 7
+                        //  1. ? xml document
+                        //  2. ? "If the element is the root node" ec orphaned element
+                        this._element = undefined;
+                    }
                 }
             }
             return this;
@@ -14085,10 +13994,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
 
                 switch(opcode) {
                     case 1:
-                        if (node.childNodes.length === 0)
-                            node.appendChild(fragment);
-                        else
-                            node.insertBefore(node.firstChild, fragment);
+                        (node.childNodes.length === 0) ? node.appendChild(fragment) : node.insertBefore(node.firstChild, fragment);
                         break;
                     case 2:
                         var nodeparent = node.parentNode;
@@ -14115,6 +14021,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.deleteElement = function() {
             var element = this._element;
             if (element) {
+                this.detachAll();
                 var parent_node = element.parentNode;
                 if (parent_node)
                     parent_node.removeChild(element);
@@ -14137,7 +14044,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         // listener {string,function(event)} - event listener function or function body text
         // [capture {bool}] - 
         //
-        this.listen = function(type, call_this/*optional*/, listener, capture/*optional*/) {
+        this.on = this.listen = function(type, call_this/*optional*/, listener, capture/*optional*/) {
             if (typeof(call_this) === 'function') {
                 capture = listener;
                 listener = call_this;
@@ -14150,7 +14057,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         };
         
         // set listener and check listener as no_serialize
-        this.listen_ = function(type, call_this, listener, capture) {
+        this.on_ = this.listen_ = function(type, call_this, listener, capture) {
             if (typeof(call_this) === 'function') {
                 capture = listener;
                 listener = call_this;
@@ -14265,22 +14172,30 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (!arguments.length) {
                 var inheritable = '', unheritable = '', parameters = this.parameters;
                 for(var prop in parameters) {
-                    if (prop[0] !== '/') {
-                        // not inheritable parameters
-                        if (unheritable) unheritable += ';';
-                        unheritable += prop + '=' + parameters[prop];
-                    } else {
+                    var value = parameters[prop];
+                    if (typeof value === 'boolean' && value)
+                        value = '';
+                    else  {
+                        if (typeof value !== 'string')
+                            value = String(value);
+                        value = ((value.indexOf(' ') >= 0) ? ('="' + value + '"') : ('=' + value));
+                    }
+                    if (prop[0] === '/') {
                         // inheritable parameters
-                        if (inheritable) inheritable += ';';
-                        inheritable += prop.substr(1) + '=' + parameters[prop];
+                        if (inheritable) inheritable += ' ';
+                        inheritable += prop.substr(1) + value;
+                    } else {    
+                        // not inheritable parameters
+                        if (unheritable) unheritable += ' ';
+                        unheritable += prop + value;
                     }
                 }
                 
                 var type = this.__type;
+                if (unheritable)
+                    type += ' ' + unheritable;
                 if (inheritable)
                     type += '/' + inheritable;
-                if (unheritable.length > 0)
-                    type += '#' + unheritable;
 
                 return type;
             }
@@ -14532,7 +14447,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     $prime = undefined;
                 }
             } else {
-                __type = parse_type(type, parameters, attrs),
+                __type = parse_type(type, parameters, attrs);
                 constructor = resolve_ctr(__type, parameters);
             }
 
@@ -14664,7 +14579,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     }
     
     /**
-     * Parse type string
+     * Parse type string, revision 2.0
      * 
      * @param {string} type Type with parameters, in format name:namespace.control`class1 classN#parameters/inheritable_parameters
      * @param {object} parameters Object acceptor parsed parameters
@@ -14672,108 +14587,108 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
      * @returns {String} Base type string
      */
     function parse_type(type, parameters, attributes) {
-        var start = 0,
-            colonpos = type.indexOf(':'),
-            dotpos = type.indexOf('.'),
-            gravepos = type.indexOf('`'),
-            numpos = type.indexOf('#'),
-            slashpos = type.indexOf('/'),
-            leftpos = type.indexOf('{');
         
-        if (dotpos >= 0 && colonpos > dotpos)
-            colonpos = -1;
-        if (gravepos >= 0) {
-            if (colonpos > gravepos) colonpos = -1;
-            if (dotpos > gravepos) dotpos = -1;
-        }
-        if (numpos >= 0) {
-            if (colonpos > numpos) colonpos = -1;
-            if (dotpos > numpos) dotpos = -1;
-            if (gravepos > numpos) gravepos = -1;
-        }
-        if (slashpos >= 0) {
-            if (colonpos > slashpos) colonpos = -1;
-            if (dotpos > slashpos) dotpos = -1;
-            if (gravepos > slashpos) gravepos = -1;
-        }
-        if (leftpos >= 0) {
-            if (colonpos > leftpos) colonpos = -1;
-            if (dotpos > leftpos) dotpos = -1;
-            if (gravepos > leftpos) gravepos = -1;
-            if (slashpos > leftpos) slashpos = -1;
-        }
-
-         // name:... syntax
-        if (colonpos >= 0) {
-            if (attributes)
-                attributes.$name = type.substr(0, colonpos);
-            start = colonpos + 1;
-        }
-
-        var namespace;
-        // namespace. syntax
-        if (dotpos >= 0) {
-            namespace = type.substr(start, 1 + dotpos - start);
-            start = dotpos + 1;
-        }
-        if (!namespace) namespace = 'controls.';
+        var match = type.match(/\S+?(?=#|\/|`|\s|$|@)/);
+        if (!match)
+            return '';
+        var match = match[0],
+            __type, commapos = match.indexOf(':');
+        if (commapos >= 0) {
+            attributes.$name = match.substr(0, commapos);
+            __type = match.substr(commapos + 1);
+        } else
+            __type = match;
+        if (__type.indexOf('.') < 0)
+            __type = 'controls.' + __type;
         
-        var paramsbegin = numpos;
-        if (paramsbegin < 0 || (slashpos >= 0 && slashpos < paramsbegin))   paramsbegin = slashpos;
-        if (paramsbegin < 0 || (leftpos >= 0 && leftpos < paramsbegin))     paramsbegin = leftpos;
-        
-        // __type
-        var __type = namespace + type.substr(start, ((gravepos >= 0) ? gravepos : (paramsbegin >= 0) ? paramsbegin : type.length) - start);
-        
-        // .class1 classN  syntax
-        if (attributes) {
-            var cls = (gravepos < 0) ? '' : (paramsbegin >= 0) ? type.substr(gravepos + 1, paramsbegin - gravepos - 1) : type.substr(gravepos + 1);
-            if (cls || !cls.hasOwnProperty('class'))
-                attributes.class = (attributes.class) ? (attributes.class + ' ' + cls) : cls;
-        }
-        
-        if (leftpos >= 0) {
-            var rightpos = type.lastIndexOf('}');
-            // component source url
-            parameters['#{href}'] = type.substr(leftpos + 1, (rightpos >= 0) ? (rightpos - leftpos - 1) : (type.length - leftpos - 1));
-        }
-        
-        // parse /inheritable parameters
-        if (slashpos >= 0) {
-            var iparams = type.substr(slashpos + 1, ((numpos > slashpos) ? numpos : (leftpos > slashpos) ? leftpos : type.length) - slashpos - 1)
-                .split(';');
-            for(var i = 0, c = iparams.length; i < c; i++) {
-                var param = iparams[i],
-                    eqpos = param.indexOf('=');
-                if (eqpos >= 0)
-                    parameters['/' + param.substr(0, eqpos)] = param.substr(eqpos + 1);
-                else
-                    parameters['/' + param] = true;
+        // parse parameters
+        var params = type.slice(match.length),
+            pos = 0, paramslen = params.length, inheritable = false, style = false;
+        while(pos < paramslen && !style) {
+            switch(params.charAt(pos)) {
+                case ' ':case '\n':case '\t':  // parameters separator
+                    pos++;
+                    break;
+                case '/': // next parameters is inheritable
+                    inheritable = true; pos++;
+                    break;
+                case '`': // reminder of the line is style
+                    style = true; pos++;
+                    break;
+                case '#': // assign identifier
+                    var id_regex = /\S+?(?=#|`|\/|\s|$|@)/g;
+                    id_regex.lastIndex = pos;
+                    var match_id = id_regex.exec(params)[0];
+                    attributes.id = match_id.slice(1);
+                    pos += match_id.length;
+                    break;
+                default:
+                    var par_name_regex = /\S+?(?=(=|#|`|\/|\s|$|@))/g;
+                    par_name_regex.lastIndex = pos;
+                    var par_name_match = par_name_regex.exec(params);
+                    if (!par_name_match)
+                        pos++;
+                    else {
+                        var parname = par_name_match[0],
+                        par_name_after = par_name_match.index + parname.length;
+                        if (par_name_match[1] === '=') {
+                            if (params.charAt(par_name_after + 1) === '"') {
+                                // param="value with spaces"
+                                var quotepos = params.indexOf('"', par_name_after + 2);
+                                while(quotepos >= 0 && quotepos < paramslen - 1 && ' \n\t#/`'.indexOf(params.charAt(quotepos + 1)) < 0)
+                                    quotepos = params.indexOf('"', quotepos + 1);
+                                if (quotepos < 0) {
+                                    // param=" may be \" and no "
+                                    if (inheritable) parname = '/' + parname;
+                                    parameters[parname] = params.substr(par_name_after + 2);
+                                    pos = paramslen;
+                                } else {
+                                    if (inheritable) parname = '/' + parname;
+                                    parameters[parname] = params.slice(par_name_after + 2, quotepos);
+                                    pos = quotepos + 1;
+                                }
+                            } else {
+                                // param=value
+                                var value_regex = /\S*?(?=(#|`|\/|\s|$|@))/g;
+                                value_regex.lastIndex = par_name_after + 1;
+                                var value = value_regex.exec(params)[0];
+                                pos = par_name_after + 1 + value.length;
+                                if (inheritable) parname = '/' + parname;
+                                parameters[parname] = value;
+                            }
+                        } else {
+                            // param
+                            if (inheritable) parname = '/' + parname;
+                            parameters[parname] = true;
+                            pos = par_name_after;
+                        }
+                    }
             }
         }
         
-        // parse #unheritable parameters
-        if (numpos >= 0) {
-            var uparams = type.substr(numpos + 1, ((slashpos > numpos) ? slashpos : (leftpos > numpos) ? leftpos : type.length) - numpos - 1)
-                .split(';');
-            for(var i = 0, c = uparams.length; i < c; i++) {
-                var param = uparams[i],
-                    eqpos = param.indexOf('=');
-                if (eqpos >= 0)
-                    parameters[param.substr(0, eqpos)] = param.substr(eqpos + 1);
-                else
-                    parameters[param] = true;
+        if (style) {
+            var classes = params.length,
+                colonpos = params.indexOf(':', pos);
+            if (colonpos >= 0) {
+                while(' \n\t`'.indexOf(params.charAt(colonpos)) < 0 && colonpos > pos)
+                    colonpos--;
+                classes = colonpos;
             }
+            attributes.class = params.slice(pos, classes);
+            attributes.style = params.slice(classes).trim();
         }
+    
+        // TODO {href} syntax
 
         return __type;
-    };
+    }
     
-    // Resolve __type and parameters to control constructor
-    //
-    // __type - base type, example "controls.Custom"
-    // parameters - parameters parsed from original type
-    //
+    /**
+     *  Resolve __type and parameters to control constructor
+     * @param {string} __type Base type, example "controls.custom"
+     * @param {object} parameters Parameters parsed from original type
+     * @returns {object} Control constructor
+     */
     function resolve_ctr(__type, parameters) {
         // after parse and before ctr resolve apply alias
         
@@ -14815,7 +14730,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         }
         
         return constructor;
-    };
+    }
     controls.resolveType = resolve_ctr;
     
     // Unresolved type error processing mode
@@ -14837,6 +14752,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     // syntax: controls.create(type, attributes); controls.create(type, parameters, attributes);
     //
     controls.create = function(type, /*optional*/ $prime, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+        
+        // normalize arguments
+        
         var arglen = arguments.length;
         if (typeof $prime !== 'string' || $prime instanceof Object) {
             this_arg = callback;
@@ -14870,7 +14788,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         
         var __type, constructor;
             
-        if (type[0] === '<') {
+        if (type.charAt(0) === '<') {
             // template
             __type = 'controls.custom';
             constructor = Custom;
@@ -14884,7 +14802,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             constructor = resolve_ctr(__type, parameters);
         }
         
-        if ($prime)
+        if ($prime !== undefined)
             attributes.$prime = $prime;
             
         if (!constructor) {
@@ -15044,8 +14962,8 @@ c' + tagname + '.prototype = controls.control_prototype;\n'
         }
         
         Function('controls', 'a,abbr,address,article,aside,b,base,bdi,bdo,blockquote,button,canvas,cite,code,col,colgroup,command,datalist,dd,del,details,\
-dfn,div,dl,dt,em,embed,fieldset,figcaption,figure,footer,form,gnome,h1,h2,h3,h4,h5,h6,header,i,iframe,img,ins,kbd,keygen,label,legend,li,link,map,mark,menu,meter,nav,\
-noscript,object,ol,optgroup,option,output,p,pre,progress,ruby,rt,rp,s,samp,script,section,small,span,strong,style,sub,summary,sup,\
+dfn,div,dl,dt,em,embed,fieldset,figcaption,figure,footer,form,g,gnome,h1,h2,h3,h4,h5,h6,header,i,iframe,img,ins,kbd,keygen,label,legend,li,link,map,mark,menu,meter,nav,\
+noscript,object,ol,optgroup,option,output,p,pre,progress,ruby,rt,rp,s,samp,script,section,small,span,strong,style,sub,summary,sup,svg,\
 table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
             .split(',').map(function(tagname) { return gencode(tagname.toLowerCase(), true); }).join(''))(controls);
     
@@ -15330,7 +15248,289 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         window.controls = controls;
 })();
 
-},{}],7:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
+// doT.js
+// 2011, Laura Doktorova, https://github.com/olado/doT
+// Licensed under the MIT license.
+
+(function() {
+	"use strict";
+
+	var doT = {
+		version: '1.0.1',
+		templateSettings: {
+			evaluate:    /\{\{([\s\S]+?(\}?)+)\}\}/g,
+			interpolate: /\{\{=([\s\S]+?)\}\}/g,
+			encode:      /\{\{!([\s\S]+?)\}\}/g,
+			use:         /\{\{#([\s\S]+?)\}\}/g,
+			useParams:   /(^|[^\w$])def(?:\.|\[[\'\"])([\w$\.]+)(?:[\'\"]\])?\s*\:\s*([\w$\.]+|\"[^\"]+\"|\'[^\']+\'|\{[^\}]+\})/g,
+			define:      /\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g,
+			defineParams:/^\s*([\w$]+):([\s\S]+)/,
+			conditional: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
+			iterate:     /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
+			varname:	'it',
+			strip:0,
+			append:		true,
+			selfcontained: false
+		},
+		template: undefined, //fn, compile template
+		compile:  undefined  //fn, for express
+	};
+
+	if (typeof module !== 'undefined' && module.exports) {
+		module.exports = doT;
+	} else if (typeof define === 'function' && define.amd) {
+		define(function(){return doT;});
+	} else {
+		this.doT=doT;
+	}
+
+	function encodeHTMLSource() {
+		var encodeHTMLRules = { "&": "&#38;", "<": "&#60;", ">": "&#62;", '"': '&#34;', "'": '&#39;', "/": '&#47;' },
+			matchHTML = /&(?!#?\w+;)|<|>|"|'|\//g;
+		return function() {
+			return this ? this.replace(matchHTML, function(m) {return encodeHTMLRules[m] || m;}) : this;
+		};
+	}
+	String.prototype.encodeHTML = encodeHTMLSource();
+
+	var startend = {
+		append: { start: "'+(",      end: ")+'",      endencode: "||'').toString().encodeHTML()+'" },
+		split:  { start: "';out+=(", end: ");out+='", endencode: "||'').toString().encodeHTML();out+='"}
+	}, skip = /$^/;
+
+	function resolveDefs(c, block, def) {
+		return ((typeof block === 'string') ? block : block.toString())
+		.replace(c.define || skip, function(m, code, assign, value) {
+			if (code.indexOf('def.') === 0) {
+				code = code.substring(4);
+			}
+			if (!(code in def)) {
+				if (assign === ':') {
+					if (c.defineParams) value.replace(c.defineParams, function(m, param, v) {
+						def[code] = {arg: param, text: v};
+					});
+					if (!(code in def)) def[code]= value;
+				} else {
+					new Function("def", "def['"+code+"']=" + value)(def);
+				}
+			}
+			return '';
+		})
+		.replace(c.use || skip, function(m, code) {
+			if (c.useParams) code = code.replace(c.useParams, function(m, s, d, param) {
+				if (def[d] && def[d].arg && param) {
+					var rw = (d+":"+param).replace(/'|\\/g, '_');
+					def.__exp = def.__exp || {};
+					def.__exp[rw] = def[d].text.replace(new RegExp("(^|[^\\w$])" + def[d].arg + "([^\\w$])", "g"), "$1" + param + "$2");
+					return s + "def.__exp['"+rw+"']";
+				}
+			});
+			var v = new Function("def", "return " + code)(def);
+			return v ? resolveDefs(c, v, def) : v;
+		});
+	}
+
+	function unescape(code) {
+		return code.replace(/\\('|\\)/g, "$1").replace(/[\r\t\n]/g, ' ');
+	}
+
+	doT.template = function(tmpl, c, def) {
+		c = c || doT.templateSettings;
+		var cse = c.append ? startend.append : startend.split, needhtmlencode, sid = 0, indv,
+			str  = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
+
+		str = ("var out='" + (c.strip ? str.replace(/(^|\r|\n)\t* +| +\t*(\r|\n|$)/g,' ')
+					.replace(/\r|\n|\t|\/\*[\s\S]*?\*\//g,''): str)
+			.replace(/'|\\/g, '\\$&')
+			.replace(c.interpolate || skip, function(m, code) {
+				return cse.start + unescape(code) + cse.end;
+			})
+			.replace(c.encode || skip, function(m, code) {
+				needhtmlencode = true;
+				return cse.start + unescape(code) + cse.endencode;
+			})
+			.replace(c.conditional || skip, function(m, elsecase, code) {
+				return elsecase ?
+					(code ? "';}else if(" + unescape(code) + "){out+='" : "';}else{out+='") :
+					(code ? "';if(" + unescape(code) + "){out+='" : "';}out+='");
+			})
+			.replace(c.iterate || skip, function(m, iterate, vname, iname) {
+				if (!iterate) return "';} } out+='";
+				sid+=1; indv=iname || "i"+sid; iterate=unescape(iterate);
+				return "';var arr"+sid+"="+iterate+";if(arr"+sid+"){var "+vname+","+indv+"=-1,l"+sid+"=arr"+sid+".length-1;while("+indv+"<l"+sid+"){"
+					+vname+"=arr"+sid+"["+indv+"+=1];out+='";
+			})
+			.replace(c.evaluate || skip, function(m, code) {
+				return "';" + unescape(code) + "out+='";
+			})
+			+ "';return out;")
+			.replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r')
+			.replace(/(\s|;|\}|^|\{)out\+='';/g, '$1').replace(/\+''/g, '')
+			.replace(/(\s|;|\}|^|\{)out\+=''\+/g,'$1out+=');
+
+		if (needhtmlencode && c.selfcontained) {
+			str = "String.prototype.encodeHTML=(" + encodeHTMLSource.toString() + "());" + str;
+		}
+		try {
+			return new Function(c.varname, str);
+		} catch (e) {
+			if (typeof console !== 'undefined') console.log("Could not create a template function: " + str);
+			throw e;
+		}
+	};
+
+	doT.compile = function(tmpl, def) {
+		return doT.template(tmpl, null, def);
+	};
+}());
+
+},{}],6:[function(require,module,exports){
+/* doT + auto-compilation of doT templates
+ *
+ * 2012, Laura Doktorova, https://github.com/olado/doT
+ * Licensed under the MIT license
+ *
+ * Compiles .def, .dot, .jst files found under the specified path.
+ * It ignores sub-directories.
+ * Template files can have multiple extensions at the same time.
+ * Files with .def extension can be included in other files via {{#def.name}}
+ * Files with .dot extension are compiled into functions with the same name and
+ * can be accessed as renderer.filename
+ * Files with .jst extension are compiled into .js files. Produced .js file can be
+ * loaded as a commonJS, AMD module, or just installed into a global variable
+ * (default is set to window.render).
+ * All inline defines defined in the .jst file are
+ * compiled into separate functions and are available via _render.filename.definename
+ *
+ * Basic usage:
+ * var dots = require("dot").process({path: "./views"});
+ * dots.mytemplate({foo:"hello world"});
+ *
+ * The above snippet will:
+ * 1. Compile all templates in views folder (.dot, .def, .jst)
+ * 2. Place .js files compiled from .jst templates into the same folder.
+ *    These files can be used with require, i.e. require("./views/mytemplate").
+ * 3. Return an object with functions compiled from .dot templates as its properties.
+ * 4. Render mytemplate template.
+ */
+
+var fs = require("fs"),
+	doT = module.exports = require("./doT");
+
+doT.process = function(options) {
+	//path, destination, global, rendermodule, templateSettings
+	return new InstallDots(options).compileAll();
+};
+
+function InstallDots(o) {
+	this.__path 		= o.path || "./";
+	if (this.__path[this.__path.length-1] !== '/') this.__path += '/';
+	this.__destination	= o.destination || this.__path;
+	if (this.__destination[this.__destination.length-1] !== '/') this.__destination += '/';
+	this.__global		= o.global || "window.render";
+	this.__rendermodule	= o.rendermodule || {};
+	this.__settings 	= o.templateSettings ? copy(o.templateSettings, copy(doT.templateSettings)) : undefined;
+	this.__includes		= {};
+}
+
+InstallDots.prototype.compileToFile = function(path, template, def) {
+	def = def || {};
+	var modulename = path.substring(path.lastIndexOf("/")+1, path.lastIndexOf("."))
+		, defs = copy(this.__includes, copy(def))
+		, settings = this.__settings || doT.templateSettings
+		, compileoptions = copy(settings)
+		, defaultcompiled = doT.template(template, settings, defs)
+		, exports = []
+		, compiled = ""
+		, fn;
+
+	for (var property in defs) {
+		if (defs[property] !== def[property] && defs[property] !== this.__includes[property]) {
+			fn = undefined;
+			if (typeof defs[property] === 'string') {
+				fn = doT.template(defs[property], settings, defs);
+			} else if (typeof defs[property] === 'function') {
+				fn = defs[property];
+			} else if (defs[property].arg) {
+				compileoptions.varname = defs[property].arg;
+				fn = doT.template(defs[property].text, compileoptions, defs);
+			}
+			if (fn) {
+				compiled += fn.toString().replace('anonymous', property);
+				exports.push(property);
+			}
+		}
+	}
+	compiled += defaultcompiled.toString().replace('anonymous', modulename);
+	fs.writeFileSync(path, "(function(){" + compiled
+		+ "var itself=" + modulename + ";"
+		+ addexports(exports)
+		+ "if(typeof module!=='undefined' && module.exports) module.exports=itself;else if(typeof define==='function')define(function(){return itself;});else {"
+		+ this.__global + "=" + this.__global + "||{};" + this.__global + "['" + modulename + "']=itself;}}());");
+};
+
+function addexports(exports) {
+	for (var ret ='', i=0; i< exports.length; i++) {
+		ret += "itself." + exports[i]+ "=" + exports[i]+";";
+	}
+	return ret;
+}
+
+function copy(o, to) {
+	to = to || {};
+	for (var property in o) {
+		to[property] = o[property];
+	}
+	return to;
+}
+
+function readdata(path) {
+	var data = fs.readFileSync(path);
+	if (data) return data.toString();
+	console.log("problems with " + path);
+}
+
+InstallDots.prototype.compilePath = function(path) {
+	var data = readdata(path);
+	if (data) {
+		return doT.template(data,
+					this.__settings || doT.templateSettings,
+					copy(this.__includes));
+	}
+};
+
+InstallDots.prototype.compileAll = function() {
+	console.log("Compiling all doT templates...");
+
+	var defFolder = this.__path,
+		sources = fs.readdirSync(defFolder),
+		k, l, name;
+
+	for( k = 0, l = sources.length; k < l; k++) {
+		name = sources[k];
+		if (/\.def(\.dot|\.jst)?$/.test(name)) {
+			console.log("Loaded def " + name);
+			this.__includes[name.substring(0, name.indexOf('.'))] = readdata(defFolder + name);
+		}
+	}
+
+	for( k = 0, l = sources.length; k < l; k++) {
+		name = sources[k];
+		if (/\.dot(\.def|\.jst)?$/.test(name)) {
+			console.log("Compiling " + name + " to function");
+			this.__rendermodule[name.substring(0, name.indexOf('.'))] = this.compilePath(defFolder + name);
+		}
+		if (/\.jst(\.dot|\.def)?$/.test(name)) {
+			console.log("Compiling " + name + " to file");
+			this.compileToFile(this.__destination + name.substring(0, name.indexOf('.')) + '.js',
+					readdata(defFolder + name));
+		}
+	}
+	return this.__rendermodule;
+};
+
+},{"./doT":5,"fs":7}],7:[function(require,module,exports){
 
 },{}]},{},[1])
 ;
@@ -15350,7 +15550,7 @@ function initialize() {
     
     function NavBar(parameters, attributes) {
         attributes.role = 'navigation';
-        this.initialize('controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template)
+        this.initialize('controls.navbar', parameters, attributes, $ENV.getDefaultTemplate('nav'), $ENV.getDefaultTemplate())
             .class('navbar navbar-default');
 
         // text contains two parts separated by '***', first part non togglable, second part is togglable
@@ -15375,46 +15575,73 @@ return '<div' + it.printAttributes() + '>\
         // Collapsible part
         
         this.add('collapse:div`collapse navbar-collapse navbar-ex1-collapse')
-            .template($ENV.default_template, $ENV.default_inner_template);
+            .template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         $DOC.processContent(this.collapse, parts.slice(-1)[0]);
         
-        this.applyPatches = function() {
+        this.applyElement = function() {
             var element = this._element;
             if (element) {
-                var $e = $(element);
-                $e.find('.navbar-collapse > ul').addClass('nav navbar-nav');
                 
-                var $dm = $e.find('ul ul');
-                $dm.addClass('dropdown-menu');
-                var $d = $dm.parent();
-                $d.addClass('dropdown');
-                var toggle = $d.find('> a');
-                if (toggle.length) {
-                    toggle.addClass('dropdown-toggle');
-                    toggle.attr('data-toggle', 'dropdown');
-                    toggle.attr('href', '#');
-                    if (toggle.html().indexOf('<b class="caret"></b>') <= 0)
-                        toggle.append('<b class="caret"></b>');
+                var nav_uls = element.querySelectorAll('.navbar-collapse > ul');
+                for(var i = 0, ci = nav_uls.length; i < ci; i++) {
+                    var nav_ul = nav_uls[i],
+                        clss = nav_ul.classList;
+                    clss.add('nav');
+                    clss.add('navbar-nav');
+                }
+                
+                var dropdownmenus = element.querySelectorAll('ul ul');
+                for(var j = 0, c = dropdownmenus.length; j < c; j++) {
+                    var dropdownmenu = dropdownmenus[j];
+                    dropdownmenu.classList.add('dropdown-menu');
 
-                    // activate menu item of the current page
-                    var loc = window.location.href.toLowerCase();
-                    $e.find('ul li a').each(function(i,a) {
-                        var href = (a.href || '').toLowerCase();
-                        if (href === loc || loc.split(href).concat(href.split(loc)).some(function(frag){return frag && ('index.htm,index.html'.indexOf(frag) >= 0); }))
-                            $(a).parents('li').addClass('active');
-                    });
+                    var dropdown = dropdownmenu.parentElement;
+                    dropdown.classList.add('dropdown');
+                    var toggle = dropdown.getElementsByTagName('a')[0];
+                    if (toggle) {
+                        toggle.classList.add('dropdown-toggle');
+                        toggle.setAttribute('data-toggle', 'dropdown');
+                        toggle.setAttribute('href', '#');
+                        if (toggle.innerHTML.indexOf('<b class="caret"></b>') <= 0)
+                            toggle.insertAdjacentHTML('beforeend', '<b class="caret"></b>');
+                    }
+                }
+
+                var current_location = window.location.href.toLowerCase().replace(/(^.*:)|(\/index.htm$)|(\/index.html$)|(#$)/g, ''),
+                    current_location_segs = current_location.split('/');
+
+                var links = element.querySelectorAll('a:not([href="#"])');
+                for(var k = 0, ck = links.length; k < ck; k++) {
+                    var link = links[k],
+                        compare = link.href.toLowerCase().replace(/(^.*:)|(\/index.htm$)|(\/index.html$)|(#$)/g, '');
+                    if (compare === current_location)
+                        activateMenuItemItems(link);
+                    else {
+                        var compare_segs = compare.split('/'),
+                            matched = true;
+                        for(var l = 0, cl = compare_segs.length; l < cl && matched; l++)
+                        if (compare_segs[l] !== current_location_segs[l])
+                            matched = false;
+                        if (matched)
+                            activateMenuItemItems(link);
+                    }
                 }
             }
         };
-        
+                
         this.listen('element', function() {
-            this.applyPatches();
+            this.applyElement();
         });
+        
+        function activateMenuItemItems(link, top) {
+            while(link.parentElement) {
+                link = link.parentElement;
+                if (link.tagName === 'LI')
+                    link.classList.add('active');
+            }
+        }
     };
     NavBar.prototype = controls.control_prototype;
-    function nav_template(it) {
-        return '<nav' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
-    };
     controls.typeRegister('navbar', NavBar);
 
 }})();
@@ -15485,7 +15712,7 @@ function initialize() {
     // styled block div factory
     function Block(parameters, attributes) {
         var control = Felement('div', parameters, attributes);
-        control.template($ENV.default_template, $ENV.default_inner_template);
+        control.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         process_inner_text(control);
         return control;
     };
@@ -15579,92 +15806,56 @@ var bootstrap = controls.bootstrap;
     
     // Panel
     
-    var known_params = 'style header footer default info link success primary warning danger';
     function Panel(parameters, attributes) {
         
         var panel = controls.create('bootstrap.Panel', parameters, attributes);
-        
-        // look for header in parameters
-        for(var prop in parameters)
-        if (known_params.indexOf(prop) < 0 || prop === 'header') {
-            panel.header.text(prop);
-            break;
-        }
-        
-         if (parameters.footer)
-            panel.footer.text(parameters.footer);
-            
+
         var body = panel.body;
-        $DOC.processContent(body, body.text());
-        body.text('');
-        
-        // process markup template:
-        body.template($ENV.default_template, $ENV.default_inner_template);
+        $DOC.processContent(body, body.attributes.$text);
+        delete body.attributes.$text;
+        body.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         
         return panel;
     };
     controls.factoryRegister('panel', Panel);
     
     
-    function iPanel(parameters, attributes) {
-        var control = Panel(parameters, attributes);
-        control.style('display:inline-block;' + control.style());
-        return control;
-    };
-    controls.factoryRegister('ipanel', iPanel);
-    
-    
     // Collapse
     
     function Collapse(parameters, attributes) {
         
-        controls.controlInitialize(this, 'collapse', parameters, attributes, $ENV.default_template, $ENV.default_inner_template);
+        var start_collapsed = parameters.collapse || parameters.collapsed,
+            header = parameters.header;
         
-        var in_panel = this.parameter('panel');
-        var panel_class = (typeof in_panel === 'string') ? in_panel : undefined;
-        var start_collapsed = parameters.collapse || parameters.collapsed;
+        var body = 
+        this.initialize('collapse', parameters, attributes, $ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate())
+            ._class('collapse-panel panel panel-' + this.getControlStyle())
+            ._add('header:div', {
+                        class: 'panel-heading collapse-header',
+                'data-toggle': 'collapse',
+                        $text: '<a href="#" class="panel-title">' + (header || '') + '</a>'
+            })
+            .add('collapse:div', {class:'panel-collapse collapse collapse-body' + (start_collapsed ? '' : ' in')})
+            .add('body:div', {class:'panel-body'});
+        this.header.attributes['data-target'] = '#' + this.collapse.id;
         
-        for(var prop in parameters)
-        if (prop.substr(0,6) === 'panel-')
-            panel_class = prop;
-        
-        this.class('collapse-panel' + (in_panel || panel_class ? ' panel ' + (panel_class || 'panel-default') : ''));
-        
-        // subcontrols
-        var collapse = this.add('collapse:div', {class:'panel-collapse collapse collapse-body' + (start_collapsed ? '' : ' in')}),
-            content = collapse.add('div', {class:'panel-body'}),
-            header = this.insert(0, 'header:div',
-        {
-                    class: 'panel-heading collapse-header',
-            'data-toggle': 'collapse',
-            'data-target': '#'+collapse.id,
-                    $text: '<a href="#" class="panel-title">' + (this.parameter('title') || Object.keys(parameters)[0] || '') + '</a>'
-        });
-        
-        $DOC.processContent(content, this.text());
+        body.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
+        $DOC.processContent(body, this.text());
         this.text('');
         
         // process markup template:
-        content.template($ENV.default_template, $ENV.default_inner_template);
+        
     };
     Collapse.prototype = bootstrap.control_prototype;
     controls.typeRegister('collapse', Collapse);
-    
-    
-    function iCollapse(parameters, attributes) {
-        var control = Collapse(parameters, attributes);
-        control.style('display:inline-block;' + control.style());
-        return control;
-    };
-    controls.factoryRegister('icollapse', iCollapse);
     
     
     // Alert
     
     function Alert(parameters, attributes) {
         
-        controls.controlInitialize(this, 'alert', parameters, attributes, $ENV.default_template, $ENV.default_inner_template);
-        this.class('alert alert-' + this.getControlStyle() + ' fade in');
+        this.initialize('alert', parameters, attributes, $ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate())
+            .class('alert alert-' + this.getControlStyle() + ' fade in');
         
         // process markup at this level
         var this_text = this.text();
@@ -15675,20 +15866,12 @@ var bootstrap = controls.bootstrap;
     controls.typeRegister('alert', Alert);
     
     
-    function iAlert(parameters, attributes) {
-        var control = Alert(parameters, attributes);
-        control.style('display:inline-block;' + control.style());
-        return control;
-    };
-    controls.factoryRegister('ialert', iAlert);
-    
-    
     // Well
     
     function Well(parameters, attributes) {
         
-        controls.controlInitialize(this, 'well', parameters, attributes, $ENV.default_template, $ENV.default_inner_template);
-        this.class('well');
+        this.initialize('well', parameters, attributes, $ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate())
+            .class('well');
         
         var size = this.getControlSize();
         if (size === 'small')
@@ -15702,15 +15885,7 @@ var bootstrap = controls.bootstrap;
     };
     Well.prototype = bootstrap.control_prototype;
     controls.typeRegister('well', Well);
-    
-    
-    function iWell(parameters, attributes) {
-        var control = Alert(parameters, attributes);
-        control.style('display:inline-block;' + control.style());
-        return control;
-    };
-    controls.factoryRegister('iwell', iWell);
-    
+   
     
 }})();
 
@@ -15730,30 +15905,27 @@ function initialize() {
 
     function CTabPanel(parameters, attributes) {
         
-        controls.controlInitialize(this, 'tabpanel', parameters, attributes);
-        this.class('tabpanel');
+        this.initialize('controls.tabpanel', parameters, attributes)
+            .class('tabpanel');
         
-        // subcontrols
-        var header = this.add('header:bootstrap.TabPanelHeader');
-        var body = this.add('content:bootstrap.TabPanelBody', {class:'panel-body'});
-        
+        var header = this.add('header:bootstrap.TabPanelHeader'),
+            body = this.add('body:bootstrap.TabPanelBody`panel-body');
         
         // place tabs on this.content panel
-        $DOC.processContent(body, this.attributes.$text);
-        this.attributes.$text = '';
+        $DOC.processContent(body, attributes.$text);
+        attributes.$text = '';
         
         var found_active = false;
-        for(var i = 0, c = body.length; i < c; i++) {
-            var tabpage = body.controls[i];
+        body.each(function(tabpage) {
             if (tabpage.__type === 'bootstrap.TabPage') {
-                var tabheader = this.header.add('bootstrap.TabHeader', {$href:'#'+tabpage.id, $text:tabpage.Caption});
+                var tabheader = header.add('bootstrap.TabHeader', {$href:'#' + tabpage.id, $text:tabpage.parameter('header')});
                 if (tabpage.parameters.active) {
                     found_active = true;
                     tabheader.class('active');
                     tabpage.class('active in');
                 }
             }
-        }
+        });
         
         if (!found_active && header.length) {
             header.first.class('active');
@@ -15772,7 +15944,6 @@ function initialize() {
         var bootstrap_tabpage = controls.create('bootstrap.TabPage', parameters, attributes);
         
         // first #parameter name - tab caption
-        bootstrap_tabpage.Caption = Object.keys(parameters)[0];
         
         // Here: this control is wrapped with HTML and markup not be processed.
         // To process the markup at this level:
@@ -15782,7 +15953,7 @@ function initialize() {
         $DOC.processContent(bootstrap_tabpage, this_text);
         
         // process markup template:
-        bootstrap_tabpage.template($ENV.default_template, $ENV.default_inner_template);
+        bootstrap_tabpage.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
 
         return bootstrap_tabpage;
     }
@@ -15916,7 +16087,7 @@ function initialize() {
 
     function FooterLayout(parameters, attributes) {
         
-        controls.controlInitialize(this, 'footer-layout', parameters, attributes, $ENV.default_template, $ENV.default_inner_template);
+        this.initialize('footer-layout', parameters, attributes, $ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         
         var media = this.parameter('media'),        // media selector
             padding = this.parameter('padding'),    // padding parameter
@@ -16030,7 +16201,7 @@ function initialize() {
     $DOC.addTextContainer = function(control, text) {
         
         // container.outerHTML() returns text as is
-        var container = control.add('container', {$text:text});
+        var container = control.add('container', text);
         
         // if text contains template then compile to getText function
         var pos = text.indexOf('{{');
@@ -16041,89 +16212,143 @@ function initialize() {
     };
     
     // $DOC.components_off - turn off filters and component translation
-    $DOC.processContent = function(collection, content) {
+    $DOC.processContent = function(collection, text) {
         
-        if (!content)
+        if (!text)
             return;
         
         if (this.components_off) {
-            this.addTextContainer(collection, content);
+            this.addTextContainer(collection, text);
             return;
         }
         
-        // 1. check substitutions
+        // 1. apply filters
+        
         var filters = this.filters;
         for(var i in filters) {
             var subst = filters[i];
-            content = content.replace(subst.regex, subst);
+            text = text.replace(subst.regex, subst);
         }
 
-        // 2. Look for components
-        var content = content.split(/(%\S{1,128})((?:#.*)?\([\S\s]*?\)\1)/gm);
-        // todo replace \S [^\r\n\t @#\$%\^&\*\!~`\'\"\\|\/\?<>\{\}\[\]\(\)-_=\+]
-        // \([^\(\)]*?\) - exclude matching the parts of multiple patterns, error: a()a b()b -> a()b
-
-        var buffered_text = '';
-        for(var i = 0, c = content.length; i < c; i++) {
-            var frag = content[i];
-            if (!frag) continue;
-            if (i < c-1 && frag[0] === '%') {
-                var next = content[i+1];
-                if (next.slice(-frag.length - 1) === ')' + frag) {
+        // 2. Look for [] brackets not in string literals
+        
+        // enumerate string literals
+        var literalpos = enumerateKnownPatterns(text, 0),
+            lcurrent = 0, rcurrent = 0, llength = literalpos.length;
+        
+        // iterate brackets
+        var text_start = 0,
+            stack = [], level = 0, open_tag_pos, open_tag_len,
+            left_bracket = text.indexOf('[');
+        while(left_bracket >= 0) {
             
-                    var parpos = next.indexOf('('),
-                        params = next.substr(0, parpos),
-                        numberpos = params.indexOf('#'),
-                        tag = frag.substr(1);
+            // check if not in literals
+            while(lcurrent < llength && literalpos[lcurrent + 1] < left_bracket)
+                lcurrent += 2;
+            if (lcurrent >= llength || left_bracket < literalpos[lcurrent] || left_bracket >= literalpos[lcurrent + 1]) {
+            
+                var right_bracket_found = false,
+                    right_bracket = text.indexOf(']', left_bracket + 1);
+                while(!right_bracket_found && right_bracket >= 0) {
 
-                    if (parpos >= 0 && (!params || numberpos === 0)) {
-                        var inner_text = next.substr(parpos + 1, next.length - frag.length - parpos - 2);
-                        i++;
-
-                        // lookup control
-                        try {
-                            // pass inner text to control
-                            var control = controls.createOrStub(tag+params, {$text: inner_text});
-                            if (control) {
-                                // flush buffer
-                                if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/) {
-                                    this.addTextContainer(collection, buffered_text);
-                                    buffered_text = '';
-                                }
-
-                                collection.add(control);
-
-                                // create stub loader
-                                if (control.isStub) {
-                                    control.listen('control', function(control) {
-                                        // raise 'com' event
-                                        var com = $DOC.events.component;
-                                        if (com)
-                                            com.raise(control);
-                                    });
-                                    new stubResLoader(control);
-                                }
-                                
-                                // raise 'com' event
-                                var com = $DOC.events.component;
-                                if (com)
-                                    com.raise(control);
+                    // check if not in literals
+                    while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
+                        rcurrent += 2;
+                    if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
+                        
+                        // [...] [/...] [.../]
+                        
+                        var is_one_pair = text.charAt(right_bracket - 1) === '/', // one pair brackets [.../]
+                            is_close_tag = text.charAt(left_bracket + 1) === '/'; // close tag brackets [/...]
+                        if (is_close_tag) {
+                            // is close tag - find complimentary open tag
+                            var close_tag = text.slice(left_bracket + 2, right_bracket),
+                                level = stack.lastIndexOf(close_tag);
+                            if (level === 0) {
+                                // add text before bbcode
+                                if (open_tag_pos > text_start)
+                                    this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
+                                text_start = right_bracket + 1;
+                                // add component
+                                AddCom(is_one_pair, open_tag_pos, open_tag_len, left_bracket, right_bracket - left_bracket + 1);
                             }
-                            else
-                                collection.add('p', {$text:'&#60;' + tag + '?&#62;'});
-
-                            continue;
-                        } catch (e) { console.log(e); } // error?
+                            else if (level < 0)
+                                level = 0;
+                            stack.length = level;
+                        } else {
+                            if (level === 0) {
+                                open_tag_pos = left_bracket;
+                                open_tag_len = right_bracket - left_bracket + 1;
+                            }
+                            if (is_one_pair) {
+                                // [.../] tag
+                                if (level === 0) {
+                                    // add text before bbcode
+                                    if (open_tag_pos > text_start)
+                                        this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
+                                    text_start = right_bracket + 1;
+                                    // add component
+                                    AddCom(is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1);
+                                }
+                            } else {
+                                // push open tag
+                                var opentag = text.slice(left_bracket + 1, right_bracket),
+                                    __type = opentag.match(/\S+?(?=#|@|\/|`|\s|$)/)[0].split(':');
+                                stack.push(__type.pop());
+                                level++;
+                            }
+                        }
+                        right_bracket_found = true;
                     }
+                    right_bracket++;
+                    right_bracket = text.indexOf(']', right_bracket);
                 }
             }
-            buffered_text += frag;
+            left_bracket++;
+            left_bracket = text.indexOf('[', left_bracket);
         }
         
-        // flush buffer
-        if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/)
-            this.addTextContainer(collection, buffered_text);
+        // remaining text at end
+        if (text_start < text.length)
+            this.addTextContainer(collection, text.slice(text_start));
+            
+        function AddCom(is_one_pair, open_tag_pos, open_tag_len, close_tag_pos, close_tag_len) {
+            var opentag = is_one_pair ? text.substr(open_tag_pos + 1, open_tag_len - 3) : text.substr(open_tag_pos + 1, open_tag_len - 2);
+            try {
+                var control = controls.createOrStub(opentag, text.slice(open_tag_pos + open_tag_len, close_tag_pos));
+                if (control) {
+                    collection.add(control);
+
+                    // create stub loader
+                    if (control.isStub) {
+                        control.listen('control', function(control) {
+                            // raise 'com' event
+                            var com = $DOC.events.component;
+                            if (com)
+                                com.raise(control);
+                        });
+                        new stubResLoader(control);
+                    }
+
+                    // raise 'com' event
+                    var com = $DOC.events.component;
+                    if (com)
+                        com.raise(control);
+                }
+                else
+                    collection.add('p', '&#60;?&#62;');
+            } catch (e) { console.log(e); } // error?
+        }
     };
+    
+    // enumerate "string literal" and [](href)
+    function enumerateKnownPatterns(text, start_from) {
+        var lregex = /("[\s\S]*?")|(\[[^\[\]\n]*?\]\([^\(\)\n]*?\))/g, literalpos = [], sresult;
+        lregex.lastIndex = start_from;
+        while(sresult = lregex.exec(text))
+            literalpos.push(sresult.index, lregex.lastIndex);
+        return literalpos;
+    }
     
     $DOC.processTextNode = processTextNode;
     function processTextNode(text_node, value) {
@@ -16139,15 +16364,32 @@ function initialize() {
             }
         }
         
-        var control, text = (arguments.length > 1) ? value : text_node.nodeValue, first_char = text[0], body = document.body, section_name;
-        if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
+        var control,
+            text = (arguments.length > 1) ? value : text_node.nodeValue,
+            first_char = text[0],
+            body = document.body,
+            section_name;
+        if (' \n\t`@$&*#(){}-%^~"|\/\\'.indexOf(first_char) < 0) {
             try {
-                if (first_char === '%') {
-                    // <--%namespace.cid#params( ... )%namespace.cid-->
-                    // \1 cid \2 #params \3 content
-                    var match = text.match(/^(%(?:[^ \t\n\(]{1,128}\.)?[^ \t\n\(]{1,128})(#[^\t\n\(]{1,512})?\(([\S\s]*)\)\1$/);
-                    if (match) {
-                        control = controls.createOrStub(match[1].slice(1) + (match[2] || ''), {$text: match[3]});
+                if (first_char === '[') {
+                    // <--[namespace.cid params] ... -->
+                    var literalpos = enumerateKnownPatterns(text, 1),
+                        rcurrent = 0, llength = literalpos.length,
+                        right_bracket_found = false,
+                    right_bracket = text.indexOf(']', 1);
+                    while(!right_bracket_found && right_bracket >= 0) {
+                        // check if not in literals
+                        while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
+                            rcurrent += 2;
+                        if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
+                            right_bracket_found = true;
+                            
+                            var com_definition = text.slice(1, right_bracket),
+                                com_content =  text.slice(right_bracket + 1);
+                            control = controls.createOrStub(com_definition, com_content);
+                        }
+                        right_bracket++;
+                        right_bracket = text.indexOf(']', right_bracket);
                     }
                 } else if (first_char === '!') {
                     // <!--!sectionname--> - section remover
@@ -16176,7 +16418,7 @@ function initialize() {
                             control = controls.create('div', {class:section_name});
                             control.name = section_name;
                             $DOC.addSection(section_name, control);
-                            control.template($ENV.default_template, $ENV.default_inner_template);
+                            control.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
                             $DOC.processContent(control, section_value);
                         }
                     }
@@ -16259,7 +16501,7 @@ function initialize() {
 
                     var section_control = cbody.add('div', {class:name});
                     section_control.name = name;
-                    section_control.template($ENV.default_template, $ENV.default_inner_template);
+                    section_control.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
                     $DOC.processContent(section_control, content);
 
                     // create dom element and place in a definite order

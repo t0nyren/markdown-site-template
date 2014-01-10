@@ -2,19 +2,8 @@
 //     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
 
-(function() { "use strict";
-    
-if (typeof $ENV !== 'undefined')
-    initialize();
-else {
-    // queue component for loading
-    if (!this.defercqueue)
-        this.defercqueue = [];
-    this.defercqueue.push(initialize);
-}
-
-//$DOC.appendCSS('bootstrap+highlight.js pre fix', ' pre { padding:0; }');
-
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
 function initialize() {
     
     var script_loaded = 0, not_processed = [], controls = $ENV.controls,
@@ -35,7 +24,7 @@ function initialize() {
     
     function Highlight(parameters, attributes) {
         var loaded = (typeof hljs !== 'undefined');
-        controls.controlInitialize(this, 'highlight', parameters, attributes, loaded ? template : default_template);
+        this.initialize('highlight', parameters, attributes, loaded ? template : default_template);
         if (!loaded) {
             // highlight.min.js yet not loaded
             if (script_loaded >= 0)

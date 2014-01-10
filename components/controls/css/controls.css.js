@@ -59,7 +59,7 @@ function initialize() {
     // styled block div factory
     function Block(parameters, attributes) {
         var control = Felement('div', parameters, attributes);
-        control.template($ENV.default_template, $ENV.default_inner_template);
+        control.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         process_inner_text(control);
         return control;
     };

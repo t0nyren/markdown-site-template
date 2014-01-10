@@ -3,19 +3,9 @@
 //     License: MIT
 // require controls.js
 
-(function() { "use strict";
-var controls;
-if (typeof module !== 'undefined' && typeof require !== 'undefined' && module.exports) {
-    controls = require('controls');
-    module.exports = Carousel;
-} else if (typeof define === 'function' && define.amd)
-    define(['controls'], function(c) { controls = c; return Carousel; });
-else
-    controls = this.controls;
-if (!controls) throw new TypeError('controls.js not found!');
-
-
-
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
     
     function Carousel(parameters, attributes) {
         
@@ -61,7 +51,7 @@ if (!controls) throw new TypeError('controls.js not found!');
         }
         
         if (!found_active && inner.length) {
-            inner.first.class('active');
+            inner.first().class('active');
             if (show_indicator)
                 indicators.first.class('active');
         }
@@ -96,10 +86,10 @@ if (!controls) throw new TypeError('controls.js not found!');
         $DOC.processContent(slide, text);
         
         // process markup template:
-        slide.template($ENV.default_template, $ENV.default_inner_template);
+        slide.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
 
         return slide;
     }
-    controls.factoryRegister('slide#namespace=bs-carousel', carousel_slide_factory);
+    controls.factoryRegister('slide namespace=bs-carousel', carousel_slide_factory);
 
-}).call(this);
+}})();

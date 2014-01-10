@@ -2,17 +2,8 @@
 //     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
 
-(function() { "use strict";
-    
-if (typeof $ENV !== 'undefined')
-    initialize();
-else {
-    // queue component for loading
-    if (!this.defercqueue)
-        this.defercqueue = [];
-    this.defercqueue.push(initialize);
-}
-
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
 function initialize() {
     
     var jsapi_state = 0, corechart_state = 0, not_drawn = [];

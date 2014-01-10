@@ -13,11 +13,13 @@
 ## Mediawiki markup
 <h3><a class="label label-default" href="http://aplib.github.io/markdown-site-template/components/wiki.instaview.zip">Download</a></h3>  
 >syntax:  
-><code>%wiki.instaview<span>(marked text)</span>%wiki.instaview</code>  
+><code>[off][wiki.instaview]marked text[/wiki.instaview][/off]</code>  
 >location: components/wiki/instaview/
 
 example text:  
-%wiki.instaview(
+
+[wiki.instaview]
+
 == Section ==
 
 === Subsection ===
@@ -53,13 +55,15 @@ so long as no carriage return or line break is used.)
 The '''blockquote''' tag will indent both margins when needed instead of the left margin only as the colon does.
 </blockquote>
 
-)%wiki.instaview
-
-
+[/wiki.instaview]
 -->
+
+
+
 
 <!--right-side-panel -->
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
 </body>
 </html>

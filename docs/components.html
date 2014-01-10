@@ -12,93 +12,52 @@
 
 ## Overview
 
-Technically, component Markdown webdocs, it controls in terms controls.js organized into separate modules and provided with additional resources.
-In practice, the components of Markdown webdocs, an advanced analog widely used in web design templates.
+Component in Markdown webdocs is a control in terms controls.js organized into separate module and provided with additional resources.
 
-A component is initially a JavaScript object has parameters, attributes contain data, template function for generate html code and,
-of course, those properties and methods that we define in its code.
+A component has parameters, attributes, may contain data, template function for generate html code and, of course, those properties and methods that we define in its code.
 
-Certain basic set of ready-made components built into document.js and is available immediately after initialization.
-Other components are loaded dynamic or static load scripts on the page.
-If a component is not loaded explicitly attempts to automatically download the component from the predefined folder /components.
-
-Elementary components not contain code and style and will not change its behavior and performance.
-Complex components can contain code and styles manage their state, behavior and representation and to interact with
-document outside world and even mutate other components becoming completely different component.
-Autonomous components allow you to completely take out all the dependencies in a separate module.
-Versatile components of its habitat is not limited to the browser.
-Well-built component may be interpreted on the server and executed in the browser, or to be transferred from one frame to another.
-Reliable components are independent of the load order of files on the resources page.
-Smart components can cache the data or perform preload. Lazy components do not delay execution of other components.
-
-Example of simple components:
+Basic set of components built into document.js and is available immediately after initialization. Other components are loaded when processing bbCode or loaded by scripts on the page.
 
 ### Hello World!
-%highlight#lang=javascript;style=vs((function () {
-    function HelloWorld(parameters, attributes) {
-        $ENV.controls.controlInitialize(this, 'hello', parameters, attributes,
-            $ENV.default_template, $ENV.default_inner_template);
+[highlight lang=javascript style=vs]function HelloWorld(parameters, attributes) {
+  this.initialize('hello', parameters, attributes,
+      $ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
 
-        this.text('# Hello World!'); // ← Markdown
-    };
-    HelloWorld.prototype = $ENV.controls.control_prototype;
-    controls.typeRegister('hello', HelloWorld);
-})();
-)%highlight
+  this.text('# Hello World!'); // ← Markdown
+};
+HelloWorld.prototype = $ENV.controls.control_prototype;
+controls.typeRegister('hello', HelloWorld);[/highlight]
 
 What would be a constructor function has become a component in Markdown webdocs, must meet several conditions:
 
-* In the prototype chain to be controls.control_prototype, it gives a general properties and methods.
+* In the prototype chain to have controls.control_prototype, it gives a general properties and methods.
 * The function must be registered by calling controls.typeRegister() or controls.factoryRegister()
-* In the constructor function is required to initiate a call controls.controlInitialize()
-* It is desirable to initialize assign specific templates that understand the layout Markdown. $ENV.default_template and $ENV.default_inline_template are such templates that is compatible with Markdown webdocs and can be used in most custom components.
+* In the constructor function is required to call this.initialize()
+* It is desirable to initialize assign specific templates that understand the layout Markdown. $ENV.getDefaultTemplate('div') and $ENV.getDefaultTemplate() are such templates that is compatible with Markdown webdocs and can be used in most custom components.
 
-In the example above, only the string %highlight#lang=javascript;style=vs(this.text('# Hello World!');)%highlight is a problem oriented code.
+#### Variability
 
-### Manifesto of the component
-
-The component system is based on quite simple, systematic and universal basic principles.
-
-#### Modularity
-
-A component module is a infrastructure. In the same module can be created several components that share data.
-The module encapsulates the styles and resources, well-built components should allow control and plug the component resources,
-for example to disable unique styles used when the component.
-
-#### Modifications
-
-The main purpose of the parameters - choice of modification of the component.
-Modification may be a different view of the same component or may be a separate component.
+The main purpose of the parameters - choice of modification of the component. Modification may be a different view of the same component or may be a separate component.
 Parameters are also can be used for passing attribute values​​, where it is convenient.
 
-Examples:
-%off(%page-layout#scheme=centered()%page-layout)%off - here is a scheme parameter allows you to choose one or another
-modification that for this component selection of the page layout.
-%off(%block#$class=m41()%block)%off - this is an example of a atribute passing.
+Example: ```[off][page-layout scheme=centered /][/off]``` - here is a scheme parameter allows you to choose modification that for this component selection of the page layout.
 
 #### Generate HTML code, DOM management, responding to events,
-everything is the responsibility of the component, for this basic library provides the appropriate
-functionality that reduces the amount of code required. DOM act as visualization tools and fully abstracted from the data objects.
+For this basic library provides the appropriate
+functionality that reduces the amount of code required.
 In the simplest case, the developer does not need to do anything , when you create a component already has a default template and appropriate behavior.
-
-#### Arbitrary nesting, fractal, systematic
-
-Each part of the document is similar to the whole document, and can act as a separate document.
-Component as part of the document has the same properties.
-The document may be part of another documents.
-
-
----
-I propose to look through the project site, Section Components, which would have an idea of ​​the capabilities of the components.
 
 
 -->
+
 
 <!--right-side-panel
 <div id="disqus_thread"></div>
 -->
-<script src = "//markdocs.disqus.com/embed.js" async></script>
+<script src="//markdocs.disqus.com/embed.js" async=""></script>
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
+
 </body>
 </html>

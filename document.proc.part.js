@@ -49,7 +49,7 @@
     $DOC.addTextContainer = function(control, text) {
         
         // container.outerHTML() returns text as is
-        var container = control.add('container', {$text:text});
+        var container = control.add('container', text);
         
         // if text contains template then compile to getText function
         var pos = text.indexOf('{{');
@@ -60,89 +60,143 @@
     };
     
     // $DOC.components_off - turn off filters and component translation
-    $DOC.processContent = function(collection, content) {
+    $DOC.processContent = function(collection, text) {
         
-        if (!content)
+        if (!text)
             return;
         
         if (this.components_off) {
-            this.addTextContainer(collection, content);
+            this.addTextContainer(collection, text);
             return;
         }
         
-        // 1. check substitutions
+        // 1. apply filters
+        
         var filters = this.filters;
         for(var i in filters) {
             var subst = filters[i];
-            content = content.replace(subst.regex, subst);
+            text = text.replace(subst.regex, subst);
         }
 
-        // 2. Look for components
-        var content = content.split(/(%\S{1,128})((?:#.*)?\([\S\s]*?\)\1)/gm);
-        // todo replace \S [^\r\n\t @#\$%\^&\*\!~`\'\"\\|\/\?<>\{\}\[\]\(\)-_=\+]
-        // \([^\(\)]*?\) - exclude matching the parts of multiple patterns, error: a()a b()b -> a()b
-
-        var buffered_text = '';
-        for(var i = 0, c = content.length; i < c; i++) {
-            var frag = content[i];
-            if (!frag) continue;
-            if (i < c-1 && frag[0] === '%') {
-                var next = content[i+1];
-                if (next.slice(-frag.length - 1) === ')' + frag) {
+        // 2. Look for [] brackets not in string literals
+        
+        // enumerate string literals
+        var literalpos = enumerateKnownPatterns(text, 0),
+            lcurrent = 0, rcurrent = 0, llength = literalpos.length;
+        
+        // iterate brackets
+        var text_start = 0,
+            stack = [], level = 0, open_tag_pos, open_tag_len,
+            left_bracket = text.indexOf('[');
+        while(left_bracket >= 0) {
             
-                    var parpos = next.indexOf('('),
-                        params = next.substr(0, parpos),
-                        numberpos = params.indexOf('#'),
-                        tag = frag.substr(1);
+            // check if not in literals
+            while(lcurrent < llength && literalpos[lcurrent + 1] < left_bracket)
+                lcurrent += 2;
+            if (lcurrent >= llength || left_bracket < literalpos[lcurrent] || left_bracket >= literalpos[lcurrent + 1]) {
+            
+                var right_bracket_found = false,
+                    right_bracket = text.indexOf(']', left_bracket + 1);
+                while(!right_bracket_found && right_bracket >= 0) {
 
-                    if (parpos >= 0 && (!params || numberpos === 0)) {
-                        var inner_text = next.substr(parpos + 1, next.length - frag.length - parpos - 2);
-                        i++;
-
-                        // lookup control
-                        try {
-                            // pass inner text to control
-                            var control = controls.createOrStub(tag+params, {$text: inner_text});
-                            if (control) {
-                                // flush buffer
-                                if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/) {
-                                    this.addTextContainer(collection, buffered_text);
-                                    buffered_text = '';
-                                }
-
-                                collection.add(control);
-
-                                // create stub loader
-                                if (control.isStub) {
-                                    control.listen('control', function(control) {
-                                        // raise 'com' event
-                                        var com = $DOC.events.component;
-                                        if (com)
-                                            com.raise(control);
-                                    });
-                                    new stubResLoader(control);
-                                }
-                                
-                                // raise 'com' event
-                                var com = $DOC.events.component;
-                                if (com)
-                                    com.raise(control);
+                    // check if not in literals
+                    while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
+                        rcurrent += 2;
+                    if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
+                        
+                        // [...] [/...] [.../]
+                        
+                        var is_one_pair = text.charAt(right_bracket - 1) === '/', // one pair brackets [.../]
+                            is_close_tag = text.charAt(left_bracket + 1) === '/'; // close tag brackets [/...]
+                        if (is_close_tag) {
+                            // is close tag - find complimentary open tag
+                            var close_tag = text.slice(left_bracket + 2, right_bracket),
+                                level = stack.lastIndexOf(close_tag);
+                            if (level === 0) {
+                                // add text before bbcode
+                                if (open_tag_pos > text_start)
+                                    this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
+                                text_start = right_bracket + 1;
+                                // add component
+                                AddCom(is_one_pair, open_tag_pos, open_tag_len, left_bracket, right_bracket - left_bracket + 1);
                             }
-                            else
-                                collection.add('p', {$text:'&#60;' + tag + '?&#62;'});
-
-                            continue;
-                        } catch (e) { console.log(e); } // error?
+                            else if (level < 0)
+                                level = 0;
+                            stack.length = level;
+                        } else {
+                            if (level === 0) {
+                                open_tag_pos = left_bracket;
+                                open_tag_len = right_bracket - left_bracket + 1;
+                            }
+                            if (is_one_pair) {
+                                // [.../] tag
+                                if (level === 0) {
+                                    // add text before bbcode
+                                    if (open_tag_pos > text_start)
+                                        this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
+                                    text_start = right_bracket + 1;
+                                    // add component
+                                    AddCom(is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1);
+                                }
+                            } else {
+                                // push open tag
+                                var opentag = text.slice(left_bracket + 1, right_bracket),
+                                    __type = opentag.match(/\S+?(?=#|@|\/|`|\s|$)/)[0].split(':');
+                                stack.push(__type.pop());
+                                level++;
+                            }
+                        }
+                        right_bracket_found = true;
                     }
+                    right_bracket++;
+                    right_bracket = text.indexOf(']', right_bracket);
                 }
             }
-            buffered_text += frag;
+            left_bracket++;
+            left_bracket = text.indexOf('[', left_bracket);
         }
         
-        // flush buffer
-        if (buffered_text/* && (buffered_text.length > 16 || buffered_text.trim())*/)
-            this.addTextContainer(collection, buffered_text);
+        // remaining text at end
+        if (text_start < text.length)
+            this.addTextContainer(collection, text.slice(text_start));
+            
+        function AddCom(is_one_pair, open_tag_pos, open_tag_len, close_tag_pos, close_tag_len) {
+            var opentag = is_one_pair ? text.substr(open_tag_pos + 1, open_tag_len - 3) : text.substr(open_tag_pos + 1, open_tag_len - 2);
+            try {
+                var control = controls.createOrStub(opentag, text.slice(open_tag_pos + open_tag_len, close_tag_pos));
+                if (control) {
+                    collection.add(control);
+
+                    // create stub loader
+                    if (control.isStub) {
+                        control.listen('control', function(control) {
+                            // raise 'com' event
+                            var com = $DOC.events.component;
+                            if (com)
+                                com.raise(control);
+                        });
+                        new stubResLoader(control);
+                    }
+
+                    // raise 'com' event
+                    var com = $DOC.events.component;
+                    if (com)
+                        com.raise(control);
+                }
+                else
+                    collection.add('p', '&#60;?&#62;');
+            } catch (e) { console.log(e); } // error?
+        }
     };
+    
+    // enumerate "string literal" and [](href)
+    function enumerateKnownPatterns(text, start_from) {
+        var lregex = /("[\s\S]*?")|(\[[^\[\]\n]*?\]\([^\(\)\n]*?\))/g, literalpos = [], sresult;
+        lregex.lastIndex = start_from;
+        while(sresult = lregex.exec(text))
+            literalpos.push(sresult.index, lregex.lastIndex);
+        return literalpos;
+    }
     
     $DOC.processTextNode = processTextNode;
     function processTextNode(text_node, value) {
@@ -158,15 +212,32 @@
             }
         }
         
-        var control, text = (arguments.length > 1) ? value : text_node.nodeValue, first_char = text[0], body = document.body, section_name;
-        if (' \n\t[@$&*#'.indexOf(first_char) < 0) {
+        var control,
+            text = (arguments.length > 1) ? value : text_node.nodeValue,
+            first_char = text[0],
+            body = document.body,
+            section_name;
+        if (' \n\t`@$&*#(){}-%^~"|\/\\'.indexOf(first_char) < 0) {
             try {
-                if (first_char === '%') {
-                    // <--%namespace.cid#params( ... )%namespace.cid-->
-                    // \1 cid \2 #params \3 content
-                    var match = text.match(/^(%(?:[^ \t\n\(]{1,128}\.)?[^ \t\n\(]{1,128})(#[^\t\n\(]{1,512})?\(([\S\s]*)\)\1$/);
-                    if (match) {
-                        control = controls.createOrStub(match[1].slice(1) + (match[2] || ''), {$text: match[3]});
+                if (first_char === '[') {
+                    // <--[namespace.cid params] ... -->
+                    var literalpos = enumerateKnownPatterns(text, 1),
+                        rcurrent = 0, llength = literalpos.length,
+                        right_bracket_found = false,
+                    right_bracket = text.indexOf(']', 1);
+                    while(!right_bracket_found && right_bracket >= 0) {
+                        // check if not in literals
+                        while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
+                            rcurrent += 2;
+                        if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
+                            right_bracket_found = true;
+                            
+                            var com_definition = text.slice(1, right_bracket),
+                                com_content =  text.slice(right_bracket + 1);
+                            control = controls.createOrStub(com_definition, com_content);
+                        }
+                        right_bracket++;
+                        right_bracket = text.indexOf(']', right_bracket);
                     }
                 } else if (first_char === '!') {
                     // <!--!sectionname--> - section remover
@@ -195,7 +266,7 @@
                             control = controls.create('div', {class:section_name});
                             control.name = section_name;
                             $DOC.addSection(section_name, control);
-                            control.template($ENV.default_template, $ENV.default_inner_template);
+                            control.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
                             $DOC.processContent(control, section_value);
                         }
                     }
@@ -278,7 +349,7 @@
 
                     var section_control = cbody.add('div', {class:name});
                     section_control.name = name;
-                    section_control.template($ENV.default_template, $ENV.default_inner_template);
+                    section_control.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
                     $DOC.processContent(section_control, content);
 
                     // create dom element and place in a definite order

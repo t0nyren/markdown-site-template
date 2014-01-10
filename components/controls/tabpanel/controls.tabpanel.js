@@ -9,36 +9,29 @@ function initialize() {
 
     function CTabPanel(parameters, attributes) {
         
-        controls.controlInitialize(this, 'tabpanel', parameters, attributes);
-        this.class('tabpanel');
+        this.initialize('controls.tabpanel', parameters, attributes)
+            .class('tabpanel');
         
-        // subcontrols
-        var header = this.add('header:bootstrap.TabPanelHeader');
-        var body = this.add('content:bootstrap.TabPanelBody', {class:'panel-body'});
-        
+        var header = this.add('header:bootstrap.TabPanelHeader'),
+            body = this.add('body:bootstrap.TabPanelBody`panel-body');
         
         // place tabs on this.content panel
-        $DOC.processContent(body, this.attributes.$text);
-        this.attributes.$text = '';
+        $DOC.processContent(body, attributes.$text);
+        attributes.$text = '';
         
         var found_active = false;
-        for(var i = 0, c = body.length; i < c; i++)
-        {
-            var tabpage = body.controls[i];
-            if (tabpage.__type === 'bootstrap.TabPage')
-            {
-                var tabheader = this.header.add('bootstrap.TabHeader', {$href:'#'+tabpage.id, $text:tabpage.Caption});
-                if (tabpage.parameters.active)
-                {
+        body.each(function(tabpage) {
+            if (tabpage.__type === 'bootstrap.TabPage') {
+                var tabheader = header.add('bootstrap.TabHeader', {$href:'#' + tabpage.id, $text:tabpage.parameter('header')});
+                if (tabpage.parameters.active) {
                     found_active = true;
                     tabheader.class('active');
                     tabpage.class('active in');
                 }
             }
-        }
+        });
         
-        if (!found_active && header.length)
-        {
+        if (!found_active && header.length) {
             header.first.class('active');
             body.first.class('active in');
         }
@@ -55,7 +48,6 @@ function initialize() {
         var bootstrap_tabpage = controls.create('bootstrap.TabPage', parameters, attributes);
         
         // first #parameter name - tab caption
-        bootstrap_tabpage.Caption = Object.keys(parameters)[0];
         
         // Here: this control is wrapped with HTML and markup not be processed.
         // To process the markup at this level:
@@ -65,7 +57,7 @@ function initialize() {
         $DOC.processContent(bootstrap_tabpage, this_text);
         
         // process markup template:
-        bootstrap_tabpage.template($ENV.default_template, $ENV.default_inner_template);
+        bootstrap_tabpage.template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
 
         return bootstrap_tabpage;
     }

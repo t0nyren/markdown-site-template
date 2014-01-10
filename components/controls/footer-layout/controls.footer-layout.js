@@ -8,7 +8,7 @@ function initialize() {
 
     function FooterLayout(parameters, attributes) {
         
-        controls.controlInitialize(this, 'footer-layout', parameters, attributes, $ENV.default_template, $ENV.default_inner_template);
+        this.initialize('footer-layout', parameters, attributes, $ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         
         var media = this.parameter('media'),        // media selector
             padding = this.parameter('padding'),    // padding parameter

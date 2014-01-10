@@ -18,16 +18,16 @@
 ### <a class="label label-default" href="http://aplib.github.io/markdown-site-template/components/d3.zip">Download</a>
 
 >syntax:  
-><code>%off(%d3.BubbleChart#parameters(data)%d3.BubbleChart)%off</code>  
+><code>[off][d3.BubbleChart parameters]data[/d3.BubbleChart][/off]</code>  
 >parameters:  
 >* diameter - chart diameter, px  
 >
 >data - json formatted data array  
 >
 
-%block#margin-top=-66px(
+[block margin-top=-66px]
 
-%d3.BubbleChart#diameter=960(
+[d3.BubbleChart diameter=960]
 {
  "name": "flare",
  "children": [
@@ -408,13 +408,15 @@
   }
  ]
 }
-)%d3.BubbleChart
+[/d3.BubbleChart]
 
-)%block
+[/block]
 
  example markup: see "View page source"
 -->
 
+
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
 </body>
 </html>

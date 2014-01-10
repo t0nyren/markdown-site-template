@@ -17,11 +17,11 @@ Easy content editing and management structure of the site, great download speed 
 [Wiki: Markdown](http://en.wikipedia.com/wiki/Markdown)
 
 
-%iblock#scale=2,2;rotate=3deg;origin=left;margin=20px 0(```Additional```)%iblock  
-%iblock#scale=2,2;rotate=-3deg;origin=left;margin=20px 111px(***formatting options***)%iblock  
-%ipanel#and elements;info(
+[iblock`-webkit-transform:scale(2,2) rotate(3deg); -webkit-transform-origin:left; transform:scale(2,2) rotate(3deg); transform-origin:left; margin:20px 0;]```Additional```[/iblock]  
+[iblock`-webkit-transform:scale(2,2) rotate(-3deg); -webkit-transform-origin:left; margin:20px 111px;]***formatting options***[/iblock]  
+[collapse header="and elements" info`display:inline-block]
 The best solution for writing documentation.
-)%ipanel
+[/collapse]
 
 ## Get started
 
@@ -63,7 +63,7 @@ If you create a panel with a unique name, the behavior you can assign using css.
 In the panels you can add marked text, components to display graphical elements or components for appearance or behavior of the site.
 
  example:
-<pre><code>%encode(%off(<!DOCTYPE html>
+<pre><code>[encode][off]<!DOCTYPE html>
 <html lang="en-US">
 <head>
     <meta charset="utf-8">
@@ -73,11 +73,11 @@ In the panels you can add marked text, components to display graphical elements 
 <body>
     
 &lt;!--fixed-top-bar
-%navbar(
+[navbar]
 * [Home](index.html)
 * [Page1](page1.html)
 * [Page2](page1.html)
-)%navbar
+[/navbar]
 --&gt;
 
 &lt;!--header-panel
@@ -99,15 +99,15 @@ footer here
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
 </body>
 </html>
-)%off)%encode</code></pre>
+[/off][/encode]</code></pre>
 
 ## Customize site
 
 You can customize the appearance of the site by applying to the page any twitter bootstrap compatible theme.
 In the menu Mods you can see examples of themes, these themes are taken from the site http://bootswatch.com/.
 Examples of components are available in the menu Components.
-
 -->
+
 
 
 
@@ -117,6 +117,7 @@ Examples of components are available in the menu Components.
 
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
 
 
 

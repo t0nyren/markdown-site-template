@@ -8,8 +8,8 @@
 function initialize() {
     
     function NavBar(parameters, attributes) {
-        
-        this.initialize('controls.navbar', parameters, attributes, nav_template, $ENV.default_inner_template)
+        attributes.role = 'navigation';
+        this.initialize('controls.navbar', parameters, attributes, $ENV.getDefaultTemplate('nav'), $ENV.getDefaultTemplate())
             .class('navbar navbar-default');
 
         // text contains two parts separated by '***', first part non togglable, second part is togglable
@@ -34,46 +34,73 @@ return '<div' + it.printAttributes() + '>\
         // Collapsible part
         
         this.add('collapse:div`collapse navbar-collapse navbar-ex1-collapse')
-            .template($ENV.default_template, $ENV.default_inner_template);
+            .template($ENV.getDefaultTemplate('div'), $ENV.getDefaultTemplate());
         $DOC.processContent(this.collapse, parts.slice(-1)[0]);
         
-        this.applyPatches = function() {
+        this.applyElement = function() {
             var element = this._element;
             if (element) {
-                var $e = $(element);
-                $e.find('.navbar-collapse > ul').addClass('nav navbar-nav');
                 
-                var $dm = $e.find('ul ul');
-                $dm.addClass('dropdown-menu');
-                var $d = $dm.parent();
-                $d.addClass('dropdown');
-                var toggle = $d.find('> a');
-                if (toggle.length) {
-                    toggle.addClass('dropdown-toggle');
-                    toggle.attr('data-toggle', 'dropdown');
-                    toggle.attr('href', '#');
-                    if (toggle.html().indexOf('<b class="caret"></b>') <= 0)
-                        toggle.append('<b class="caret"></b>');
+                var nav_uls = element.querySelectorAll('.navbar-collapse > ul');
+                for(var i = 0, ci = nav_uls.length; i < ci; i++) {
+                    var nav_ul = nav_uls[i],
+                        clss = nav_ul.classList;
+                    clss.add('nav');
+                    clss.add('navbar-nav');
+                }
+                
+                var dropdownmenus = element.querySelectorAll('ul ul');
+                for(var j = 0, c = dropdownmenus.length; j < c; j++) {
+                    var dropdownmenu = dropdownmenus[j];
+                    dropdownmenu.classList.add('dropdown-menu');
 
-                    // activate menu item of the current page
-                    var loc = window.location.href.toLowerCase();
-                    $e.find('ul li a').each(function(i,a) {
-                        var href = (a.href || '').toLowerCase();
-                        if (href === loc || loc.split(href).concat(href.split(loc)).some(function(frag){return frag && ('index.htm,index.html'.indexOf(frag) >= 0); }))
-                            $(a).parents('li').addClass('active');
-                    });
+                    var dropdown = dropdownmenu.parentElement;
+                    dropdown.classList.add('dropdown');
+                    var toggle = dropdown.getElementsByTagName('a')[0];
+                    if (toggle) {
+                        toggle.classList.add('dropdown-toggle');
+                        toggle.setAttribute('data-toggle', 'dropdown');
+                        toggle.setAttribute('href', '#');
+                        if (toggle.innerHTML.indexOf('<b class="caret"></b>') <= 0)
+                            toggle.insertAdjacentHTML('beforeend', '<b class="caret"></b>');
+                    }
+                }
+
+                var current_location = window.location.href.toLowerCase().replace(/(^.*:)|(\/index.htm$)|(\/index.html$)|(#$)/g, ''),
+                    current_location_segs = current_location.split('/');
+
+                var links = element.querySelectorAll('a:not([href="#"])');
+                for(var k = 0, ck = links.length; k < ck; k++) {
+                    var link = links[k],
+                        compare = link.href.toLowerCase().replace(/(^.*:)|(\/index.htm$)|(\/index.html$)|(#$)/g, '');
+                    if (compare === current_location)
+                        activateMenuItemItems(link);
+                    else {
+                        var compare_segs = compare.split('/'),
+                            matched = true;
+                        for(var l = 0, cl = compare_segs.length; l < cl && matched; l++)
+                        if (compare_segs[l] !== current_location_segs[l])
+                            matched = false;
+                        if (matched)
+                            activateMenuItemItems(link);
+                    }
                 }
             }
         };
-        
+                
         this.listen('element', function() {
-            this.applyPatches();
+            this.applyElement();
         });
+        
+        function activateMenuItemItems(link, top) {
+            while(link.parentElement) {
+                link = link.parentElement;
+                if (link.tagName === 'LI')
+                    link.classList.add('active');
+            }
+        }
     };
     NavBar.prototype = controls.control_prototype;
-    function nav_template(it) {
-        return '<nav' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</nav>';
-    };
     controls.typeRegister('navbar', NavBar);
 
 }})();

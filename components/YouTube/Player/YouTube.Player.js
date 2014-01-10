@@ -2,17 +2,8 @@
 //     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     License: MIT
 
-(function() { "use strict";
-    
-if (typeof $ENV !== 'undefined')
-    initialize();
-else {
-    // queue component for loading
-    if (!this.defercqueue)
-        this.defercqueue = [];
-    this.defercqueue.push(initialize);
-}
-
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
 function initialize() {
 
     // This code loads the IFrame Player API code asynchronously
@@ -278,7 +269,7 @@ function initialize() {
         });
     };
     CYouTubeIFramePlayer.prototype = controls.control_prototype;
-    CYouTubeIFramePlayer.outer_template = controls.doT.template('<div{{=it.printAttributes()}}></div>\n');
+    CYouTubeIFramePlayer.outer_template = function(it) { return '<div' + it.printAttributes() + '></div>\n'; };
     controls.typeRegister('YouTube.Player', CYouTubeIFramePlayer);
 
 

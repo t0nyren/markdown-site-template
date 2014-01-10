@@ -18,12 +18,12 @@ If you want to use it in offline mode, you must add the script MathJax.js to the
 ### <a class="label label-default" href="http://aplib.github.io/markdown-site-template/components/controls.math.zip">Download</a>
 >syntax:
 
-><code>%off(%math#mml( MathML notation )%math  
->%math#tex( TeX notation )%math)%off</code>  
+><code>[off][math mml] MathML notation [/math]  
+>[math tex] TeX notation [/math][/off]</code>  
 
  example MathML:
 
-%math#mml(
+[math mml]
   <math display="block">
     <mrow>
       <munderover>
@@ -56,20 +56,22 @@ If you want to use it in offline mode, you must add the script MathJax.js to the
       </mfrac>
     </mrow>
   </math>
-)%math
+[/math]
 
  example TeX:
 
-%math#tex(
+[math tex]
 \frac{1}{\Bigl(\sqrt{\phi \sqrt{5}}-\phi\Bigr) e^{\frac25 \pi}} =
 1+\frac{e^{-2\pi}} {1+\frac{e^{-4\pi}} {1+\frac{e^{-6\pi}}
 {1+\frac{e^{-8\pi}} {1+\ldots} } } }
-)%math
+[/math]
 
 -->
+
 
 <!--right-side-panel -->
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
 </body>
 </html>

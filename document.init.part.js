@@ -9,7 +9,7 @@
         'bootstrap.controls': require('./temp/bootstrap.controls.js')
     };
     
-    $ENV.controls.template = $ENV.dot.template;
+    $ENV.controls.template = $ENV.dot.template; // default template engine
     var extend = $ENV.controls.extend;
 
     // Set default options except highlight which has no default
@@ -17,14 +17,16 @@
       gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
     });
 
-    // default control templates
-    $ENV.default_template = function(it) {
-        return '<div' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</div>'; };
-    $ENV.default_inline_template = function(it) {
-        return '<span' + it.printAttributes() + '>' + $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ) + '</span>'; };
-    $ENV.default_inner_template = function(it) {
-        return $ENV.marked( (it.attributes.$text || "") + it.controls.map(function(control) { return control.wrappedHTML(); }).join("") ); };
-    
+    // get default control template
+    var templatesHash = {};
+    $ENV.getDefaultTemplate = function(tag) {
+        return templatesHash[tag || ''] || (templatesHash[tag || ''] = new Function('it',
+'var attributes = it.attributes, controls = it.controls, result = attributes.$text || "";\n\
+for(var i = 0, c = controls.length; i < c; i++)\n\
+ result += controls[i].wrappedHTML();\n\
+return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(result) + "</' + tag + '>";') : '$ENV.marked(result);')) );
+    };
+        
     // initialize $DOC
     
     var url_params = {};
@@ -173,7 +175,8 @@
         },
         // move section to placeholder location
         sectionPlaceholder: function(name, text_node) {
-            var sections = this.sections, exists = sections[name];
+            var sections = this.sections,
+                exists = sections[name];
             // move exists node
             if (exists) {
                 if (exists.__type) {
@@ -282,6 +285,23 @@
                 });
             }
             document.head.appendChild(script);
+        },
+        // {id1:url1, id2:url2 ...}
+        appendScripts: function(hash, callback) {
+            var started = 0, loaded = 0;
+            for(var prop in hash) {
+                started++;
+                this.appendScript(prop, hash[prop], function(state) {
+                    if (state > 0)
+                        loaded++;
+                    if (callback) {
+                        if (loaded >= started)
+                            callback(1);
+                        else if (state < 0)
+                            callback(-1);
+                    }
+                });
+            }
         },
         // get the url relative to the root
         getRootUrl: function(url) {
