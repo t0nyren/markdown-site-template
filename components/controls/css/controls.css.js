@@ -12,7 +12,7 @@ function initialize() {
     // control + auto-css pair factory
     function  Felement(__type, parameters, attributes, css) {
         
-        var control = controls.create(__type, parameters, attributes);
+        var control = controls.createBase(__type, parameters, attributes);
         
         // >> parse style from parameters 
         
@@ -90,7 +90,7 @@ function initialize() {
     function  Off(parameters, attributes) {
         var off_mode = $DOC.components_off;
         $DOC.components_off = true;
-        var off_text = controls.create('container', parameters, attributes);
+        var off_text = controls.createBase('container', parameters, attributes);
         $DOC.components_off = off_mode;
         return off_text;
     }
@@ -98,7 +98,7 @@ function initialize() {
     
     
     function  Encode(parameters, attributes) {
-        var control = controls.create('container', parameters, attributes);
+        var control = controls.createBase('container', parameters, attributes);
         control.template(html_encode, html_encode);
         process_inner_text(control);
         return control;
@@ -110,7 +110,7 @@ function initialize() {
     
     
     function  Decode(parameters, attributes) {
-        var control = controls.create('container', parameters, attributes);
+        var control = controls.createBase('container', parameters, attributes);
         control.template(html_decode, html_decode);
         process_inner_text(control);
         return control;
@@ -122,7 +122,7 @@ function initialize() {
     
     
     function  Escape(parameters, attributes) {
-        var control = controls.create('container', parameters, attributes);
+        var control = controls.createBase('container', parameters, attributes);
         control.template(escape_template, escape_template);
         process_inner_text(control);
         return control;

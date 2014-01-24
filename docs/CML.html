@@ -34,20 +34,21 @@ example: ```[off][h4#example-header`color:#428BCA;] example text [/h4][/off]``` 
 example: ```span`warning-header font-weight:bold;```
 
 All parts are optional except comtype.
-<dl>
-<dt>name</dt>
-<dd>Name of the component within the parent collection.</dd>
-<dt>namespace.comtype</dt>
-<dd>Registered component type. Namespace default value is "controls". Most predefined component registered to default namespace "controls" and can be used without a namespace.</dd>
-<dt>parameters</dt>
-<dd>Сomponent parameters. A list of key=value or key="values with spaces" pairs separated by spaces. If no value is specified, the value defaults to boolean true.</dd>
-<dt>inheritable parameters</dt>
-<dd>Parameters determined after / will be distributed to all nested components.</dd>
-<dt>identifier</dt>
-<dd>Identifier of the component.</dd>
-<dt>classes and style</dt>
-<dd>Additional css classes and style.</dd>
-</dl>
+
+[defl]
+--name
+Name of the component within the parent collection.
+--namespace.comtype
+Registered component or factory function type. Namespace default value is "controls". Most predefined component registered to default namespace "controls" and can be used without a namespace.
+--parameters
+Сomponent parameters. A list of key=value or key="values with spaces" pairs separated by spaces. If no value is specified, the value defaults to boolean true.
+--inheritable parameters
+Parameters determined after '/' will apply to child components.
+--identifier
+Identifier of the component.
+--classes and style
+Additional css classes and style.
+[/defl]
 
 
 ### Defining CML section in html document
@@ -95,6 +96,16 @@ example:
      1+\frac{e^{-2\pi}} {1+\frac{e^{-4\pi}} {1+\frac{e^{-6\pi}}
      {1+\frac{e^{-8\pi}} {1+\ldots} } } }
     [/math]
+
+    [defl]
+
+    --name
+    Name of the component within the parent collection.
+
+    --namespace.comtype
+    Registered component type. 
+
+    [/defl]
     [/off]
 
 Most components translate inner text as CML.
@@ -105,12 +116,15 @@ In CML is defined syntax, but is not defined set of components. bbCode tags reso
 
 
 
+
+
 <!--right-side-panel
 <div id="disqus_thread"></div>
 -->
 <script src="//markdocs.disqus.com/embed.js" async=""></script>
 
 <noscript><div class="alert alert-warning">This Website requires your browser to be JavaScript enabled.</div></noscript>
+
 
 
 </body>

@@ -73,99 +73,138 @@
         // 1. apply filters
         
         var filters = this.filters;
-        for(var i in filters) {
+        for(var i = 0, c = filters.length; i < c; i++) {
             var subst = filters[i];
             text = text.replace(subst.regex, subst);
         }
 
-        // 2. Look for [] brackets not in string literals
+        // 2. Look for [] brackets
         
-        // enumerate string literals
-        var literalpos = enumerateKnownPatterns(text, 0),
-            lcurrent = 0, rcurrent = 0, llength = literalpos.length;
+        // known patterns (string literals, not closed [pairs] etc) must be excluded from search
+        var known_patterns = enumerateKnownPatterns(text, 0);
         
-        // iterate brackets
-        var text_start = 0,
-            stack = [], level = 0, open_tag_pos, open_tag_len,
-            left_bracket = text.indexOf('[');
-        while(left_bracket >= 0) {
+        var scan_forleft_bracket = 0,
+            scan_forright_bracket = 0,
+            scan_length = known_patterns.length,
+            stack,
+            found_parts = []; // texts and bbcodes
+        
+        // unclosed tags is not components, but break parsing
+        // while found unclosed [xxx] pairs (without [/xxx]), repeat parse:
+        while ((stack = findParts()).length) {
+            // exclude all unclosed tags
+            known_patterns.push.apply(known_patterns, stack);
+            // sort ascending
+            known_patterns.sort(function(i1, i2) { return i1.index - i2.index; });
+            // and next iteration parse
+            scan_forleft_bracket = 0;
+            scan_forright_bracket = 0;
+            scan_length = known_patterns.length;
+            found_parts = []; // texts and bbcodes
+        }
+        
+        // create components
+        for(var i = 0, c = found_parts.length; i < c; i++) {
+            var part = found_parts[i];
+            if (typeof part === 'string')
+                this.addTextContainer(collection, part);
+            else
+                AddCom.apply(this, part);
+        }
+        
+        function findParts() {
+            var text_start = 0,
+                stack = [], level = 0, open_tag_pos, open_tag_len,
+                left_bracket = text.indexOf('[');
             
-            // check if not in literals
-            while(lcurrent < llength && literalpos[lcurrent + 1] < left_bracket)
-                lcurrent += 2;
-            if (lcurrent >= llength || left_bracket < literalpos[lcurrent] || left_bracket >= literalpos[lcurrent + 1]) {
-            
-                var right_bracket_found = false,
-                    right_bracket = text.indexOf(']', left_bracket + 1);
-                while(!right_bracket_found && right_bracket >= 0) {
+            // iterate left bracket
+            while(left_bracket >= 0) {
 
-                    // check if not in literals
-                    while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
-                        rcurrent += 2;
-                    if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
-                        
-                        // [...] [/...] [.../]
-                        
-                        var is_one_pair = text.charAt(right_bracket - 1) === '/', // one pair brackets [.../]
-                            is_close_tag = text.charAt(left_bracket + 1) === '/'; // close tag brackets [/...]
-                        if (is_close_tag) {
-                            // is close tag - find complimentary open tag
-                            var close_tag = text.slice(left_bracket + 2, right_bracket),
-                                level = stack.lastIndexOf(close_tag);
-                            if (level === 0) {
-                                // add text before bbcode
-                                if (open_tag_pos > text_start)
-                                    this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
-                                text_start = right_bracket + 1;
-                                // add component
-                                AddCom(is_one_pair, open_tag_pos, open_tag_len, left_bracket, right_bracket - left_bracket + 1);
-                            }
-                            else if (level < 0)
-                                level = 0;
-                            stack.length = level;
-                        } else {
-                            if (level === 0) {
-                                open_tag_pos = left_bracket;
-                                open_tag_len = right_bracket - left_bracket + 1;
-                            }
-                            if (is_one_pair) {
-                                // [.../] tag
+                // check if left bracket not in literal
+                while(scan_forleft_bracket < scan_length && known_patterns[scan_forleft_bracket].lastIndex < left_bracket)
+                    scan_forleft_bracket++;
+                if (scan_forleft_bracket >= scan_length || left_bracket < known_patterns[scan_forleft_bracket].index || left_bracket >= known_patterns[scan_forleft_bracket].lastIndex) {
+
+                    var right_bracket_found = false,
+                        right_bracket = text.indexOf(']', left_bracket + 1);
+                
+                    // iterate right bracket
+                    while(!right_bracket_found && right_bracket >= 0) {
+
+                        // check if right bracket not in literal
+                        while(scan_forright_bracket < scan_length && known_patterns[scan_forright_bracket].lastIndex < right_bracket)
+                            scan_forright_bracket++;
+                        if (scan_forright_bracket >= scan_length || right_bracket < known_patterns[scan_forright_bracket].index || right_bracket >= known_patterns[scan_forright_bracket].lastIndex) {
+
+                            // [...] [/...] [.../]
+
+                            var is_one_pair = text.charAt(right_bracket - 1) === '/', // one pair brackets [.../]
+                                is_close_tag = text.charAt(left_bracket + 1) === '/'; // close tag brackets [/...]
+                            if (is_close_tag) {
+                                // is close tag - find complimentary open tag
+                                var close_tag = text.slice(left_bracket + 2, right_bracket),
+                                    level = -1;
+                                // find last equal tag in stack and up to level
+                                for(var i = stack.length - 1; i >= 0; i--)
+                                    if (stack[i].type === close_tag) {
+                                        level = i;
+                                        break;
+                                    }
                                 if (level === 0) {
                                     // add text before bbcode
                                     if (open_tag_pos > text_start)
-                                        this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
+                                        found_parts.push(text.slice(text_start, open_tag_pos));
                                     text_start = right_bracket + 1;
-                                    // add component
-                                    AddCom(is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1);
+                                    // found bbcode
+                                    found_parts.push([is_one_pair, open_tag_pos, open_tag_len, left_bracket, right_bracket - left_bracket + 1]);
                                 }
+                                else if (level < 0)
+                                    level = 0;
+                                stack.length = level;
                             } else {
-                                // push open tag
-                                var opentag = text.slice(left_bracket + 1, right_bracket),
-                                    __type = opentag.match(/\S+?(?=#|@|\/|`|\s|$)/)[0].split(':');
-                                stack.push(__type.pop());
-                                level++;
+                                if (level === 0) {
+                                    open_tag_pos = left_bracket;
+                                    open_tag_len = right_bracket - left_bracket + 1;
+                                }
+                                if (is_one_pair) {
+                                    // [.../] tag
+                                    if (level === 0) {
+                                        // add text before bbcode
+                                        if (open_tag_pos > text_start)
+                                            found_parts.push(text.slice(text_start, open_tag_pos));
+                                        text_start = right_bracket + 1;
+                                        // found bbcode
+                                        found_parts.push([is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1]);
+                                    }
+                                } else {
+                                    // push open tag - type that between ':' and ' #`@($'
+                                    var opentag = text.slice(left_bracket + 1, right_bracket),
+                                        split_opentag = opentag.match(/\S+?(?=#|@|\/|`|\s|$)/)[0].split(':'),
+                                        type = split_opentag.pop();
+                                    // push to stack open tag and position
+                                    stack.push({type: type, index: left_bracket, lastIndex: right_bracket + 1});
+                                    level++;
+                                }
                             }
+                            right_bracket_found = true;
                         }
-                        right_bracket_found = true;
+                        right_bracket = text.indexOf(']', ++right_bracket);
                     }
-                    right_bracket++;
-                    right_bracket = text.indexOf(']', right_bracket);
                 }
+                left_bracket = text.indexOf('[', ++left_bracket);
             }
-            left_bracket++;
-            left_bracket = text.indexOf('[', left_bracket);
+        
+            // remaining text at end
+            if (text_start < text.length)
+                found_parts.push(text.slice(text_start));
+            return stack;
         }
         
-        // remaining text at end
-        if (text_start < text.length)
-            this.addTextContainer(collection, text.slice(text_start));
-            
         function AddCom(is_one_pair, open_tag_pos, open_tag_len, close_tag_pos, close_tag_len) {
             var opentag = is_one_pair ? text.substr(open_tag_pos + 1, open_tag_len - 3) : text.substr(open_tag_pos + 1, open_tag_len - 2);
             try {
-                var control = controls.createOrStub(opentag, text.slice(open_tag_pos + open_tag_len, close_tag_pos));
-                if (control) {
-                    collection.add(control);
+                var control = collection.addOrStub(opentag, text.slice(open_tag_pos + open_tag_len, close_tag_pos));
+//                if (control) {
 
                     // create stub loader
                     if (control.isStub) {
@@ -182,20 +221,20 @@
                     var com = $DOC.events.component;
                     if (com)
                         com.raise(control);
-                }
-                else
-                    collection.add('p', '&#60;?&#62;');
+//                }
+//                else
+//                    collection.add('p', '&#60;?&#62;');
             } catch (e) { console.log(e); } // error?
         }
     };
     
     // enumerate "string literal" and [](href)
     function enumerateKnownPatterns(text, start_from) {
-        var lregex = /("[\s\S]*?")|(\[[^\[\]\n]*?\]\([^\(\)\n]*?\))/g, literalpos = [], sresult;
+        var lregex = /("[\s\S]*?")|(\[[^\[\]\n]*?\]\([^\(\)\n]*?\))/g, known_patterns = [], sresult;
         lregex.lastIndex = start_from;
         while(sresult = lregex.exec(text))
-            literalpos.push(sresult.index, lregex.lastIndex);
-        return literalpos;
+            known_patterns.push({index: sresult.index, lastIndex: lregex.lastIndex});
+        return known_patterns;
     }
     
     $DOC.processTextNode = processTextNode;
@@ -221,15 +260,16 @@
             try {
                 if (first_char === '[') {
                     // <--[namespace.cid params] ... -->
-                    var literalpos = enumerateKnownPatterns(text, 1),
-                        rcurrent = 0, llength = literalpos.length,
+                    // exclude string literals from seach
+                    var known_patterns = enumerateKnownPatterns(text, 1),
+                        rcurrent = 0, llength = known_patterns.length,
                         right_bracket_found = false,
                     right_bracket = text.indexOf(']', 1);
                     while(!right_bracket_found && right_bracket >= 0) {
                         // check if not in literals
-                        while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
+                        while(rcurrent < llength && known_patterns[rcurrent + 1] < right_bracket)
                             rcurrent += 2;
-                        if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
+                        if (rcurrent >= llength || right_bracket < known_patterns[rcurrent] || right_bracket >= known_patterns[rcurrent + 1]) {
                             right_bracket_found = true;
                             
                             var com_definition = text.slice(1, right_bracket),

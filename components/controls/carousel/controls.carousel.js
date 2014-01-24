@@ -20,8 +20,8 @@ function initialize() {
         var show_controls = parameters.controls; // show slide navigation
         
         // subcontrols
-        var indicators = this.add('indicators:div', {class:'carousel-indicators'});
-        var inner = this.add('inner:div', {class:'carousel-inner'});
+        var indicators = this.add('indicators:div', {class: 'carousel-indicators'});
+        var inner = this.add('inner:div', {class: 'carousel-inner'});
         
         // place slides on this.inner panel
         $DOC.processContent(inner, this.text());
@@ -34,7 +34,7 @@ function initialize() {
         
         if (show_indicator) {
             var index = 0;
-            indicators.add('li', inner.length, {'data-target':"#" + this.id}, function (item) { item.attr('data-slide-to', index++); });
+            indicators.add('li', inner.length, {'data-target': "#" + this.id}, function (item) { item.attr('data-slide-to', index++); });
         }
         
         var found_active = false;
@@ -57,18 +57,17 @@ function initialize() {
         }
         
         if (show_controls) {
-            this.add('prev:a', {class:'left carousel-control', href:'#'+this.id, 'data-slide':'prev'})
-                .add('span', {class:'icon-prev'});
-            this.add('next:a', {class:'right carousel-control', href:'#'+this.id, 'data-slide':'next'})
-                .add('span', {class:'icon-next'});
+            this.add('prev:a', {class: 'left carousel-control', href: '#'+this.id, 'data-slide': 'prev'})
+                .add('span', {class: 'icon-prev'});
+            this.add('next:a', {class: 'right carousel-control', href: '#'+this.id, 'data-slide': 'next'})
+                .add('span', {class: 'icon-next'});
         }
         
-        this.listen('element', function()
-        {
+        this.listen('element', function() {
             // on attach stub element is not valid carusel
             setTimeout(function() {
                 if (this._element)
-                    $(this._element).carousel({'interval':interval});
+                    $(this._element).carousel({'interval': interval});
             }.bind(this) ,5);
         });
     };
@@ -78,7 +77,7 @@ function initialize() {
 
     function carousel_slide_factory(parameters, attributes) {
         
-        var slide = controls.create('div', parameters, attributes);
+        var slide = controls.createBase('div', parameters, attributes);
         slide.class('bs-carousel-slide');
         
         var text = slide.text();

@@ -45,7 +45,7 @@ function initialize() {
         // create and customize bootstrap.TabPage
         
         // create control
-        var bootstrap_tabpage = controls.create('bootstrap.TabPage', parameters, attributes);
+        var bootstrap_tabpage = controls.createBase('bootstrap.TabPage', parameters, attributes);
         
         // first #parameter name - tab caption
         

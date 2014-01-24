@@ -41,6 +41,7 @@ bfy.on('exit', function()
     concat([
         'document.api.js',
         // >> built-in components
+        'components/controls/defl/controls.defl.js',
         'components/controls/navbar/controls.navbar.js',
         'components/controls/css/controls.css.js',
         'components/controls/panels/controls.panels.js',

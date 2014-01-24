@@ -13,7 +13,7 @@ var bootstrap = controls.bootstrap;
     
     function Panel(parameters, attributes) {
         
-        var panel = controls.create('bootstrap.Panel', parameters, attributes);
+        var panel = controls.createBase('bootstrap.Panel', parameters, attributes);
 
         var body = panel.body;
         $DOC.processContent(body, body.attributes.$text);

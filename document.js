@@ -11479,7 +11479,7 @@ return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(res
 
 function Bootstrap(controls) {
     var bootstrap = this;
-    bootstrap.VERSION = '0.7.01'/*#.#.##*/;
+    bootstrap.VERSION = '0.7.02'/*#.#.##*/;
     if (!controls)
         throw new TypeError('controls.bootstrap.js: controls.js not found!');
     if (controls.bootstrap && controls.bootstrap.VERSION >= bootstrap.VERSION)
@@ -11931,7 +11931,7 @@ block.list = replace(block.list)
 block._tag = '(?!(?:'
   + 'a|em|strong|small|s|cite|q|dfn|abbr|data|time|code'
   + '|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo'
-  + '|span|br|wbr|ins|del|img)\\b)\\w+(?!:/|@)\\b';
+  + '|span|br|wbr|ins|del|img)\\b)\\w+(?!:/|[^\\w\\s@]*@)\\b';
 
 block.html = replace(block.html)
   ('comment', /<!--[\s\S]*?-->/)
@@ -12404,6 +12404,8 @@ function InlineLexer(links, options) {
   this.options = options || marked.defaults;
   this.links = links;
   this.rules = inline.normal;
+  this.renderer = this.options.renderer || new Renderer;
+  this.renderer.options = this.options;
 
   if (!this.links) {
     throw new
@@ -12467,11 +12469,7 @@ InlineLexer.prototype.output = function(src) {
         text = escape(cap[1]);
         href = text;
       }
-      out += '<a href="'
-        + href
-        + '">'
-        + text
-        + '</a>';
+      out += this.renderer.link(href, null, text);
       continue;
     }
 
@@ -12480,11 +12478,7 @@ InlineLexer.prototype.output = function(src) {
       src = src.substring(cap[0].length);
       text = escape(cap[1]);
       href = text;
-      out += '<a href="'
-        + href
-        + '">'
-        + text
-        + '</a>';
+      out += this.renderer.link(href, null, text);
       continue;
     }
 
@@ -12525,43 +12519,35 @@ InlineLexer.prototype.output = function(src) {
     // strong
     if (cap = this.rules.strong.exec(src)) {
       src = src.substring(cap[0].length);
-      out += '<strong>'
-        + this.output(cap[2] || cap[1])
-        + '</strong>';
+      out += this.renderer.strong(this.output(cap[2] || cap[1]));
       continue;
     }
 
     // em
     if (cap = this.rules.em.exec(src)) {
       src = src.substring(cap[0].length);
-      out += '<em>'
-        + this.output(cap[2] || cap[1])
-        + '</em>';
+      out += this.renderer.em(this.output(cap[2] || cap[1]));
       continue;
     }
 
     // code
     if (cap = this.rules.code.exec(src)) {
       src = src.substring(cap[0].length);
-      out += '<code>'
-        + escape(cap[2], true)
-        + '</code>';
+      out += this.renderer.codespan(escape(cap[2], true));
       continue;
     }
 
     // br
     if (cap = this.rules.br.exec(src)) {
       src = src.substring(cap[0].length);
-      out += '<br>';
+      out += this.renderer.br();
       continue;
     }
 
     // del (gfm)
     if (cap = this.rules.del.exec(src)) {
       src = src.substring(cap[0].length);
-      out += '<del>'
-        + this.output(cap[1])
-        + '</del>';
+      out += this.renderer.del(this.output(cap[1]));
       continue;
     }
 
@@ -12586,31 +12572,12 @@ InlineLexer.prototype.output = function(src) {
  */
 
 InlineLexer.prototype.outputLink = function(cap, link) {
-  if (cap[0].charAt(0) !== '!') {
-    return '<a href="'
-      + escape(link.href)
-      + '"'
-      + (link.title
-      ? ' title="'
-      + escape(link.title)
-      + '"'
-      : '')
-      + '>'
-      + this.output(cap[1])
-      + '</a>';
-  } else {
-    return '<img src="'
-      + escape(link.href)
-      + '" alt="'
-      + escape(cap[1])
-      + '"'
-      + (link.title
-      ? ' title="'
-      + escape(link.title)
-      + '"'
-      : '')
-      + '>';
-  }
+  var href = escape(link.href)
+    , title = link.title ? escape(link.title) : null;
+
+  return cap[0].charAt(0) !== '!'
+    ? this.renderer.link(href, title, this.output(cap[1]))
+    : this.renderer.image(href, title, escape(cap[1]));
 };
 
 /**
@@ -12656,6 +12623,149 @@ InlineLexer.prototype.mangle = function(text) {
 };
 
 /**
+ * Renderer
+ */
+
+function Renderer(options) {
+  this.options = options || {};
+}
+
+Renderer.prototype.code = function(code, lang, escaped) {
+  if (this.options.highlight) {
+    var out = this.options.highlight(code, lang);
+    if (out != null && out !== code) {
+      escaped = true;
+      code = out;
+    }
+  }
+
+  if (!lang) {
+    return '<pre><code>'
+      + (escaped ? code : escape(code, true))
+      + '\n</code></pre>';
+  }
+
+  return '<pre><code class="'
+    + this.options.langPrefix
+    + escape(lang, true)
+    + '">'
+    + (escaped ? code : escape(code, true))
+    + '\n</code></pre>\n';
+};
+
+Renderer.prototype.blockquote = function(quote) {
+  return '<blockquote>\n' + quote + '</blockquote>\n';
+};
+
+Renderer.prototype.html = function(html) {
+  return html;
+};
+
+Renderer.prototype.heading = function(text, level, raw) {
+  return '<h'
+    + level
+    + ' id="'
+    + this.options.headerPrefix
+    + raw.toLowerCase().replace(/[^\w]+/g, '-')
+    + '">'
+    + text
+    + '</h'
+    + level
+    + '>\n';
+};
+
+Renderer.prototype.hr = function() {
+  return '<hr>\n';
+};
+
+Renderer.prototype.list = function(body, ordered) {
+  var type = ordered ? 'ol' : 'ul';
+  return '<' + type + '>\n' + body + '</' + type + '>\n';
+};
+
+Renderer.prototype.listitem = function(text) {
+  return '<li>' + text + '</li>\n';
+};
+
+Renderer.prototype.paragraph = function(text) {
+  return '<p>' + text + '</p>\n';
+};
+
+Renderer.prototype.table = function(header, body) {
+  return '<table>\n'
+    + '<thead>\n'
+    + header
+    + '</thead>\n'
+    + '<tbody>\n'
+    + body
+    + '</tbody>\n'
+    + '</table>\n';
+};
+
+Renderer.prototype.tablerow = function(content) {
+  return '<tr>\n' + content + '</tr>\n';
+};
+
+Renderer.prototype.tablecell = function(content, flags) {
+  var type = flags.header ? 'th' : 'td';
+  var tag = flags.align
+    ? '<' + type + ' style="text-align:' + flags.align + '">'
+    : '<' + type + '>';
+  return tag + content + '</' + type + '>\n';
+};
+
+// span level renderer
+Renderer.prototype.strong = function(text) {
+  return '<strong>' + text + '</strong>';
+};
+
+Renderer.prototype.em = function(text) {
+  return '<em>' + text + '</em>';
+};
+
+Renderer.prototype.codespan = function(text) {
+  return '<code>' + text + '</code>';
+};
+
+Renderer.prototype.br = function() {
+  return '<br>';
+};
+
+Renderer.prototype.del = function(text) {
+  return '<del>' + text + '</del>';
+};
+
+Renderer.prototype.link = function(href, title, text) {
+  if (this.options.sanitize) {
+    try {
+      var prot = decodeURIComponent(unescape(href))
+        .replace(/[^\w:]/g, '')
+        .toLowerCase();
+    } catch (e) {
+      return '';
+    }
+    if (prot.indexOf('javascript:') === 0) {
+      return '';
+    }
+  }
+  var out = '<a href="' + href + '"';
+  if (title) {
+    out += ' title="' + title + '"';
+  }
+  out += '>' + text + '</a>';
+  return out;
+};
+
+Renderer.prototype.image = function(href, title, text) {
+  var out = '<img src="' + href + '" alt="' + text + '"';
+  if (title) {
+    out += ' title="' + title + '"';
+  }
+  out += '>';
+  return out;
+};
+
+/**
  * Parsing & Compiling
  */
 
@@ -12663,14 +12773,17 @@ function Parser(options) {
   this.tokens = [];
   this.token = null;
   this.options = options || marked.defaults;
+  this.options.renderer = this.options.renderer || new Renderer;
+  this.renderer = this.options.renderer;
+  this.renderer.options = this.options;
 }
 
 /**
  * Static Parse Method
  */
 
-Parser.parse = function(src, options) {
-  var parser = new Parser(options);
+Parser.parse = function(src, options, renderer) {
+  var parser = new Parser(options, renderer);
   return parser.parse(src);
 };
 
@@ -12679,7 +12792,7 @@ Parser.parse = function(src, options) {
  */
 
 Parser.prototype.parse = function(src) {
-  this.inline = new InlineLexer(src.links, this.options);
+  this.inline = new InlineLexer(src.links, this.options, this.renderer);
   this.tokens = src.reverse();
 
   var out = '';
@@ -12730,83 +12843,53 @@ Parser.prototype.tok = function() {
       return '';
     }
     case 'hr': {
-      return '<hr>\n';
+      return this.renderer.hr();
     }
     case 'heading': {
-      return '<h'
-        + this.token.depth
-        + ' id="'
-        + this.token.text.toLowerCase().replace(/[^\w]+/g, '-')
-        + '">'
-        + this.inline.output(this.token.text)
-        + '</h'
-        + this.token.depth
-        + '>\n';
+      return this.renderer.heading(
+        this.inline.output(this.token.text),
+        this.token.depth,
+        this.token.text);
     }
     case 'code': {
-      if (this.options.highlight) {
-        var code = this.options.highlight(this.token.text, this.token.lang);
-        if (code != null && code !== this.token.text) {
-          this.token.escaped = true;
-          this.token.text = code;
-        }
-      }
-
-      if (!this.token.escaped) {
-        this.token.text = escape(this.token.text, true);
-      }
-
-      return '<pre><code'
-        + (this.token.lang
-        ? ' class="'
-        + this.options.langPrefix
-        + this.token.lang
-        + '"'
-        : '')
-        + '>'
-        + this.token.text
-        + '</code></pre>\n';
+      return this.renderer.code(this.token.text,
+        this.token.lang,
+        this.token.escaped);
     }
     case 'table': {
-      var body = ''
-        , heading
+      var header = ''
+        , body = ''
         , i
         , row
         , cell
+        , flags
         , j;
 
       // header
-      body += '<thead>\n<tr>\n';
+      cell = '';
       for (i = 0; i < this.token.header.length; i++) {
-        heading = this.inline.output(this.token.header[i]);
-        body += '<th';
-        if (this.token.align[i]) {
-          body += ' style="text-align:' + this.token.align[i] + '"';
-        }
-        body += '>' + heading + '</th>\n';
+        flags = { header: true, align: this.token.align[i] };
+        cell += this.renderer.tablecell(
+          this.inline.output(this.token.header[i]),
+          { header: true, align: this.token.align[i] }
+        );
       }
-      body += '</tr>\n</thead>\n';
+      header += this.renderer.tablerow(cell);
 
-      // body
-      body += '<tbody>\n'
       for (i = 0; i < this.token.cells.length; i++) {
         row = this.token.cells[i];
-        body += '<tr>\n';
-        for (j = 0; j < row.length; j++) {
-          cell = this.inline.output(row[j]);
-          body += '<td';
-          if (this.token.align[j]) {
-            body += ' style="text-align:' + this.token.align[j] + '"';
-          }
-          body += '>' + cell + '</td>\n';
-        }
-        body += '</tr>\n';
-      }
-      body += '</tbody>\n';
 
-      return '<table>\n'
-        + body
-        + '</table>\n';
+        cell = '';
+        for (j = 0; j < row.length; j++) {
+          cell += this.renderer.tablecell(
+            this.inline.output(row[j]),
+            { header: false, align: this.token.align[j] }
+          );
+        }
+
+        body += this.renderer.tablerow(cell);
+      }
+      return this.renderer.table(header, body);
     }
     case 'blockquote_start': {
       var body = '';
@@ -12815,25 +12898,17 @@ Parser.prototype.tok = function() {
         body += this.tok();
       }
 
-      return '<blockquote>\n'
-        + body
-        + '</blockquote>\n';
+      return this.renderer.blockquote(body);
     }
     case 'list_start': {
-      var type = this.token.ordered ? 'ol' : 'ul'
-        , body = '';
+      var body = ''
+        , ordered = this.token.ordered;
 
       while (this.next().type !== 'list_end') {
         body += this.tok();
       }
 
-      return '<'
-        + type
-        + '>\n'
-        + body
-        + '</'
-        + type
-        + '>\n';
+      return this.renderer.list(body, ordered);
     }
     case 'list_item_start': {
       var body = '';
@@ -12844,9 +12919,7 @@ Parser.prototype.tok = function() {
           : this.tok();
       }
 
-      return '<li>'
-        + body
-        + '</li>\n';
+      return this.renderer.listitem(body);
     }
     case 'loose_item_start': {
       var body = '';
@@ -12855,24 +12928,19 @@ Parser.prototype.tok = function() {
         body += this.tok();
       }
 
-      return '<li>'
-        + body
-        + '</li>\n';
+      return this.renderer.listitem(body);
     }
     case 'html': {
-      return !this.token.pre && !this.options.pedantic
+      var html = !this.token.pre && !this.options.pedantic
         ? this.inline.output(this.token.text)
         : this.token.text;
+      return this.renderer.html(html);
     }
     case 'paragraph': {
-      return '<p>'
-        + this.inline.output(this.token.text)
-        + '</p>\n';
+      return this.renderer.paragraph(this.inline.output(this.token.text));
     }
     case 'text': {
-      return '<p>'
-        + this.parseText()
-        + '</p>\n';
+      return this.renderer.paragraph(this.parseText());
     }
   }
 };
@@ -12888,6 +12956,19 @@ function escape(html, encode) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function unescape(html) {
+  return html.replace(/&([#\w]+);/g, function(_, n) {
+    n = n.toLowerCase();
+    if (n === 'colon') return ':';
+    if (n.charAt(0) === '#') {
+      return n.charAt(1) === 'x'
+        ? String.fromCharCode(parseInt(n.substring(2), 16))
+        : String.fromCharCode(+n.substring(1));
+    }
+    return '';
+  });
 }
 
 function replace(regex, opt) {
@@ -12921,6 +13002,7 @@ function merge(obj) {
 
   return obj;
 }
+
 
 /**
  * Marked
@@ -13024,7 +13106,9 @@ marked.defaults = {
   silent: false,
   highlight: null,
   langPrefix: 'lang-',
-  smartypants: false
+  smartypants: false,
+  headerPrefix: '',
+  renderer: new Renderer
 };
 
 /**
@@ -13033,6 +13117,8 @@ marked.defaults = {
 
 marked.Parser = Parser;
 marked.parser = Parser.parse;
+
+marked.Renderer = Renderer;
 
 marked.Lexer = Lexer;
 marked.lexer = Lexer.lex;
@@ -13053,7 +13139,6 @@ if (typeof exports === 'object') {
 }).call(function() {
   return this || (typeof window !== 'undefined' ? window : global);
 }());
-
 },{}],4:[function(require,module,exports){
 //     controls.js
 //     UI framework, code generation tool
@@ -13066,7 +13151,7 @@ if (typeof exports === 'object') {
 (function() { 'use strict';
 
     var controls = {
-        VERSION: '0.7.01'/*#.#.##*/,
+        VERSION: '0.7.02'/*#.#.##*/,
         id_generator: 53504,
         // assignable default template engine
         //template: function(templ) { return new Function('return \'' + templ.replace('\n', '\\\n').replace(/'/g, "\\'") + '\''); },
@@ -13097,7 +13182,7 @@ if (typeof exports === 'object') {
     controls.controlInitialize = function(object, __type, parameters, attributes, outer_template, inner_template) {
         
         if (attributes) {
-            object.id = (attributes.id) ? attributes.id : (attributes.id = (++controls.id_generator).toString(16)); // set per session uid
+            object.id = attributes.id || (attributes.id = (++controls.id_generator).toString(16)); // set per session uid
             object.name = attributes.$name;
             
             // default move $prime to $text
@@ -13115,7 +13200,7 @@ if (typeof exports === 'object') {
         
         object.__type       = (__type.indexOf('.') >= 0) ? __type : ('controls.' + __type);
         object.parameters   = parameters || {};
-        object.controls     = [];               // This is a collection of nested objects
+        object.controls     = [];   // Collection of child nodes
         
         if (outer_template) {
             outer_template.no_serialize = true;
@@ -13160,14 +13245,20 @@ if (typeof exports === 'object') {
         var key_parameters = {},
             __type = parse_type(type, key_parameters) .toLowerCase();
         
-        // type is subtype with parameters, register to controls.subtypes
-        if (__type.length < type.length) {
+        // normalize prop name, remove lead '/'
+        for(var prop in key_parameters)
+        if (prop[0] === '/') {
+            key_parameters[prop.slice(1)] = key_parameters[prop];
+            delete key_parameters[prop];
+        }
+        
+        if (__type.length < type.length || Object.keys(key_parameters).length) {
+            // type is subtype with parameters, register to controls.subtypes
             key_parameters.__ctr = factory;
             var subtypes_array = controls.subtypes[__type] || (controls.subtypes[__type] = []);
             subtypes_array.push(key_parameters);
-        }
-        // register to controls
-        else {
+        } else {
+            // register as standalone type
             // check name conflict
             if (controls[__type])
                 throw new TypeError('Type ' + type + ' already registered!');
@@ -13424,8 +13515,11 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         }
         
         for(var prop in data_object_common)
+        if (data_object_common.hasOwnProperty(prop))
             array[prop] = data_object_common[prop];
+    
         for(var prop in data_array_common)
+        if (data_array_common.hasOwnProperty(prop))
             array[prop] = data_array_common[prop];
         
         array.state_id       = Number.MIN_VALUE;   // Value identifying the state of the object is incremented each state-changing operation
@@ -13583,23 +13677,25 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (typeof selector === 'object' || typeof by_attrs === 'object') {
                 for(var i = 0, c = controls.length; i < c; i++) {
                     var control = controls[i];
+                    
                     // by properties
                     if (selector)
                     for(var prop in selector)
-                    if (control[prop] === selector[prop])
-                        result.push(control);
-                    // by attributes
-                    else if (by_attrs) {
-                        var attributes = control.attributes;
-                        for(var prop in by_attrs)
-                        if (attributes[prop] === by_attrs[prop])
+                    if (selector.hasOwnProperty(prop)) {
+                        if (control[prop] === selector[prop])
                             result.push(control);
-                    }
-                    // find recursively
-                    else if (recursive) {
-                        var finded = control.find(selector, by_attrs, recursive);
-                        if (finded.length)
-                            result.push.apply(result, finded);
+                        // by attributes
+                        else if (by_attrs) {
+                            var attributes = control.attributes;
+                            for(var prop in by_attrs)
+                            if (by_attrs.hasOwnProperty(prop) && attributes[prop] === by_attrs[prop])
+                                result.push(control);
+                        } else if (recursive) {
+                        // find recursively
+                            var finded = control.find(selector, by_attrs, recursive);
+                            if (finded.length)
+                                result.push.apply(result, finded);
+                        }
                     }
                 }
             } else if (!selector) {
@@ -13642,18 +13738,21 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (typeof selector === 'object' || typeof by_attrs === 'object') {
                 for(var i = 0, c = controls.length; i < c; i++) {
                     var control = controls[i];
+                    
                     // by properties
                     if (selector)
                     for(var prop in selector)
-                    if (control[prop] === selector[prop])
+                    if (selector.hasOwnProperty(prop) && control[prop] === selector[prop])
                         return control;
+            
                     // by attributes
                     if (by_attrs) {
                         var attributes = control.attributes;
                         for(var prop in by_attrs)
-                        if (attributes[prop] === by_attrs[prop])
+                        if (by_attrs.hasOwnProperty(prop) && attributes[prop] === by_attrs[prop])
                             return control;
                     }
+                    
                     // find recursively
                     if (recursive) {
                         var finded = control.findFirst(selector, by_attrs, recursive);
@@ -13691,18 +13790,21 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (typeof selector === 'object' || typeof by_attrs === 'object') {
                 for(var i = controls.length - 1; i >= 0; i--) {
                     var control = controls[i];
+                    
                     // by properties
                     if (selector)
                     for(var prop in selector)
-                    if (control[prop] === selector[prop])
+                    if (selector.hasOwnProperty(prop) && control[prop] === selector[prop])
                         return control;
+                
                     // by attributes
                     if (by_attrs) {
                         var attributes = control.attributes;
                         for(var prop in by_attrs)
-                        if (attributes[prop] === by_attrs[prop])
+                        if (by_attrs.hasOwnProperty(prop) && attributes[prop] === by_attrs[prop])
                             return control;
                     }
+                    
                     // find recursively
                     if (recursive) {
                         var finded = control.findLast(selector, by_attrs, recursive);
@@ -13842,7 +13944,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             var events = this.events;
             if (events) {
                 var jevents = [];
-                for(var prop in events) {
+                for(var prop in events)
+                if (events.hasOwnProperty(prop)) {
                     var event = events[prop],
                         listeners = event.listeners,
                         serialize = false;
@@ -14101,14 +14204,13 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         this.parameter = function(name, value) {
             var parameters = this.parameters;
             
-            if (arguments.length > 1) {
-                if (value !== parameters[name]) {
-                    parameters[name] = value;
-                    this.refresh();
-                }
-            }
-            else
+            if (arguments.length <= 1)
                 return parameters[name] || parameters['/'+name];
+            
+            if (value !== parameters[name]) {
+                parameters[name] = value;
+                this.refresh();
+            }
         };
         
         this._parameter = function(name, value) {
@@ -14146,7 +14248,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             if (arguments.length > 0) {
                 var updated = false;
 
-                for(var prop in _attributes) {
+                for(var prop in _attributes)
+                if (_attributes.hasOwnProperty(prop)) {
                     var value = _attributes[prop];
                     if (value !== attributes[prop]) {
                         attributes[prop] = value;
@@ -14171,7 +14274,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             if (!arguments.length) {
                 var inheritable = '', unheritable = '', parameters = this.parameters;
-                for(var prop in parameters) {
+                for(var prop in parameters)
+                if (parameters.hasOwnProperty(prop)) {
                     var value = parameters[prop];
                     if (typeof value === 'boolean' && value)
                         value = '';
@@ -14206,6 +14310,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             var parameters = this.parameters; // rebuild parameters
             for(var prop in parameters)
+            if (parameters.hasOwnProperty(prop)) 
                 delete parameters[prop];
                 
             if (apply_inherited && this.parent) {
@@ -14213,7 +14318,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
 
                 var parent_parameters = parent.parameters;
                 for(var prop in parent_parameters)
-                if (prop[0] === '/')
+                if (parameters.hasOwnProperty(prop) && prop[0] === '/')
                     parameters[prop] = parent_parameters[prop];
             }
             
@@ -14250,7 +14355,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     // exclusion defined
                     var exclude = filter.substr(1).split(' ');
                     for(var prop in attributes)
-                    if (prop[0] !== '$' && exclude.indexOf(prop) < 0) {
+                    if (attributes.hasOwnProperty(prop) && prop[0] !== '$' && exclude.indexOf(prop) < 0) {
                         var value = attributes[prop];
                         if (value)
                             result += ' ' + prop + '="' + value + '"';
@@ -14271,7 +14376,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             else {
                 // unconditional out all attributes
                 for(var prop in attributes)
-                if (prop[0] !== '$') {
+                if (attributes.hasOwnProperty(prop) && prop[0] !== '$') {
                     var value = attributes[prop];
                     if (value)
                         result += ' ' + prop + '="' + value + '"';
@@ -14382,29 +14487,28 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         // $prime - primary parameter to control
         //
         this.insert = function(index, type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            
             if (!type)
                 return;
             
             // normalize arguments
-            
             if (typeof $prime === 'function') {
                 this_arg = attributes;
                 callback = $prime;
                 $prime = undefined;
                 attributes = undefined;
-            }
-            
-            if ($prime instanceof Object) {
-                this_arg = callback;
-                callback = attributes;
-                attributes = $prime;
-                $prime = undefined;
-            }
-
-            if (typeof attributes === 'function') {
-                this_arg = callback;
-                callback = attributes;
-                attributes = undefined;
+            } else {
+                if (typeof $prime === 'object' && !Array.isArray($prime)) {
+                    this_arg = callback;
+                    callback = attributes;
+                    attributes = $prime;
+                    $prime = undefined;
+                }
+                if (typeof attributes === 'function') {
+                    this_arg = callback;
+                    callback = attributes;
+                    attributes = undefined;
+                }
             }
             
             if (Array.isArray(type)) {
@@ -14426,12 +14530,13 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             var attrs = {class:''}, parameters = {};
             
             for(var prop in attributes)
+            if (attributes.hasOwnProperty(prop)) 
                 attrs[prop] = attributes[prop];
                 
             // transfer inheritable parameters to the created object
             var this_parameters = this.parameters;
             for(var prop in this_parameters)
-            if (prop[0] === '/')
+            if (this_parameters.hasOwnProperty(prop) && prop[0] === '/')
                 parameters[prop] = this_parameters[prop];
             
             // resolve constructor
@@ -14470,8 +14575,8 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             
             // move $parameters to attributes (unsafe)
             for(var prop in parameters)
-                if (prop[0] === '$')
-                    attrs[prop.substr(1)] = parameters[prop];
+            if (parameters.hasOwnProperty(prop) && prop[0] === '$')
+                attrs[prop.substr(1)] = parameters[prop];
             
             // create control
 
@@ -14492,6 +14597,16 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         
         this.add = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
             return this.insert(this.controls.length, type, $prime, attributes, callback, this_arg);
+        };
+        
+        this.addOrStub = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+            type_error_mode = 1;
+            try {
+                return this.add.apply(this, arguments);
+            } catch (e) {}
+            finally {
+                type_error_mode = 0;
+            }
         };
         
         this._add = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
@@ -14598,7 +14713,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             __type = match.substr(commapos + 1);
         } else
             __type = match;
-        if (__type.indexOf('.') < 0)
+        if (!__type)
+            __type = 'controls.container';
+        else if (__type.indexOf('.') < 0)
             __type = 'controls.' + __type;
         
         // parse parameters
@@ -14616,7 +14733,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                     style = true; pos++;
                     break;
                 case '#': // assign identifier
-                    var id_regex = /\S+?(?=#|`|\/|\s|$|@)/g;
+                    var id_regex = /#.*?(?=#|`|\/|\s|$|@)/g;
                     id_regex.lastIndex = pos;
                     var match_id = id_regex.exec(params)[0];
                     attributes.id = match_id.slice(1);
@@ -14685,6 +14802,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     
     /**
      *  Resolve __type and parameters to control constructor
+     *  
      * @param {string} __type Base type, example "controls.custom"
      * @param {object} parameters Parameters parsed from original type
      * @returns {object} Control constructor
@@ -14696,22 +14814,32 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         __type = __type.toLowerCase();
         
         // map __type -> subtypes array
-        var subtypes_array = controls.subtypes[__type]; 
-        if (subtypes_array)
-        for(var i = 0, c = subtypes_array.length; i < c; i++) { // iterate subtypes array
-            // each subtypes array item is key parameters object and contains the constructor reference
-            var key_parameters = subtypes_array[i];
+        if (Object.keys(parameters).length) {
+            var subtypes_array = controls.subtypes[__type]; 
+            if (subtypes_array)
+            for(var i = 0, c = subtypes_array.length; i < c; i++) { // iterate subtypes array
+                // each subtypes array item is key parameters object and contains the constructor reference
+                var key_parameters = subtypes_array[i];
+
+                // check for matching all key params values
+                var hit = true;
+                
+                for(var prop in parameters)
+                if (parameters.hasOwnProperty(prop)) {
+                    var par_value = parameters[prop];
+                    if (prop[0] === '/')
+                        prop = prop.slice(1);
+                    if ('__ctr,??'.indexOf(prop) < 0
+                    && key_parameters[prop] !== par_value) {
+                        hit = false;
+                        break;
+                    }
+                }
             
-            // check for matching all key params values
-            var hit = true;
-            for(var prop in parameters)
-            if ('__ctr,??'.indexOf(prop) < 0 && key_parameters[prop] !== parameters[prop]) {
-                hit = false;
-                break;
-            }
-            if (hit) {
-                constructor = key_parameters.__ctr;
-                break;
+                if (hit) {
+                    constructor = key_parameters.__ctr;
+                    break;
+                }
             }
         }
         
@@ -14723,6 +14851,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 // apply alias parameters
                 var alias_parameters = constructor.parameters;
                 for(var prop in alias_parameters)
+                if (alias_parameters.hasOwnProperty(prop)) 
                     parameters[prop] = alias_parameters[prop];
                 
                 constructor = resolve_ctr(constructor.__type, parameters);
@@ -14747,43 +14876,74 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         }
     };
     
-    // Create control
-    //
-    // syntax: controls.create(type, attributes); controls.create(type, parameters, attributes);
-    //
-    controls.create = function(type, /*optional*/ $prime, /*optional*/ parameters, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
-        
-        // normalize arguments
-        
-        var arglen = arguments.length;
-        if (typeof $prime !== 'string' || $prime instanceof Object) {
-            this_arg = callback;
-            callback = attributes;
-            attributes = parameters;
-            parameters = $prime;
-            $prime = undefined;
-            arglen++;
-        }
-        if (typeof parameters === 'function') {
-            this_arg = attributes;
-            callback = parameters;
-            parameters = {};
-            attributes = {};
-            arglen+=2;
-        }
-        else if (typeof attributes === 'function') {
-            this_arg = callback;
-            callback = attributes;
-            attributes = parameters;
-            parameters = {};
-            arglen++;
-        }
-        if (arglen === 3) {
-            attributes = parameters;
-            parameters = {};
-        }
-        
+    /*
+     * Create control from parsed type, parameters and attributes
+     * 
+     * @param {string} type Base type
+     * @param {object} parameters
+     * @param {object} attributes
+     * @returns {object} Created control
+     */
+    controls.createBase = function(type, parameters, attributes) {
         parameters = parameters || {};
+        attributes = attributes || {};
+        
+        var __type = parse_type(type, parameters, attributes),
+            constructor = resolve_ctr(__type, parameters);
+            
+        if (!constructor)
+            throw new TypeError('Type ' + __type + ' not registered!');
+
+        for(var prop in parameters)
+        if (parameters.hasOwnProperty(prop) && prop[0] === '$')
+            attributes[prop.substr(1)] = parameters[prop];
+                
+        // create object
+        
+        var new_control = (constructor.is_constructor) // constructor or factory method ?
+            ? new constructor(parameters, attributes)
+            : constructor(parameters, attributes);
+        
+        // reflect after creation if control only
+        if (typeof new_control === 'object' && '__type' in new_control)
+            new_control.raise('type');
+        
+        return new_control;
+    };
+    
+    /*
+     * Create control
+     * 
+     * @param {string} type Type containing the parameters attributes and styles
+     * @param $prime optional, prime value
+     * @param {object} attributes optional
+     * @param {function} callback optional
+     * @param {object} this_arg optional
+     * @returns {object} Created control
+     */
+    controls.create = function(type, /*optional*/ $prime, /*optional*/ attributes, /*optional*/ callback, /*optional*/ this_arg) {
+
+        // normalize arguments
+        if (typeof $prime === 'function') {
+            this_arg = attributes;
+            callback = $prime;
+            $prime = undefined;
+            attributes = undefined;
+        } else {
+            if (typeof $prime === 'object' && !Array.isArray($prime)) {
+                this_arg = callback;
+                callback = attributes;
+                attributes = $prime;
+                $prime = undefined;
+            }
+            if (typeof attributes === 'function') {
+                this_arg = callback;
+                callback = attributes;
+                attributes = undefined;
+            }
+        }
+            
+        var parameters = {};
         attributes = attributes || {};
         
         var __type, constructor;
@@ -14814,12 +14974,12 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
                 parameters['#{__type}'] = __type;
                 parameters['#{callback}'] = callback;
                 parameters['#{this_arg}'] = this_arg;
-                constructor = resolve_ctr('controls.Stub', parameters);
+                constructor = resolve_ctr('controls.stub', parameters);
             }
         }    
 
         for(var prop in parameters)
-        if (prop[0] === '$')
+        if (parameters.hasOwnProperty(prop) && prop[0] === '$')
             attributes[prop.substr(1)] = parameters[prop];
                 
         // create object
@@ -14828,8 +14988,9 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
             ? new constructor(parameters, attributes)
             : constructor(parameters, attributes);
         
-        // reflect after creation
-        new_control.raise('type');
+        // reflect after creation if control only
+        if (typeof new_control === 'object' && '__type' in new_control)
+            new_control.raise('type');
         
         return new_control;
     };
@@ -14939,6 +15100,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
     
     controls.extend = function(object, source) {
         for(var prop in source)
+        if (source.hasOwnProperty(prop)) 
             object[prop] = source[prop];
         return object;
     };
@@ -15051,13 +15213,14 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
                 attributes = this.attributes;
         
             for(var prop in parameters)
-            if (prop[0] !== '#' && prop[1] !== '{')
+            if (parameters.hasOwnProperty(prop) && prop[0] !== '#' && prop[1] !== '{')
                 params[prop] = parameters[prop];
             
             for(var prop in attributes)
+            if (attributes.hasOwnProperty(prop))
                 attrs[prop] = attributes[prop];
         
-            var control = controls.create(parameters['#{type}'], params, attrs);
+            var control = controls.createBase(parameters['#{type}'], params, attrs);
             if (control) {
                 control.class(null, 'stub stub-loading stub-error');
                 this.replaceItself(control);
@@ -15128,7 +15291,7 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
                 floatvalue;
             
             for(var prop in parameters)
-            if (prop === 'float' || prop === '/float')
+            if (parameters.hasOwnProperty(prop) && prop === 'float' || prop === '/float')
                 floatvalue = parameters[prop];
             
             if (floatvalue)
@@ -15539,6 +15702,40 @@ InstallDots.prototype.compileAll = function() {
 
 
 
+//     controls.defl.js
+//     control (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
+//     license: MIT
+// built-in [defl] - definition list component
+
+(function() { 'use strict';
+(typeof $ENV !== 'undefined') ? initialize() : (window.defercqueue || (window.defercqueue = [])).push(initialize);
+function initialize() {
+
+    function Defl(parameters, attributes) {
+        var control = controls.createBase('dl', parameters, attributes);
+
+        control.text = function(text) {
+            var terms = (text || '').split(/^--(.*)/m);
+            for(var i = 1, c = terms.length; i < c; i+=2) {
+                this.add('dt', terms[i]);
+                this.add('dd', terms[i+1]);
+            }
+        };
+
+        control.text(attributes.$text);
+        delete attributes.$text;
+
+        return control;
+    }
+    controls.factoryRegister('defl', Defl);
+
+}})();
+
+
+
+
+
+
 //     controls.navbar.js Boostrap-compatible navigation bar
 //     (c) 2013 vadim b. http://aplib.github.io/markdown-site-template
 //     license: MIT
@@ -15665,7 +15862,7 @@ function initialize() {
     // control + auto-css pair factory
     function  Felement(__type, parameters, attributes, css) {
         
-        var control = controls.create(__type, parameters, attributes);
+        var control = controls.createBase(__type, parameters, attributes);
         
         // >> parse style from parameters 
         
@@ -15743,7 +15940,7 @@ function initialize() {
     function  Off(parameters, attributes) {
         var off_mode = $DOC.components_off;
         $DOC.components_off = true;
-        var off_text = controls.create('container', parameters, attributes);
+        var off_text = controls.createBase('container', parameters, attributes);
         $DOC.components_off = off_mode;
         return off_text;
     }
@@ -15751,7 +15948,7 @@ function initialize() {
     
     
     function  Encode(parameters, attributes) {
-        var control = controls.create('container', parameters, attributes);
+        var control = controls.createBase('container', parameters, attributes);
         control.template(html_encode, html_encode);
         process_inner_text(control);
         return control;
@@ -15763,7 +15960,7 @@ function initialize() {
     
     
     function  Decode(parameters, attributes) {
-        var control = controls.create('container', parameters, attributes);
+        var control = controls.createBase('container', parameters, attributes);
         control.template(html_decode, html_decode);
         process_inner_text(control);
         return control;
@@ -15775,7 +15972,7 @@ function initialize() {
     
     
     function  Escape(parameters, attributes) {
-        var control = controls.create('container', parameters, attributes);
+        var control = controls.createBase('container', parameters, attributes);
         control.template(escape_template, escape_template);
         process_inner_text(control);
         return control;
@@ -15808,7 +16005,7 @@ var bootstrap = controls.bootstrap;
     
     function Panel(parameters, attributes) {
         
-        var panel = controls.create('bootstrap.Panel', parameters, attributes);
+        var panel = controls.createBase('bootstrap.Panel', parameters, attributes);
 
         var body = panel.body;
         $DOC.processContent(body, body.attributes.$text);
@@ -15941,7 +16138,7 @@ function initialize() {
         // create and customize bootstrap.TabPage
         
         // create control
-        var bootstrap_tabpage = controls.create('bootstrap.TabPage', parameters, attributes);
+        var bootstrap_tabpage = controls.createBase('bootstrap.TabPage', parameters, attributes);
         
         // first #parameter name - tab caption
         
@@ -16225,99 +16422,138 @@ function initialize() {
         // 1. apply filters
         
         var filters = this.filters;
-        for(var i in filters) {
+        for(var i = 0, c = filters.length; i < c; i++) {
             var subst = filters[i];
             text = text.replace(subst.regex, subst);
         }
 
-        // 2. Look for [] brackets not in string literals
+        // 2. Look for [] brackets
         
-        // enumerate string literals
-        var literalpos = enumerateKnownPatterns(text, 0),
-            lcurrent = 0, rcurrent = 0, llength = literalpos.length;
+        // known patterns (string literals, not closed [pairs] etc) must be excluded from search
+        var known_patterns = enumerateKnownPatterns(text, 0);
         
-        // iterate brackets
-        var text_start = 0,
-            stack = [], level = 0, open_tag_pos, open_tag_len,
-            left_bracket = text.indexOf('[');
-        while(left_bracket >= 0) {
+        var scan_forleft_bracket = 0,
+            scan_forright_bracket = 0,
+            scan_length = known_patterns.length,
+            stack,
+            found_parts = []; // texts and bbcodes
+        
+        // unclosed tags is not components, but break parsing
+        // while found unclosed [xxx] pairs (without [/xxx]), repeat parse:
+        while ((stack = findParts()).length) {
+            // exclude all unclosed tags
+            known_patterns.push.apply(known_patterns, stack);
+            // sort ascending
+            known_patterns.sort(function(i1, i2) { return i1.index - i2.index; });
+            // and next iteration parse
+            scan_forleft_bracket = 0;
+            scan_forright_bracket = 0;
+            scan_length = known_patterns.length;
+            found_parts = []; // texts and bbcodes
+        }
+        
+        // create components
+        for(var i = 0, c = found_parts.length; i < c; i++) {
+            var part = found_parts[i];
+            if (typeof part === 'string')
+                this.addTextContainer(collection, part);
+            else
+                AddCom.apply(this, part);
+        }
+        
+        function findParts() {
+            var text_start = 0,
+                stack = [], level = 0, open_tag_pos, open_tag_len,
+                left_bracket = text.indexOf('[');
             
-            // check if not in literals
-            while(lcurrent < llength && literalpos[lcurrent + 1] < left_bracket)
-                lcurrent += 2;
-            if (lcurrent >= llength || left_bracket < literalpos[lcurrent] || left_bracket >= literalpos[lcurrent + 1]) {
-            
-                var right_bracket_found = false,
-                    right_bracket = text.indexOf(']', left_bracket + 1);
-                while(!right_bracket_found && right_bracket >= 0) {
+            // iterate left bracket
+            while(left_bracket >= 0) {
 
-                    // check if not in literals
-                    while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
-                        rcurrent += 2;
-                    if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
-                        
-                        // [...] [/...] [.../]
-                        
-                        var is_one_pair = text.charAt(right_bracket - 1) === '/', // one pair brackets [.../]
-                            is_close_tag = text.charAt(left_bracket + 1) === '/'; // close tag brackets [/...]
-                        if (is_close_tag) {
-                            // is close tag - find complimentary open tag
-                            var close_tag = text.slice(left_bracket + 2, right_bracket),
-                                level = stack.lastIndexOf(close_tag);
-                            if (level === 0) {
-                                // add text before bbcode
-                                if (open_tag_pos > text_start)
-                                    this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
-                                text_start = right_bracket + 1;
-                                // add component
-                                AddCom(is_one_pair, open_tag_pos, open_tag_len, left_bracket, right_bracket - left_bracket + 1);
-                            }
-                            else if (level < 0)
-                                level = 0;
-                            stack.length = level;
-                        } else {
-                            if (level === 0) {
-                                open_tag_pos = left_bracket;
-                                open_tag_len = right_bracket - left_bracket + 1;
-                            }
-                            if (is_one_pair) {
-                                // [.../] tag
+                // check if left bracket not in literal
+                while(scan_forleft_bracket < scan_length && known_patterns[scan_forleft_bracket].lastIndex < left_bracket)
+                    scan_forleft_bracket++;
+                if (scan_forleft_bracket >= scan_length || left_bracket < known_patterns[scan_forleft_bracket].index || left_bracket >= known_patterns[scan_forleft_bracket].lastIndex) {
+
+                    var right_bracket_found = false,
+                        right_bracket = text.indexOf(']', left_bracket + 1);
+                
+                    // iterate right bracket
+                    while(!right_bracket_found && right_bracket >= 0) {
+
+                        // check if right bracket not in literal
+                        while(scan_forright_bracket < scan_length && known_patterns[scan_forright_bracket].lastIndex < right_bracket)
+                            scan_forright_bracket++;
+                        if (scan_forright_bracket >= scan_length || right_bracket < known_patterns[scan_forright_bracket].index || right_bracket >= known_patterns[scan_forright_bracket].lastIndex) {
+
+                            // [...] [/...] [.../]
+
+                            var is_one_pair = text.charAt(right_bracket - 1) === '/', // one pair brackets [.../]
+                                is_close_tag = text.charAt(left_bracket + 1) === '/'; // close tag brackets [/...]
+                            if (is_close_tag) {
+                                // is close tag - find complimentary open tag
+                                var close_tag = text.slice(left_bracket + 2, right_bracket),
+                                    level = -1;
+                                // find last equal tag in stack and up to level
+                                for(var i = stack.length - 1; i >= 0; i--)
+                                    if (stack[i].type === close_tag) {
+                                        level = i;
+                                        break;
+                                    }
                                 if (level === 0) {
                                     // add text before bbcode
                                     if (open_tag_pos > text_start)
-                                        this.addTextContainer(collection, text.slice(text_start, open_tag_pos));
+                                        found_parts.push(text.slice(text_start, open_tag_pos));
                                     text_start = right_bracket + 1;
-                                    // add component
-                                    AddCom(is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1);
+                                    // found bbcode
+                                    found_parts.push([is_one_pair, open_tag_pos, open_tag_len, left_bracket, right_bracket - left_bracket + 1]);
                                 }
+                                else if (level < 0)
+                                    level = 0;
+                                stack.length = level;
                             } else {
-                                // push open tag
-                                var opentag = text.slice(left_bracket + 1, right_bracket),
-                                    __type = opentag.match(/\S+?(?=#|@|\/|`|\s|$)/)[0].split(':');
-                                stack.push(__type.pop());
-                                level++;
+                                if (level === 0) {
+                                    open_tag_pos = left_bracket;
+                                    open_tag_len = right_bracket - left_bracket + 1;
+                                }
+                                if (is_one_pair) {
+                                    // [.../] tag
+                                    if (level === 0) {
+                                        // add text before bbcode
+                                        if (open_tag_pos > text_start)
+                                            found_parts.push(text.slice(text_start, open_tag_pos));
+                                        text_start = right_bracket + 1;
+                                        // found bbcode
+                                        found_parts.push([is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1]);
+                                    }
+                                } else {
+                                    // push open tag - type that between ':' and ' #`@($'
+                                    var opentag = text.slice(left_bracket + 1, right_bracket),
+                                        split_opentag = opentag.match(/\S+?(?=#|@|\/|`|\s|$)/)[0].split(':'),
+                                        type = split_opentag.pop();
+                                    // push to stack open tag and position
+                                    stack.push({type: type, index: left_bracket, lastIndex: right_bracket + 1});
+                                    level++;
+                                }
                             }
+                            right_bracket_found = true;
                         }
-                        right_bracket_found = true;
+                        right_bracket = text.indexOf(']', ++right_bracket);
                     }
-                    right_bracket++;
-                    right_bracket = text.indexOf(']', right_bracket);
                 }
+                left_bracket = text.indexOf('[', ++left_bracket);
             }
-            left_bracket++;
-            left_bracket = text.indexOf('[', left_bracket);
+        
+            // remaining text at end
+            if (text_start < text.length)
+                found_parts.push(text.slice(text_start));
+            return stack;
         }
         
-        // remaining text at end
-        if (text_start < text.length)
-            this.addTextContainer(collection, text.slice(text_start));
-            
         function AddCom(is_one_pair, open_tag_pos, open_tag_len, close_tag_pos, close_tag_len) {
             var opentag = is_one_pair ? text.substr(open_tag_pos + 1, open_tag_len - 3) : text.substr(open_tag_pos + 1, open_tag_len - 2);
             try {
-                var control = controls.createOrStub(opentag, text.slice(open_tag_pos + open_tag_len, close_tag_pos));
-                if (control) {
-                    collection.add(control);
+                var control = collection.addOrStub(opentag, text.slice(open_tag_pos + open_tag_len, close_tag_pos));
+//                if (control) {
 
                     // create stub loader
                     if (control.isStub) {
@@ -16334,20 +16570,20 @@ function initialize() {
                     var com = $DOC.events.component;
                     if (com)
                         com.raise(control);
-                }
-                else
-                    collection.add('p', '&#60;?&#62;');
+//                }
+//                else
+//                    collection.add('p', '&#60;?&#62;');
             } catch (e) { console.log(e); } // error?
         }
     };
     
     // enumerate "string literal" and [](href)
     function enumerateKnownPatterns(text, start_from) {
-        var lregex = /("[\s\S]*?")|(\[[^\[\]\n]*?\]\([^\(\)\n]*?\))/g, literalpos = [], sresult;
+        var lregex = /("[\s\S]*?")|(\[[^\[\]\n]*?\]\([^\(\)\n]*?\))/g, known_patterns = [], sresult;
         lregex.lastIndex = start_from;
         while(sresult = lregex.exec(text))
-            literalpos.push(sresult.index, lregex.lastIndex);
-        return literalpos;
+            known_patterns.push({index: sresult.index, lastIndex: lregex.lastIndex});
+        return known_patterns;
     }
     
     $DOC.processTextNode = processTextNode;
@@ -16373,15 +16609,16 @@ function initialize() {
             try {
                 if (first_char === '[') {
                     // <--[namespace.cid params] ... -->
-                    var literalpos = enumerateKnownPatterns(text, 1),
-                        rcurrent = 0, llength = literalpos.length,
+                    // exclude string literals from seach
+                    var known_patterns = enumerateKnownPatterns(text, 1),
+                        rcurrent = 0, llength = known_patterns.length,
                         right_bracket_found = false,
                     right_bracket = text.indexOf(']', 1);
                     while(!right_bracket_found && right_bracket >= 0) {
                         // check if not in literals
-                        while(rcurrent < llength && literalpos[rcurrent + 1] < right_bracket)
+                        while(rcurrent < llength && known_patterns[rcurrent + 1] < right_bracket)
                             rcurrent += 2;
-                        if (rcurrent >= llength || right_bracket < literalpos[rcurrent] || right_bracket >= literalpos[rcurrent + 1]) {
+                        if (rcurrent >= llength || right_bracket < known_patterns[rcurrent] || right_bracket >= known_patterns[rcurrent + 1]) {
                             right_bracket_found = true;
                             
                             var com_definition = text.slice(1, right_bracket),
