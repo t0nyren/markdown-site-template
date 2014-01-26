@@ -1,9 +1,15 @@
 # Simple Markdown site template
 #### Incredible simple but powerful site template
 
-Very easy content editing and management structure of the site (the site can be generated from a shell script!), static pages with great download speeds and the ability to host it anywhere, powerful JavaScript environment allows you to create a dynamic document without restrictions.
+Markdown webdocs is the technology of building a web site from web components by writing special markup Component Markdown Language. It was initially designed for writing documentation and help system, now allows you to create sites with complex layout.
 
-Very simple, you do not need to edit *HTML, CSS, JS, PHP, ASP, JAVA, PERL, PYTHON, RUBY* and a billion other technologies. Just open .html file and edit TEXT in it. The marked text you are reading is written as plain text. Open the 'View page source' and see it. But if you want these are the technologies they are still.
+Written so the site can be compiled into a fully compliant HTML or published without compilation. For example, the home page of this site is compiled in HTML, other pages is client-translated CML form.
+
+To edit pages on the site has built-in editor. You can organize online editing or modifying local files and then publish the changes. Local edits using the integrated editor is easier to make with node-webkit. When using VCS is very easy to control your changes as human-readable diffs.
+
+This template was created using the original bundle of the libraries jquery.js, bootstrap and controls.js
+
+Easy content editing and management structure of the site, great download speed and the ability to host it anywhere, powerful JavaScript environment allows you to create a dynamic documents and sites without restrictions.
 
 Demo:
 http://aplib.github.io/markdown-site-template
@@ -29,7 +35,6 @@ document.js located in the root folder of the site. This script contains and loa
 
 * jquery.js
 * bootstrap.js
-* doT.js
 * controls.js
 * marked.js
 

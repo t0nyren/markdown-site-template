@@ -3,10 +3,10 @@
     // initialize $ENV
     
     $ENV = {
-        dot: require('dot'),
-        controls: require('controls'),
-        marked: require('./temp/marked'),
-        'bootstrap.controls': require('./temp/bootstrap.controls.js')
+        dot: doT, // require('dot'),
+        controls: controls, // require('controls'),
+        marked: marked, //require('./temp/marked'),
+        'bootstrap.controls': controls.bootstrap // require('./temp/bootstrap.controls.js')
     };
     
     $ENV.controls.template = $ENV.dot.template; // default template engine

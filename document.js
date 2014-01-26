@@ -10851,1044 +10851,148 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
 
 
 
-;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-(function() { 'use strict';
+// doT.js
+// 2011, Laura Doktorova, https://github.com/olado/doT
+// Licensed under the MIT license.
 
-    // initialize $ENV
-    
-    $ENV = {
-        dot: require('dot'),
-        controls: require('controls'),
-        marked: require('./temp/marked'),
-        'bootstrap.controls': require('./temp/bootstrap.controls.js')
-    };
-    
-    $ENV.controls.template = $ENV.dot.template; // default template engine
-    var extend = $ENV.controls.extend;
+(function() {
+	"use strict";
 
-    // Set default options except highlight which has no default
-    $ENV.marked.setOptions({
-      gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
-    });
+	var doT = {
+		version: '1.0.1',
+		templateSettings: {
+			evaluate:    /\{\{([\s\S]+?(\}?)+)\}\}/g,
+			interpolate: /\{\{=([\s\S]+?)\}\}/g,
+			encode:      /\{\{!([\s\S]+?)\}\}/g,
+			use:         /\{\{#([\s\S]+?)\}\}/g,
+			useParams:   /(^|[^\w$])def(?:\.|\[[\'\"])([\w$\.]+)(?:[\'\"]\])?\s*\:\s*([\w$\.]+|\"[^\"]+\"|\'[^\']+\'|\{[^\}]+\})/g,
+			define:      /\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g,
+			defineParams:/^\s*([\w$]+):([\s\S]+)/,
+			conditional: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
+			iterate:     /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
+			varname:	'it',
+			strip:0,
+			append:		true,
+			selfcontained: false
+		},
+		template: undefined, //fn, compile template
+		compile:  undefined  //fn, for express
+	};
 
-    // get default control template
-    var templatesHash = {};
-    $ENV.getDefaultTemplate = function(tag) {
-        return templatesHash[tag || ''] || (templatesHash[tag || ''] = new Function('it',
-'var attributes = it.attributes, controls = it.controls, result = attributes.$text || "";\n\
-for(var i = 0, c = controls.length; i < c; i++)\n\
- result += controls[i].wrappedHTML();\n\
-return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(result) + "</' + tag + '>";') : '$ENV.marked(result);')) );
-    };
-        
-    // initialize $DOC
-    
-    var url_params = {};
-    window.location.search.substring(1).split('&').forEach(function(seg){ if (seg) {
-        var pos = seg.indexOf('=');
-        if (pos < 0)
-            url_params[seg] = true;
-        else
-            url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
-    }});
-    
-    var scripts_count = 0, scripts_stated = 0;
-    $DOC = {
-        initialize: function() {
-            
-            this.urlParams = extend({}, url_params);
+	if (typeof module !== 'undefined' && module.exports) {
+		module.exports = doT;
+	} else if (typeof define === 'function' && define.amd) {
+		define(function(){return doT;});
+	} else {
+		(function(){ return this || (0,eval)('this'); }()).doT = doT;
+	}
 
-            // "DOC" script element source for: root, script options
+	function encodeHTMLSource() {
+		var encodeHTMLRules = { "&": "&#38;", "<": "&#60;", ">": "&#62;", '"': '&#34;', "'": '&#39;', "/": '&#47;' },
+			matchHTML = /&(?!#?\w+;)|<|>|"|'|\//g;
+		return function() {
+			return this ? this.replace(matchHTML, function(m) {return encodeHTMLRules[m] || m;}) : this;
+		};
+	}
+	String.prototype.encodeHTML = encodeHTMLSource();
 
-            var root = '', js_root_node = document.getElementById('DOC');
-            if (js_root_node) {
-                var attrs = js_root_node.attributes;
-                if (attrs.hasOwnProperty('root'))
-                    root = js_root_node.getAttribute('root');
-                else {
-                    var src = js_root_node.getAttribute('src');
-                    if (src) {
-                        var segs = src.split('/');
-                        root = segs.slice(0, segs.length - 1).join('/');
-                        if (root)
-                            root += '/';
-                    }
-                }
-            }
-            this.root = root;
-            
-            // executing script element source for: codebase
-            
-            var executing = document.currentScript;
-            if (!executing) {
-                var scripts = document.getElementsByTagName('script');
-                for(var i = scripts.length - 1; i >= 0; i--) {
-                    var script = scripts[i];
-                    if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
-                        executing = script;
-                }
-            }
-            if (executing) {
-                var src = executing.getAttribute('src');
-                if (src) {
-                    // components is always loaded from path of the executing script
-                    var origin = src.split('/').slice(0, -1).join('/');
-                    this.codebase = origin;
-                    this.components = origin + (origin ? '/' : '') + 'components/';
-                }
-                $OPT.userjs = executing.getAttribute('userjs') || $OPT.userjs;
-                $OPT.icon = executing.getAttribute('icon') || $OPT.icon;
-                var editable = executing.getAttribute('editable') || $OPT.editable;
-                $OPT.editable = (editable === 'false' || editable === '0') ? false : !!editable;
-            }
+	var startend = {
+		append: { start: "'+(",      end: ")+'",      endencode: "||'').toString().encodeHTML()+'" },
+		split:  { start: "';out+=(", end: ");out+='", endencode: "||'').toString().encodeHTML();out+='"}
+	}, skip = /$^/;
 
-            // edit mode
-            if ($OPT.editable) {
-                if (url_params.edit && window.self === window.top)
-                    $OPT.edit_mode = 1; // editor
-                if (url_params.preview) {
-                    $OPT.edit_mode = 2; // preview mode
-                    // idgen shift in preview mode
-                    // Preview mode is used for compiled html. Prevent conflict between already stored in html and newly created identifiers.
-                    controls.id_generator = 200000;
-                }
-            }
-            // prevent options changes 
-//            Object.freeze($OPT);
-            
-            // State
-            this.state = 0; // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
-            
-            // Events
-            this.events = {};
-                    
-            // Sections
-            this.sections = {};
-            
-            // Sections view order
-            this.order = ['fixed-top-bar', 'fixed-top-panel',
-                'header-bar', 'header-panel',
-                'left-side-bar', 'left-side-panel',
-                'content-bar', 'content-panel',
-                'right-side-panel', 'right-side-bar',
-                'footer-panel', 'footer-bar',
-                'fixed-bottom-panel', 'fixed-bottom-bar'];
-            
-            this.columns = ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'];
-            
-            // Texts and templates
-            this.vars = {};
-            
-            this.filters = [];
-            
-            this.mods = {};
-            
-            // clear controls tree
-            if (this.chead)
-                this.chead.detachAll();
-            this.chead = controls.create('head');
-            this.chead.attach();
-            
-            if (this.cbody)
-                this.cbody.detachAll();
-            this.cbody = controls.create('body');
-        },
-        
-        forceEvent: function(name) {
-            var events = this.events;
-            return events[name] || (events[name] = new controls.Event());
-        },
-        // on DOMContentLoaded or simulated if DOMContentLoaded is already raised
-        onready: function(handler) {
-            if (this.state === 2 || document.readyState === undefined || ' interactive complete'.indexOf(document.readyState) > 0)
-                handler();
-            else
-                this.forceEvent('ready').addListener(handler);
-        },
-        // Document transformation completed event
-        onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
-        // Section control created event
-        listen: function(type, handler, capture) { this.forceEvent(type).addListener(handler); },
-        raise: function(type, capture) { var event = this.events[type]; if (event) event.raise(); },
-                
-        addSection: function(name, value) {
-            var sections = this.sections, exists = sections[name];
-            if (exists) {
-                if (exists._element)
-                    exists.deleteElement();
-            }
-            sections[name] = value;
-        },
-        removeSection: function(name) {
-            var sections = this.sections, exists = sections[name];
-            if (exists) {
-                if (exists._element)
-                    exists.deleteElement();
-                sections[name] = undefined;
-            }
-        },
-        // move section to placeholder location
-        sectionPlaceholder: function(name, text_node) {
-            var sections = this.sections,
-                exists = sections[name];
-            // move exists node
-            if (exists) {
-                if (exists.__type) {
-                    var element = exists.element;
-                    if (element)
-                        document.insertBefore(element, text_node);
-                } else if (exists.nodeType) {
-                    document.insertBefore(exists, text_node);
-                }
-            }
-            sections[name] = {placeholder:text_node, content:exists};
-        },
-        // move section to other location
-        sectionMover: function(text_node, oldname, newname) {
-            var sections = this.sections, exists = sections[oldname];
-            if (typeof exists === 'string') {
-                sections[newname] = exists;
-                delete sections[oldname];
-            } else if (exists) {
-                if (exists.__type) {
-                    exists.class(newname, oldname);
-                    var element = exists.element;
-                    if (element)
-                        document.insertBefore(element, text_node);
-                } else if (exists.nodeType) {
-                    document.insertBefore(exists, text_node);
-                }
-            }
-        },
-        // parse sections values from text or from function text
-        parseContent: function(content) {
-            if (content) {
-                var frags = content.toString().split(/(<!--\S+\s+)|(-->)/gm);
-                for(var i = 0, c = frags.length; i < c; i+=1) {
-                    var test = frags[i];
-                    if (test && test.substr(0,4) === '<!--') {
-                        // first '$' - var else section
-                        if (test[4] === '$') {
-                            // as var
-                            var varname = test.substr(4).trim();
-                            this.vars[varname] = frags[i+2];
-                        } else {
-                            // as section
-                            var section = test.substr(4).trim();
-                            this.addSection(section, frags[i+2]);
-                        }
-                        i += 2;
-                    }
-                }
-            }
-        },
-        
-        // append to head
-        appendElement: function(id, tag, attributes) {
-            try {
-                if (arguments.length < 3) { attributes = tag; tag = id; id = undefined; }
-                var head = document.head;
-                if (id) {
-                    var element = document.getElementById(id);
-                    if (element && element.parentNode === head)
-                        return;
-                }
-                head.insertAdjacentHTML('beforeend',
-                    '<' + tag + (id ? (' id="'+id+'"') : '') + Object.keys(attributes).map(function(prop){return' '+prop+'="'+attributes[prop]+'"';}).join('') + '></' + tag + '>');
-                return head.lastChild;
-            } catch(e) { console.log(e); }
-        },
-        // remove from head
-        removeElement: function(id) {
-            var element = document.getElementById(id);
-            if (element && element.parentNode === document.head)
-                document.head.removeChild(element);
-        },
-        
-        appendScript: function(id, src, callback) {
-            if (arguments.length === 1 || typeof src === 'function') { callback = src; src = id; id = undefined; }
-            if (id && document.getElementById(id)) {
-                // script already loaded
-                if (callback)
-                    callback(+1);
-                return;
-            }
-            var script = document.createElement('script');
-            if (id)
-                script.id = id;
-            if (src.indexOf('(') >= 0) {
-                // raw script
-                script.innerHTML = src;
-            } else {
-                // load external script
-                script.src = src;
-                scripts_count++;
-                script.src = src;
-                script.async = true;
-                script.addEventListener('load', function() {
-                    if (callback)
-                        callback(+1);
-                    scripts_stated++;
-                    $DOC.checkAllScriptsReady();
-                });
-                script.addEventListener('error', function() {
-                    if (callback)
-                        callback(-1);
-                    scripts_stated++;
-                    $DOC.checkAllScriptsReady();
-                });
-            }
-            document.head.appendChild(script);
-        },
-        // {id1:url1, id2:url2 ...}
-        appendScripts: function(hash, callback) {
-            var started = 0, loaded = 0;
-            for(var prop in hash) {
-                started++;
-                this.appendScript(prop, hash[prop], function(state) {
-                    if (state > 0)
-                        loaded++;
-                    if (callback) {
-                        if (loaded >= started)
-                            callback(1);
-                        else if (state < 0)
-                            callback(-1);
-                    }
-                });
-            }
-        },
-        // get the url relative to the root
-        getRootUrl: function(url) {
-            if (url[0] === '/') {
-                if (url[1] !== '/')
-                    url = this.root + url;
-            } else if (url.indexOf(':') < 0 && url[0] !== '.')
-                url = this.root + url;
-            return url.replace('{{=$DOC.root}}', this.root);
-        },
-        // load user.js scripts
-        loadUserJS: function() {
-            var userjs = $OPT.userjs;
-            if (userjs) {
-                userjs = userjs.split(',');
-                for(var i = 0, c = userjs.length; i < c; i++)
-                    this.appendScript('user.js/' + i, this.getRootUrl(userjs[i]));
-            }
-        },
-        // document transformation start after all scripts loaded or failed
-        checkAllScriptsReady: function() {
-            /*this undefined*/
-            if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
-                $DOC.finalTransformation();
-        },
-        
-        appendCSS: function(id, css, callback, position) {
-            if (arguments.length === 1 || typeof css === 'function') {
-                position = callback;
-                callback = css;
-                css = id;
-                id = '';
-            }
-            var head = document.head, exists = document.getElementById(id),
-                israwcss = (css.indexOf('{') >= 0);
-            if (!exists) {
-                if (israwcss) {
-                    head.insertAdjacentHTML(position || 'beforeend', '<style id="' + id + '" auto="true">' + css + '</style>');
-                } else {
-                    var link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.type = 'text/css';
-                    id && (link.id = id);
-                    link.auto = true;
-                    link.href = css;
-                    if (callback) {
-                        link.addEventListener('load', function() { callback(1); });
-                        link.addEventListener('error', function() { callback(-1); });
-                    }
-                    switch(position) {
-                        case 'afterbegin':
-                            if (head.firstChild)
-                                head.insertBefore(link, head.firstChild);
-                            else
-                                head.appendChild(link);
-                        break;
-                        default:
-                            head.appendChild(link);
-                    }
-                }
-            } else if (israwcss) {
-                if (exists.innerHTML !== css)
-                    exists.innerHTML = css;
-            } else if (exists.href !== css)
-                exists.href = css;
-        },
-        
-        mod: function(group, names) {
-            if (arguments.length === 1)
-                names = group;
-            var mod_group = $DOC.mods[group];
-            if (!mod_group) {
-                mod_group = [];
-                $DOC.mods[group] = mod_group;
-            }
-            names.split(/ ,;/g).forEach(function(name) {
-                if (mod_group.indexOf(name) < 0) {
-                    var path = $DOC.getRootUrl('mods/' + name + '/' + name);
-                    $DOC.appendCSS(group + '-' + name + '-css', path + '.css');
-                    $DOC.appendScript(group + '-' + name + '-js', path + '.js');
-                    mod_group.push(name);
-                }
-            });
-        },
-        removeMod: function(group, names) {
-            var mod_group = $DOC.mods[group];
-            if (mod_group) {
-                ((arguments.length === 1) ? mod_group : names.split(/ ,;/g)) .forEach(function(name) {
-                    var index = mod_group.indexOf(name);
-                    if (index >= 0) {
-                        $DOC.removeElement(group + '-' + name + '-css');
-                        $DOC.removeElement(group + '-' + name + '-js');
-                        mod_group.splice(index, 1);
-                    }
-                });
-            }
-        }
-    };
-    $DOC.initialize();
-    
+	function resolveDefs(c, block, def) {
+		return ((typeof block === 'string') ? block : block.toString())
+		.replace(c.define || skip, function(m, code, assign, value) {
+			if (code.indexOf('def.') === 0) {
+				code = code.substring(4);
+			}
+			if (!(code in def)) {
+				if (assign === ':') {
+					if (c.defineParams) value.replace(c.defineParams, function(m, param, v) {
+						def[code] = {arg: param, text: v};
+					});
+					if (!(code in def)) def[code]= value;
+				} else {
+					new Function("def", "def['"+code+"']=" + value)(def);
+				}
+			}
+			return '';
+		})
+		.replace(c.use || skip, function(m, code) {
+			if (c.useParams) code = code.replace(c.useParams, function(m, s, d, param) {
+				if (def[d] && def[d].arg && param) {
+					var rw = (d+":"+param).replace(/'|\\/g, '_');
+					def.__exp = def.__exp || {};
+					def.__exp[rw] = def[d].text.replace(new RegExp("(^|[^\\w$])" + def[d].arg + "([^\\w$])", "g"), "$1" + param + "$2");
+					return s + "def.__exp['"+rw+"']";
+				}
+			});
+			var v = new Function("def", "return " + code)(def);
+			return v ? resolveDefs(c, v, def) : v;
+		});
+	}
 
-    // selected theme
-    var theme = '', theme_confirmed;
-    if (typeof localStorage !== 'undefined') {
-        
-        theme = localStorage.getItem('primary-theme');
-        theme_confirmed = localStorage.getItem('primary-theme-confirmed');
-        
-        // apply theme 'theme=' command
-        var params_theme = url_params.theme;
-        if (params_theme && params_theme !== theme) {
-            theme = params_theme;
-            theme_confirmed = '';
-        }
-        
-        // switch theme 'settheme=' command
-        var params_settheme = url_params.settheme;
-        if (params_settheme) {
-            if (params_settheme !== theme) {
-                theme_confirmed = '';
-                localStorage.setItem('primary-theme-confirmed', '');
-            }
-            localStorage.setItem('primary-theme', params_settheme);
-            theme = params_settheme;
-        }
-    }
-    
-    Object.defineProperty($DOC, 'theme', {
-        get: function() { return theme; },
-        set: function(value) {
-            value = value || '';
-            if (value !== theme && typeof localStorage !== 'undefined') {
-                if (value)
-                    localStorage.setItem('primary-theme', value); 
-                else {
-                    localStorage.removeItem('primary-theme');
-                    localStorage.removeItem('primary-theme-confirmed');
-                }
-                window.location.reload();
-            }
-        }
-    });
-    
-    // >> head transformation
-    
-    $DOC.headTransformation = function() {
-        
-        if ($DOC.mode = document.head.hasAttribute('generator'))
-            return; // html
-        else // mw document
-            document.head.setAttribute('generator', 'markdown webdocs');
+	function unescape(code) {
+		return code.replace(/\\('|\\)/g, "$1").replace(/[\r\t\n]/g, ' ');
+	}
 
-        this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
-        if ($OPT.icon)
-            this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl($OPT.icon)});
+	doT.template = function(tmpl, c, def) {
+		c = c || doT.templateSettings;
+		var cse = c.append ? startend.append : startend.split, needhtmlencode, sid = 0, indv,
+			str  = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
 
-        // document style
+		str = ("var out='" + (c.strip ? str.replace(/(^|\r|\n)\t* +| +\t*(\r|\n|$)/g,' ')
+					.replace(/\r|\n|\t|\/\*[\s\S]*?\*\//g,''): str)
+			.replace(/'|\\/g, '\\$&')
+			.replace(c.interpolate || skip, function(m, code) {
+				return cse.start + unescape(code) + cse.end;
+			})
+			.replace(c.encode || skip, function(m, code) {
+				needhtmlencode = true;
+				return cse.start + unescape(code) + cse.endencode;
+			})
+			.replace(c.conditional || skip, function(m, elsecase, code) {
+				return elsecase ?
+					(code ? "';}else if(" + unescape(code) + "){out+='" : "';}else{out+='") :
+					(code ? "';if(" + unescape(code) + "){out+='" : "';}out+='");
+			})
+			.replace(c.iterate || skip, function(m, iterate, vname, iname) {
+				if (!iterate) return "';} } out+='";
+				sid+=1; indv=iname || "i"+sid; iterate=unescape(iterate);
+				return "';var arr"+sid+"="+iterate+";if(arr"+sid+"){var "+vname+","+indv+"=-1,l"+sid+"=arr"+sid+".length-1;while("+indv+"<l"+sid+"){"
+					+vname+"=arr"+sid+"["+indv+"+=1];out+='";
+			})
+			.replace(c.evaluate || skip, function(m, code) {
+				return "';" + unescape(code) + "out+='";
+			})
+			+ "';return out;")
+			.replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r')
+			.replace(/(\s|;|\}|^|\{)out\+='';/g, '$1').replace(/\+''/g, '')
+			.replace(/(\s|;|\}|^|\{)out\+=''\+/g,'$1out+=');
 
-        this.appendCSS('document.css',
-'.fixed-top-bar, .fixed-top-panel\
-    { display: block; margin: 0; padding: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1030; }\
-.fixed-top-panel\
-    { background-color: inherit; padding: 25px 37px 0px 37px; margin-bottom: 25px; }\
-.fixed-top-panel > .navbar\
-    { margin: 0; }\
-.header-bar, .header-panel\
-    { display: block; margin: 0; padding: 0; }\
-.header-panel\
-    { padding: 25px 37px; }\
-.footer-bar, .footer-panel\
-    { display: block; margin: 0; padding: 0; }\
-.footer-panel\
-    { padding: 25px 37px; }\
-.fixed-bottom-bar, .fixed-bottom-panel\
-    { display: block; margin: 0; padding: 0; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1030; }\
-.fixed-bottom-panel\
-    { padding: 0px 37px 0px 37px; margin-top: 25px; }\
-.fixed-bottom-panel > .navbar\
-    { margin: 0; }\
-.text-box\
-    { width:50%; padding:25px 37px 25px 37px; display: inline-block; }\
-.fixed-left-side-bar, .fixed-left-side-panel\
-    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: auto; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1030; }\
-.fixed-left-side-panel\n\
-    { width: auto; padding:25px 20px; }\
-.left-side-bar, .left-side-panel\
-    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: 26%; min-width: 240px; }\
-.left-side-panel\
-    { padding:25px 9px 25px 37px; }\
-.content-bar, .content-panel\
-    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: 60%; min-width: 250px; max-width: 73%; }\
-.content-panel\
-    { padding:25px 37px 25px 37px; }\
-.fixed-right-side-bar, .fixed-right-side-panel\
-    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: auto; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1030;}\
-.fixed-right-side-panel\
-    { width: auto; padding:25px 20px;}\
-.right-side-bar, .right-side-panel\
-    { display: table-cell; margin: 0; padding: 0; vertical-align: top; min-width: 240px; width: 28%;}\
-.right-side-panel\
-    { padding:25px 25px 25px 9px;}\
-\
-@media (max-width: 1024px) {\
-.right-side-bar, .right-side-panel\
-    { display: block; padding:25px 25px 25px 37px; width: 50%; }\
-.right-side-panel\
-    { padding:25px 25px 25px 37px; }\
-}\
-\
-@media (max-width: 768px) {\
-.left-side-bar, .left-side-panel\
-    { display: block; margin: 0; padding: 0; width: auto; }\
-.left-side-panel\
-    { padding:25px 25px 25px 25px; }\
-.content-bar, .content-panel\
-    { display: block; margin: 0; padding: 0; max-width: 100%; width: auto; }\
-.content-panel\
-    { padding:25px 25px 25px 25px; }\
-.right-side-bar, .right-side-panel\
-    { display: block; margin: 0; padding: 0; width: auto; }\
-.right-side-panel\
-    { padding:25px 25px 25px 25px; }\
-}\
-.table-bordered {display:table-cell;}\
-.stub {display:inline-block;}\
-.stub-error {width:18px; height:18px; border:silver dotted 1px; border-radius:2px;}\
-.stub-error:before {content:"?"; font-size:small; color:silver; margin:4px; position:relative; top:-2px;}\
-\
-.tabpanel-body {padding-bottom:5px; border-left:#DDD solid 1px; border-right:#DDD solid 1px; border-bottom:#DDD solid 1px;}\
-.nav-tabs > li > a:focus {outline-color:silver;}\
-\
-.transparent {background-color:transparent;border-color:transparent;} .transparent:hover {text-decoration:none;}\
-.rel {position:relative;} .abs {position:absolute;}\
-.hidden {display:none;} .block {display:block;} .inline {display:inline;} .inlineblock {display:inline-block;} .tabcell {display:table-cell;} .tabcol {display:table-column;} .tabrow {display:table-row;}\
-.bold {font-weight:bold;} .justify {text-align:justify;} .nowrap {white-space:nowrap;} .l {font-size:90%;} .ll {font-size:80%;}\
-.fleft {float:left;} .fright {float:right;} .fnone {float:none;}\
-.left {text-align:left;} .right {text-align:right;} .clear {clear:both;} .clearleft {clear:left;} .clearright {clear:right;}\
-.center {text-align:center;vertical-align:middle;} .hcenter {text-align:center;} .vcenter {vertical-align:middle;} .bottom {vertical-align:bottom;}'
- + ['0','5','10','15','20'].map(function(val) { return '.mar' + val + '{margin:' + val + 'px}.martop' + val + '{margin-top:' + val + 'px}.marright' + val + '{margin-right:' + val + 'px}.marbottom' + val + '{margin-bottom:' + val + 'px}.marleft' + val + '{margin-left:' + val + 'px}.pad' + val + '{padding:' + val + 'px}.padtop' + val + '{padding-top:' + val + 'px}.padright' + val + '{padding-right:' + val + 'px}.padbottom' + val + '{padding-bottom:' + val + 'px}.padleft' + val + '{padding-left:' + val + 'px}'; }).join('')
-);     
-        
-        if (theme && $OPT.edit_mode !== 1) {
-            // theme loading and confirmed flag
-            this.appendCSS('theme.css', this.getRootUrl('mods/' + theme + '/' + theme + '.css'), function(state) {
-                if (state < 0 && theme_confirmed)
-                    localStorage.setItem('primary-theme-confirmed', '');
-                else if (state > 0 && !theme_confirmed)
-                    localStorage.setItem('primary-theme-confirmed', true);
-            }, 'afterbegin');
-            this.appendScript('theme.js', this.getRootUrl('mods/' + theme + '/' + theme + '.js'));
-        }
-        // load bootstrap.css if not theme or previous load error
-        if (!theme || !theme_confirmed || $OPT.edit_mode === 1) {
-            var bcss = document.getElementById('bootstrap.css');
-            if (!bcss) {
-                // check boostrap.css load
-                var links = document.getElementsByTagName('link');
-                for(var i = links.length - 1; i >= 0; i--) {
-                    var href = links[i].href;
-                    if (href.indexOf('bootstrap.css') >= 0 || href.indexOf('bootstrap.min.css') >= 0) {
-                        bcss = true;
-                        break;
-                    }
-                }
-                if (!bcss) {
-                    var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css';
-                    this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + (this.codebase ? '/' : '') + 'bootstrap.css'), function(state) {
-                        if (state < 0) $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
-                    }, 'afterbegin');
-                }
-            }
-        }
-    };
-    
-    $DOC.headTransformation();
-    
-    window.addEventListener('DOMContentLoaded', function() {
-        var ready_event = $DOC.events.ready;
-        if (ready_event) {
-            ready_event.raise();
-            ready_event.clear();
-        }
-        if (scripts_count === 0)
-        window.addEventListener('load', function() {
-            $DOC.finalTransformation();
-        });
-    });
+		if (needhtmlencode && c.selfcontained) {
+			str = "String.prototype.encodeHTML=(" + encodeHTMLSource.toString() + "());" + str;
+		}
+		try {
+			return new Function(c.varname, str);
+		} catch (e) {
+			if (typeof console !== 'undefined') console.log("Could not create a template function: " + str);
+			throw e;
+		}
+	};
+
+	doT.compile = function(tmpl, def) {
+		return doT.template(tmpl, null, def);
+	};
+}());
 
 
-    if ($OPT.editable) {
-        if ($OPT.edit_mode === 1 && window.top === window.self)
-            eval('!function(){"use strict";function t(){function t(){m=new c,$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),S=new r,$DOC.cbody.add(x=new i),x.createElement(),g=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),v=g.add("toolbar:div`clearfix",{style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(t){t&&$(t).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),v.add("save_group:bootstrap.BtnGroup`mar5",function(t){function e(){b.save(),t.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(b.buildHTML())}t.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){b.revert()});var n=m.fileName||"document.html";".html"!==n.toLowerCase().slice(-5)&&(n+=".html"),t.add("download:a`btn btn-default",\'<b class="glyphicon glyphicon-save"></b>\',{download:n,"data-original-title":"Download"}).listen("mousedown",e).listen("focus",e).listen("click",function(t){try{var e=new Blob([b.buildHTML()]);return window.navigator.msSaveOrOpenBlob(e,n),t.preventDefault(),void 0}catch(o){}}),t.add("save:bootstrap.SplitButton",{$icon:"floppy-disk","data-original-title":"Save"},function(t){t.button._class("disabled").listen("click",function(){b.write()}),t.toggle._class("disabled"),t.items.add("bootstrap.DropdownItem",{$icon:"resize-small"}).listen("click",function(){b.write(0)}).text(".html"),t.items.add("bootstrap.DropdownItem",{$icon:"resize-full"}).listen("click",function(){b.write(1)}).text(".html + .mw.html"),t.items.add("bootstrap.DropdownItem",{$icon:"share-alt"}).listen("click",function(){b.copy()}).text("Copy")}),v.add("cpanel:bootstrap.Button`hide fleft martop5 marbottom5 marleft5 padleft15 padright15",{$icon:"cog","data-original-title":"Control panel"}).listen("click",function(){})}),v.add("bootstrap.Button`mar5 fright",{$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var t=location.href,e=t.indexOf("?edit");0>e&&(e=t.indexOf("&edit")),e>=0&&(window.location=t.slice(0,e)+t.slice(e+5))});var t=v.add("bootstrap.Splitbutton`martop5 fright",{$icon:"fullscreen"});t.button.listen("click",function(){b.mode=b.mode?0:1});var l=t.items;l.add("bootstrap.DropdownItem",{$icon:"chevron-left"}).listen("click",function(){b.position=1}),l.add("bootstrap.DropdownItem",{$icon:"chevron-right"}).listen("click",function(){b.position=0}),l.add("bootstrap.DropdownItem",{$icon:"chevron-up"}).listen("click",function(){b.position=2}),l.add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(){b.position=3}),v.add("export_group:bootstrap.BtnGroup`mar5",function(t){t.add("github:bootstrap.Button",{"data-original-title":"Publish"})._icon("export")._text("GitHub").listen("click",function(){O.getSettings(!1,function(t){t&&O.publish()})})}),v.add(w=new o),g.add(T=new n),g.add(y=new e),g.createElement(),b=new a,O=new s,setInterval(function(){for(var t=0,e=k.length;e>t;t++)k[t]()},25),setInterval(function(){for(var t=0,e=C.length;e>t;t++)C[t]()},1e3)}function e(){var t=controls.create("div",{"class":"pad20"}),e=!0;Object.defineProperty(t,"visible",{get:function(){return e},set:function(n){e=n,t.element&&(t.element.style.display=e?"block":"none")}}),t.listen("element",function(t){t&&(t.style.display=e?"block":"none")});var n=t.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){S.title=n.title_edit.value}),S.listen(function(){S.title!==n.title_edit.value&&(n.title_edit.value=S.title)}),t.save=function(){},t}function n(){function t(){if(e.mode){var t=e._element;t&&t.value!==o&&(e.modified=25,o=t.value)}}var e=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});e.code_edit_resize=function(){var t=e.element;t&&(t.style.height=$(g.element).height()-$(v.element).height()+"px")},$(window).on("resize",e.code_edit_resize),C.push(e.code_edit_resize);var n=0;Object.defineProperty(e,"mode",{get:function(){return n},set:function(t){t>2&&(t=2),t!==n&&(n=t,this.element&&(e.element.style.display=n?"block":"none"),e.code_edit_resize())}});var o;return e.listen("element",function(t){t&&(t.value=o),e.code_edit_resize()}),Object.defineProperty(e,"text",{get:function(){return this.element?this.element.value:o},set:function(t){o=t||"",this.element&&(this.element.value=o),this.modified=0}}),e.save=function(){t(),this.modified&&(this.modified=0,this.raise("text",o))},e.listen("change",t,!0),k.push(function(){t(),e.modified&&--e.modified<2&&(e.modified=0,e.raise("text",o))}),e}function o(){function t(){o.selectedIndex=o.controls.indexOf(this)}var e,n=-1,o=v.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(t){var e=w.data;t.length+2<e.length&&e.splice(1,e.length-t.length-2);for(var n=e.length,o=t.length+2;o>n;n++)e.splice(1,0,{});for(var n=1,i=e.length-1;i>n;n++)e[n].text=t[n-1];e.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,r=n.length,a=i.length;a>r;r++)o.add("bootstrap.TabHeader").listen("click",t);for(var r=n.length-1,a=i.length;r>=a;r--){var s=n[r];s.deleteAll(),s.removeListener("click",t),o.remove(s)}for(var r=0,a=i.length;a>r;r++){var l=i[r];l.id=n[r].id;var s=n[r];s.attributes["data-original-title"]=l.hint,s.attributes.$icon=l.icon,s.text(l.text),l===e?s.class("active"):s.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(t){this.selected=t}}),Object.defineProperty(o,"selected",{get:function(){return e},set:function(t){var o=this.data;if("string"!=typeof t){if("number"==typeof t)return t>=0&&t<o.length&&t!==n?this.selected=o[t]:-1===t&&(this.selected=void 0),void 0;var i=o.indexOf(t);if(i>=0){var r=o[i];r!==e&&e&&(this.lastSelected=e)}if(t!==e||i!==n){for(var a=this.controls,s=0,l=a.length;l>s;s++)s===i?a[s].class("active"):a[s].class(null,"active");this.raise("selected",e=t?t:void 0,n=i)}}else{for(var s=0,l=o.length;l>s;s++){var r=o[s];if(r.id===t)return this.selected=r,void 0}for(var s=0,l=o.length;l>s;s++){var r=o[s];if(r.text===t)return this.selected=r,void 0}}}}),o.checkSelection=function(){var t=this.data;if(t.length){var n=t.indexOf(e);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){function t(t){var e=document.createElement("textarea");return e.innerHTML=t,e.value}var e,n,o=location.href;return o=o.slice(0,o.length-location.hash.length),o+=o.indexOf("?")>0?"&preview":"?preview",x=controls.create("iframe",{sandbox:"",src:o,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),x.updateInnerHtml=function(t,o){e=t,n=o;var i=this.element,r=this.$DOC;if(i&&r){var a=i.contentDocument,s=i.contentWindow,l=a.getElementsByTagName("html")[0];l&&(r.initialize(),l.innerHTML=t,r.headTransformation(),s.$OPT.userjs?r.loadUserJS():setTimeout(function(){r.finalTransformation()},0))}},x.reload=function(){this.element&&this.deleteAll(),this.createElement()},x.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(t){this.reload()}this.$DOC=this.element&&x.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,n)}.bind(x),0)}),x.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,r=i.sections[t];"object"==typeof r&&r.source_node&&i.processTextNode(r.source_node,t+"\\n"+n)},x.grabHTML=function(){for(var e=this.element&&this.element.contentDocument,n=this.$DOC,o=e.documentElement.cloneNode(),i=e.createNodeIterator(o,128,null,!1),r=i.nextNode();r;)r.parentNode.removeChild(r),r=i.nextNode();var a="<!DOCTYPE html>"+o.outerHTML.replace(/<noscript>([\\s\\S]*?)<\\/noscript>/g,function(e,n){return"<noscript>"+t(n)+"</noscript>"}),s=a.lastIndexOf("</body>");return a.substr(0,s)+\'<script>$DOC.onready(function() { if ($OPT.edit_mode) return;$DOC.chead = JSON.parse(unescape("\'+escape(JSON.stringify(n.chead))+\'"), controls.reviverJSON);$DOC.cbody = JSON.parse(unescape("\'+escape(JSON.stringify(n.cbody))+\'"), controls.reviverJSON);$DOC.vars = JSON.parse(unescape("\'+escape(JSON.stringify(n.vars))+\'"), controls.reviverJSON);$DOC.onload(function(){ $DOC.chead.attachAll(); $DOC.cbody.attachAll(); for(var prop in $DOC.vars) { var v = $DOC.vars[prop]; if (v.__type) v.attachAll(); } });});</script>\'+a.substr(s)},x}function r(){function t(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(t){return t.outerHTML()}).join("")+(this.closetag||"")}var e,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(r){if(o=r,!i){if(!n)return;i=n.add("div"),i.template(t)}i.controls.length=0,i.opentag="<title>"+r+"</title>",i.closetag="",e=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return e},set:function(r){if(r!==e){e=r;var a={},s={},l=document.implementation.createHTMLDocument(""),c=l.documentElement,d=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(e);d&&(c.innerHTML=d[1]);for(var u=controls.create("div"),h=[],f=[],p=l.createNodeIterator(c,65535,null,!1),m=p.nextNode();m;){var b=m===c?u:controls.create("div");b.template(t),h.push(m),f.push(b);var g=h.indexOf(m.parentNode);if(g>=0&&f[g].add(b),8===m.nodeType){var v=m.nodeValue,w=v[0];if(b.opentag="<!--"+m.nodeValue+"-->","%"===w);else if("!"===w);else{var y=v.indexOf(" "),T=v.indexOf("\\n"),S=v.indexOf("->");if(0>y&&0>T&&0>S);else if(0>y&&S>0);else if(T>0&&(0>y||y>T)&&(y=T),y>0&&128>y){var x=v.slice(0,y);a[x]=v.slice(y+1),s[x]=b}}}else if(m===c){var d=/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(e);b.opentag="<!DOCTYPE html>\\n"+(d?d[1]:"<html>")+"\\n",b.closetag="\\n</html>"}else{var O=m.outerHTML,k=m.innerHTML;if(k){var C=O.lastIndexOf(k);0>C?b.opentag=O:(b.opentag=O.slice(0,C),b.closetag=O.slice(C+k.length))}else b.opentag=O?O:m.nodeValue}m=p.nextNode()}var N=l.getElementsByTagName("head")[0];n=N&&f[h.indexOf(N)];var E=l.getElementsByTagName("title")[0];E?(o=E.textContent,i=f[h.indexOf(E)]):(o="",i=null),this.chtml=u,this.sections=a,this.seccontrols=s,this.raise()}}}),this.updateNamedSection=function(t,n){var o=this.seccontrols[t];o&&(this.sections[t]=n,o.opentag="<!--"+t+"\\n"+n+"-->\\n",e=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function a(){function t(t,e,n,o,i,r,a,s,l,c,d,u){if(x.element){var h=x.element.style;h.top=t,h.right=e,h.bottom=n,h.left=o,h.width=i,h.height=r,h=g.element.style,h.top=a,h.right=s,h.bottom=l,h.left=c,h.width=d,h.height=u}}function e(){if(i)switch(r){case 1:t("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 2:t("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 3:t("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:t("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(r){case 1:t("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:t("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:t("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:t("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}T.code_edit_resize()}var n=this;S.listen(function(){n.edit_html=S.html,w.setTabs(Object.keys(S.sections)),x.updateInnerHtml(S.chtml.innerHTML(),Object.keys(S.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(t){t!==o&&(o=t,S.html=o)}}),this.checkEdits=function(){var t=w.selected;t&&t.isoptions?y.save():t&&T.save()},w.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,y.visible=0===w.selectedIndex}),this.updateCodeEdit=function(){var t=w.selected;switch(T.mode=!t||t.isoptions?0:t.ishtml?1:2,T.mode){case 1:T.text=n.edit_html;break;case 2:var e=w.selected;e?(T.section=e.text,T.text=S.sections[e.text]):T.text="";break;default:T.text=""}},T.listen("text",function(t){switch(T.mode){case 1:n.edit_html=t,n.modified=25;break;case 2:n.updateNamedSection(T.section,T.text),n.modified=25}}),this.updateNamedSection=function(t,e){S.updateNamedSection(t,e),o=S.buildHTML(),x.updateNamedSection(t,e,S.chtml.innerHTML())},this.save=function(){this.checkEdits(),f.selected=w.selected&&w.selected.text,f.editMw=this.edit_html,f.html===m.mwHtml&&(f.delete=!0),f.raise(),this.modified=0},this.write=function(){this.save(),arguments.length&&(m.fileMode=arguments[0]),m.fileMode?m.write(n.buildHTML(),x.grabHTML())&&h.onReady(function(){location.reload()}):m.write(n.buildHTML())&&h.onReady(function(){location.reload()})},this.copy=function(){this.save();var t=window.prompt("Enter file name",m.fileName);if(t&&t!==m.fileName)if(m.fileMode){var e=m.writeTo(t,n.buildHTML(),x.grabHTML());e&&h.onReady(function(){window.location=e})}else{var e=m.writeTo(t,n.buildHTML());e&&h.onReady(function(){window.location=e})}},this.revert=function(){this.edit_html=m.mwHtml,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return T.save(),S.buildHTML()};var i=0,r=0,a=600,s=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(t){i=t,e(),n.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return r},set:function(t){r=t,e(),n.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,r,a,s].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),r=parseInt(l[1]),a=parseInt(l[2]),s=parseInt(l[3])}catch(c){}e()}var d=localStorage&&localStorage.getItem("default selected page");w.lastSelected=f.selected||d||w.data[0],this.edit_html=f.editMw||m.mwHtml||"",w.checkSelection(),m.writable&&(v.save_group.save.button.class(null,"disabled"),v.save_group.save.toggle.class(null,"disabled")),k.push(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this))}function s(){function t(){var t=controls.create("bootstrap.modal",{style:"z-index:1200;",disabled:!0});t.close=t.header.add("button`close","&times;",{type:"button"}),t.header.add("h4`modal-title","Publish on GitHub");var e=t.body.add("form:bootstrap.Form");return e._add("bootstrap.FormGroup",function(e){e.add("bootstrap.ControlLabel","Username:"),t.user=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Repository:"),t.repo=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Branch:"),t.branch=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Path in repository:"),t.path=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Personal access token or password:"),t.apikey=e.add("bootstrap.ControlInput")}),t.OK=t.footer.add("bootstrap.Button#primary","OK"),t.Cancel=t.footer.add("bootstrap.Button","Cancel"),t.modeCheckbox=e.add("bootstrap.FormGroup").add("bootstrap.ControlCheckbox`martop20",{$text:"Compile to html"}),t.ref0=e.add("bootstrap.FormGroup").add("a`martop20",{target:"repo"}),setInterval(function(){var e=t.user.value,n=t.repo.value;if(e&&n){var o="https://github.com/"+e+"/"+n;t.ref0._text(o)._attr("href",o)}},977),t}this.getSettings=function(e,n){var o=p.github||(p.github={}),i=o.user,r=o.repo,a=o.branch,s=l({fileName:f.github_path}),c=sessionStorage.getItem("github-apikey")||"";s.fileName||(s=l({fileName:decodeURIComponent(location.pathname).split("/").slice(2).join("/")})),i=i||location.host.split(".")[0],r=r||decodeURIComponent(location.pathname).split("/")[1],a=a||"gh-pages";var d=$DOC.cbody.github_modal;d||(d=$DOC.cbody.github_modal=$DOC.cbody.add(t()),d.createElement(),d.close.listen("click",function(){$(d.element).modal("hide"),n&&n(!1)}),d.OK.listen("click",function(){var t=p.github||(p.github={});t.user=d.user.value||"",sessionStorage.setItem("github-apikey",d.apikey.value||""),t.repo=d.repo.value||"",t.branch=d.branch.value||"gh-pages",p.raise(),f.github_path=d.path.value||"",f.raise(),d.callback&&d.callback(t.user&&t.repo&&t.branch&&f.github_path&&d.apikey.value)}),d.Cancel.listen("click",function(){$(d.element).modal("hide"),d.callback&&d.callback(!1)})),d.user.value=i,d.apikey.value=c,d.repo.value=r,d.branch.value=a,d.path.value=s.fileName,d.modeCheckbox.checked=m.fileMode,d.callback=n,$(d.element).modal("show")},this.publish=function(){var t=p.github||(p.github={}),e=new window.github_api({username:t.user,password:sessionStorage.getItem("github-apikey"),auth:"basic"}),n=e.getRepo(t.user,t.repo),o=b.buildHTML(),i=l({fileName:f.github_path}),r=$DOC.cbody.github_modal;if(r.modeCheckbox.checked){var a=x.grabHTML();n.write(t.branch,i.mwFileName,o,"---",function(e){e?console.log(e):setTimeout(function(){n.write(t.branch,i.fileName,a,"---",function(e){e?setTimeout(function(){n.write(t.branch,i.fileName,a,"---",function(t){t?console.log(t):$(r&&r.element).modal("hide")})},3e3):$(r&&r.element).modal("hide")})},3e3)})}else n.write(t.branch,i.fileName,o,"---",function(e){e?console.log(e):setTimeout(function(){n.removeFile(t.branch,i.mwFileName,function(e){e&&404!==e?setTimeout(function(){n.removeFile(t.branch,i.mwFileName,function(t){t&&404!==t?console.log(t):$(r&&r.element).modal("hide")})},3e3):$(r&&r.element).modal("hide")})},3e3)})}}function l(t){var e=t.fileName,n=t.mwFileName;return e?".html"!==e.slice(-5)?(t.fileName+=".html",l(t)):(".mw.html"===e.slice(-8)?(e=e.slice(0,e.length-8),n=e+".mw.html",e+=".html"):n=e.slice(0,e.length-5)+".mw.html",t.fileName=e,t.mwFileName=n,t):t}function c(){this.environment=0,this.writable=0,this.errorState=-1,this.mwHtml="",this.fileMode=0;var t=location.url,e=t.lastIndexOf("/"),n=t.lastIndexOf("\\\\");e=n>e?n:e,this.path=t.slice(0,e+1),this.fileName=t.slice(e+1),l(this);var o=this;if("undefined"!=typeof nwDispatcher&&"file:"===location.protocol){this.environment=1,this.writable=!0;var i=require("fs"),r=this.path.slice(8)+this.mwFileName,a=this.path.slice(8)+this.fileName;try{i.existsSync(r)?(this.fileMode=1,this.mwHtml=i.readFileSync(r).toString().replace(/\\r/g,"")):this.mwHtml=i.readFileSync(a).toString().replace(/\\r/g,""),this.errorState=0}catch(s){this.errorState=1}this.write=function(t,e){if(this.writable&&!this.errorState)try{if(this.fileMode)i.writeFileSync(r,t),i.writeFileSync(a,e);else{i.writeFileSync(a,t);try{i.unlinkSync(r)}catch(n){}}return a}catch(n){console.log(n)}},this.writeTo=function(t,e,n){if(this.writable&&!this.errorState)try{var o=l({fileName:t}),r=this.path.slice(8)+o.mwFileName,a=this.path.slice(8)+o.fileName;if(this.fileMode)i.writeFileSync(r,e),i.writeFileSync(a,n);else{i.writeFileSync(a,e);try{i.unlinkSync(r)}catch(s){}}return a}catch(s){console.log(s)}}}else{"file:"===location.protocol&&(this.errorState=1);var c=this;$.ajax({url:o.path+o.mwFileName,type:"GET",dataType:"html",async:0}).done(function(t){c.mwHtml=t.replace(/\\r/g,""),c.fileMode=1}).fail(function(){$.ajax({url:o.path+o.fileName,type:"GET",dataType:"html",async:0}).done(function(t){c.mwHtml=t.replace(/\\r/g,"")}).fail(function(){this.errorState=1})})}}function d(t,e){function n(){u(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,r=this;this.errorState=-1;for(var a in t){var s=t[a];s.listen(function(){this.modified=!0})}if(k.push(function(){for(var e in t){var n=t[e];n.modified&&r.write()}}),window.indexedDB){try{var l=window.indexedDB.open("markdown-webdocs.editor.db.1",1);l.onsuccess=function(t){o=t.target.result,e()},l.onupgradeneeded=function(n){o=n.target.result;for(var i in t)o.createObjectStore(i,{keyPath:"key"});e()},l.onerror=function(t){u(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(t)},l.onblocked=function(t){u(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(t)}}catch(c){return n(),void 0}r.restore=function(e){try{var n=o.transaction(Object.keys(t),"readonly"),i=0,a=0;for(var s in t){var l=t[s],c=n.objectStore(s).get(l.key);i++,c.onsuccess=function(n){l=t[n.target.source.name],l.fromJSON(n.target.result),l.modified=!1,a++,a===i&&(r.errorState=0,e&&e())},c.onerror=function(t){console.log(t),this.errorState=1}}}catch(d){console.log(d),this.errorState=1}},r.write=function(){if(!this.errorState)try{var e=o.transaction(Object.keys(t),"readwrite");for(var n in t){var i=t[n];if(i.modified){var r=e.objectStore(n);if(i.delete)delete i.delete,r.delete(i.key);else{var a=r.put(i.toJSON());a.onsuccess=function(){},a.onerror=function(t){console.log(t)}}i.modified=!1,i.selected&&localStorage&&localStorage.setItem("default selected page",i.selected)}}}catch(s){console.log(s)}}}else{if(!window.openDatabase)return n(),void 0;try{var i=window.openDatabase("markdown-webdocs.editor.db.1","1.0","markdow webdocs editor",0);if(!i)return n(),void 0;i.transaction(function(e){for(var o in t)e.executeSql("CREATE TABLE IF NOT EXISTS "+o+" (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,e)}catch(c){return n(),void 0}r.restore=function(e){try{i.transaction(function(n){var o=0,i=0;for(var a in t){var s=t[a];n.executeSql("SELECT value FROM "+a+" WHERE key = ? LIMIT 1",[s.key],function(t,n){if(n.rows.length){try{s.fromJSON(JSON.parse(n.rows.item(0).value))}catch(a){s.fromJSON({})}s.modified=!1}i++,i===o&&(r.errorState=0,e&&e())},function(t){console.log(t)})}},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(!errorState)try{i.transaction(function(e){for(var n in t){var o=t[n];o.delete?(delete o.delete,e.executeSql("DELETE FROM "+n+" WHERE key = ?",[o.key],function(){},function(t){console.log(t)})):e.executeSql("INSERT OR REPLACE INTO "+n+" (key, value) VALUES (?, ?)",[o.key,JSON.stringify(o)],function(){},function(t){console.log(t)})}},function(){console.log(event)},function(){}),modified=!1}catch(e){console.log(e)}}}r.onReady=function(t){setTimeout(function(){t()},400)}}function u(t){$DOC.cbody.attachAll().add("div",{style:"position:fixed; left:0; top:0; width:100%; height:100%; background-color:white; opacity:0.9; z-index:1201;"}).createElement(),$DOC.cbody.add("alert:div.mar20 alert alert-warning col1-sm-offset-3 col-sm-6",{$text:t,style:"position:fixed; left:25px; top:25px; z-index:1202;"}).createElement()}var h,f,p,m,b,g,v,w,y,T,S,x,O,k=[],C=[];$(window).load(function(){location.url=decodeURI(location.href.split("?")[0]),f=controls.create("DataObject"),f.key=location.url,f.fromJSON=function(t){this.selected=t&&t.selected,this.sourceMw=t&&t.sourceMw,this.editMw=t&&t.editMw,this.history=t&&t.history,this.github_path=t&&t.github_path,Array.isArray(this.history)||(this.history=[])},f.toJSON=function(){return{key:this.key,selected:this.selected,sourceMw:this.sourceMw,editMw:this.editMw,history:this.history,github_path:this.github_path}},p=controls.create("DataObject");var e=document.createElement("script");e.setAttribute("src",$DOC.root),p.key=e.src.split("?")[0],p.fromJSON=function(t){this.github=t&&t.github},p.toJSON=function(){return{key:this.key,github:this.github}},h=new d({drafts:f,settings:p},function(){h.restore(t)})}),r.prototype=controls.create("DataObject")}window.top!==window.self||window["mw-document-editor"]||(window["mw-document-editor"]=!0,"undefined"!=typeof $ENV?t():(window.defercqueue||(window.defercqueue=[])).push(t))}(),function(){function t(t){var e,n,o,i,r,a,s,l="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",c="",d=0;do e=t.charCodeAt(d++),n=t.charCodeAt(d++),o=t.charCodeAt(d++),i=e>>2,r=(3&e)<<4|n>>4,a=(15&n)<<2|o>>6,s=63&o,isNaN(n)?a=s=64:isNaN(o)&&(s=64),c=c+l.charAt(i)+l.charAt(r)+l.charAt(a)+l.charAt(s);while(d<t.length);return c}var e="https://api.github.com",n=function(o){function i(n,i,r,a,s,l){function c(){var t=i.indexOf("//")>=0?i:e+i;return t+(/\\?/.test(t)?"&":"?")+(new Date).getTime()}var d=new XMLHttpRequest;return s||(d.dataType="json"),d.open(n,c(),!l),l||(d.onreadystatechange=function(){4===this.readyState&&(this.status>=200&&this.status<300||304===this.status?a(null,s?this.responseText:this.responseText?JSON.parse(this.responseText):!0,this):a({path:i,request:this,error:this.status}))}),d.setRequestHeader("Accept","application/vnd.github.raw+json"),d.setRequestHeader("Content-Type","application/json;charset=UTF-8"),(o.token||o.username&&o.password)&&d.setRequestHeader("Authorization",o.token?"token "+o.token:"Basic "+t(o.username+":"+o.password)),r?d.send(JSON.stringify(r)):d.send(),l?d.response:void 0}function r(t,e){var n=[];!function o(){i("GET",t,null,function(i,r,a){if(i)return e(i);n.push.apply(n,r);var s=(a.getResponseHeader("link")||"").split(/\\s*,\\s*/g),l=_.find(s,function(t){return/rel="next"/.test(t)});l&&(l=(/<(.*)>/.exec(l)||[])[1]),l?(t=l,o()):e(i,n)})}()}n.User=function(){this.repos=function(t){r("/user/repos?type=all&per_page=1000&sort=updated",function(e,n){t(e,n)})},this.userRepos=function(t,e){r("/users/"+t+"/repos?type=all&per_page=1000&sort=updated",function(t,n){e(t,n)})},this.orgRepos=function(t,e){r("/orgs/"+t+"/repos?type=all&&page_num=1000&sort=updated&direction=desc",function(t,n){e(t,n)})}},n.Repository=function(t){function e(t,e){return t===s.branch&&s.sha?e(null,s.sha):(r.getRef("heads/"+t,function(n,o){s.branch=t,s.sha=o,e(n,o)}),void 0)}var n=t.name,o=t.user,r=this,a="/repos/"+o+"/"+n,s={branch:null,sha:null};this.getRef=function(t,e){i("GET",a+"/git/refs/"+t,null,function(t,n){return t?e(t):(e(null,n.object.sha),void 0)})},this.createRef=function(t,e){i("POST",a+"/git/refs",t,e)},this.deleteRef=function(e,n){i("DELETE",a+"/git/refs/"+e,t,n)},this.compare=function(t,e,n){i("GET",a+"/compare/"+t+"..."+e,null,function(t,e){return t?n(t):(n(null,e),void 0)})},this.listBranches=function(t){i("GET",a+"/git/refs/heads",null,function(e,n){return e?t(e):(t(null,_.map(n,function(t){return _.last(t.ref.split("/"))})),void 0)})},this.getBlob=function(t,e){i("GET",a+"/git/blobs/"+t,null,e,"raw")},this.getSha=function(t,e,n){return""===e?r.getRef("heads/"+t,n):(r.getTree(t+"?recursive=true",function(t,o){if(t)return n(t);var i=_.select(o,function(t){return t.path===e})[0];n(null,i?i.sha:null)}),void 0)},this.getTree=function(t,e){i("GET",a+"/git/trees/"+t,null,function(t,n){return t?e(t):(e(null,n.tree),void 0)})},this.postBlob=function(t,e){"string"==typeof t&&(t={content:t,encoding:"utf-8"}),i("POST",a+"/git/blobs",t,function(t,n){return t?e(t):(e(null,n.sha),void 0)})},this.updateTree=function(t,e,n,o){var r={base_tree:t,tree:[{path:e,mode:"100644",type:"blob",sha:n}]};i("POST",a+"/git/trees",r,function(t,e){return t?o(t):(o(null,e.sha),void 0)})},this.postTree=function(t,e){i("POST",a+"/git/trees",{tree:t},function(t,n){return t?e(t):(e(null,n.sha),void 0)})},this.commit=function(e,n,o,r){var l={message:o,author:{name:t.username},parents:[e],tree:n};i("POST",a+"/git/commits",l,function(t,e){return s.sha=e&&e.sha,t?r(t):(r(null,e&&e.sha),void 0)})},this.updateHead=function(t,e,n){i("PATCH",a+"/git/refs/heads/"+t,{sha:e},function(t){n(t)})},this.show=function(t){i("GET",a,null,t)},this.contents=function(t,e,n,o){return i("GET",a+"/contents?ref="+t+(e?"&path="+e:""),null,n,"raw",o)},this.fork=function(t){i("POST",a+"/forks",null,t)},this.branch=function(t,e,n){2===arguments.length&&"function"==typeof arguments[1]&&(n=e,e=t,t="master"),this.getRef("heads/"+t,function(t,o){return t&&n?n(t):(r.createRef({ref:"refs/heads/"+e,sha:o},n),void 0)})},this.createPullRequest=function(t,e){i("POST",a+"/pulls",t,e)},this.listHooks=function(t){i("GET",a+"/hooks",null,t)},this.getHook=function(t,e){i("GET",a+"/hooks/"+t,null,e)},this.createHook=function(t,e){i("POST",a+"/hooks",t,e)},this.editHook=function(t,e,n){i("PATCH",a+"/hooks/"+t,e,n)},this.deleteHook=function(t,e){i("DELETE",a+"/hooks/"+t,null,e)},this.read=function(t,e,n){r.getSha(t,e,function(t,e){return e?(r.getBlob(e,function(t,o){n(t,o,e)}),void 0):n("not found",null)})},this.remove=function(t,n,o){e(t,function(e,i){r.getTree(i+"?recursive=true",function(e,a){var s=a.filter(function(t){return t.path!==n});s.forEach(function(t){"tree"===t.type&&delete t.sha}),a.length===s.length&&o(404),r.postTree(s,function(e,a){r.commit(i,a,"Deleted "+n,function(e,n){r.updateHead(t,n,function(t){o(t)})})})})})},this.removeFile=function(t,n,o){e(t,function(e,s){r.getTree(s+"?recursive=true",function(e,r){r&&r.some(function(e){if(e.path===n&&"blob"===e.type){var r={path:e.path,message:"---",sha:e.sha,branch:t};return i("DELETE",a+"/contents/"+n,r,function(t,e){return t?o(t):(o(null,e.sha),void 0)}),!0}})||o(null)})})},this.move=function(t,n,o,i){e(t,function(e,a){r.getTree(a+"?recursive=true",function(e,s){_.each(s,function(t){t.path===n&&(t.path=o),"tree"===t.type&&delete t.sha}),r.postTree(s,function(e,o){r.commit(a,o,"Deleted "+n,function(e,n){r.updateHead(t,n,function(t){i(t)})})})})})},this.write=function(t,n,o,i,a){e(t,function(e,s){return e?a(e):(r.postBlob(o,function(e,o){return e?a(e):(r.updateTree(s,n,o,function(e,n){return e?a(e):(r.commit(s,n,i,function(e,n){return e?a(e):(r.updateHead(t,n,a),void 0)}),void 0)}),void 0)}),void 0)})},this.getCommits=function(t,e){t=t||{};var n=a+"/commits",o=[];if(t.sha&&o.push("sha="+encodeURIComponent(t.sha)),t.path&&o.push("path="+encodeURIComponent(t.path)),t.since){var r=t.since;r.constructor===Date&&(r=r.toISOString()),o.push("since="+encodeURIComponent(r))}if(t.until){var s=t.until;s.constructor===Date&&(s=s.toISOString()),o.push("until="+encodeURIComponent(s))}o.length>0&&(n+="?"+o.join("&")),i("GET",n,null,e)}},this.getRepo=function(t,e){return new n.Repository({user:t,name:e})},this.getUser=function(){return new n.User}};window.github_api=n}();');
-            //$DOC.appendScript('document.editor.js', '/*include editor*/');
-
-        window.addEventListener('keydown', function(event) {
-            if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
-                if ($OPT.edit_mode) {
-                    var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
-                    if (pos >= 0)
-                        window.location = url.slice(0, pos) + url.slice(pos + 5);
-                } else
-                    window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
-            }
-        });
-    }
-    
-})();
 
 
-},{"./temp/bootstrap.controls.js":2,"./temp/marked":3,"controls":4,"dot":6}],2:[function(require,module,exports){
-//     controls.bootstrap.js
-//     purpose: twitter bootstrap VCL for using with controls.js
-//     http://aplib.github.io/controls.js/bootstrap.controls-demo.html
-//     (c) 2013 vadim b.
-//     License: MIT
-//
-// require controls.js
 
 
-(function() { "use strict";
-
-function Bootstrap(controls) {
-    var bootstrap = this;
-    bootstrap.VERSION = '0.7.02'/*#.#.##*/;
-    if (!controls)
-        throw new TypeError('controls.bootstrap.js: controls.js not found!');
-    if (controls.bootstrap && controls.bootstrap.VERSION >= bootstrap.VERSION)
-        return controls.bootstrap;
-    controls.bootstrap = this;
-    
-    var control_prototype = (function() {
-        function bootstrap_proto() { }
-        bootstrap_proto.prototype = controls.control_prototype;
-        return new bootstrap_proto();
-    })();
-    bootstrap.control_prototype = control_prototype;
-    
-    // icon()
-    control_prototype.icon = function(icon_class) {
-        if (arguments.length === 0)
-            return this.attributes.$icon;
-            
-        this.attributes.$icon = icon_class;
-        
-        if (this._element)
-            this.refresh();
-        
-        return icon_class;
-    };
-    
-    control_prototype._icon = function(icon_class) {
-        this.icon(icon_class);
-        return this;
-    };
-    
-    control_prototype.getControlStyle = function() {
-        var parameters = this.parameters;
-        return parameters.style || parameters['/style'] || (parameters.info && 'info') || (parameters.link && 'link') || (parameters.success && 'success')
-            || (parameters.primary && 'primary') || (parameters.warning && 'warning') || (parameters.danger && 'danger') || 'default';
-    };
-    
-    var CONTROL_SIZE = {
-        'xtra-small':'xtra-small', 'xs':'xtra-small', 'btn-xs':'xtra-small', '-2':'xtra-small',
-        'small':'small', 'sm':'small', 'btn-sm':'small', '-1':'small',
-        'default':'', '':'', '0':'',
-        'large':'large', 'lg':'large', 'btn-lg':'large', '1':'large',
-        'xtra-large':'xtra-large', 'xl':'xtra-large', '2':'xtra-large'
-    };
-    control_prototype.getControlSize = function() {
-        var parameters = this.parameters,
-            csize = CONTROL_SIZE[parameters.size || parameters['/size']];
-        
-        if (!csize)
-        for(var prop in parameters)
-        if (!csize)
-            csize = CONTROL_SIZE[prop];
-        
-        return csize || '';
-    };
-    
-    
-    // Label
-    // 
-    function Label(parameters, attributes) {
-        this.initialize('bootstrap.Label', parameters, attributes, Label.template)
-            .listen_('type', function() {
-                this.class('label label-' + this.getControlStyle(), 'label-default label-link label-primary label-success label-info label-warning label-danger');
-            });
-    };
-    Label.prototype = control_prototype;
-    Label.template = function(it) { return '<span' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</span>'; };
-    controls.typeRegister('bootstrap.Label', Label);
-    
-    
-    // Panel
-    // 
-    function Panel(parameters, attributes) {
-        this.initialize('bootstrap.Panel', parameters, attributes)
-            .add('body:div`panel-body', attributes.$text);
-        attributes.$text = undefined;
-    
-        if (parameters.header) {
-            if (typeof parameters.header === 'string')
-                this.insert(0, 'header:div`panel-heading panel-title', parameters.header);
-            else
-                this.insert(0, 'header:div`panel-heading panel-title');
-        }
-        
-        if (parameters.footer) {
-            if (typeof parameters.footer === 'string')
-                this.add('footer:div`panel-footer', parameters.footer);
-            else
-                this.add('footer:div`panel-footer');
-        }
-    
-        this.listen_('type', function() {
-            this.class('panel panel-' + this.getControlStyle(), 'panel-default panel-link panel-primary panel-success panel-info panel-warning panel-danger');
-        });
-
-        this.text = function(_text) {
-            return this.body.text(_text);
-        };
-    };
-    Panel.prototype = control_prototype;
-    controls.typeRegister('bootstrap.Panel', Panel);
-    
-    
-    // Dropdowns
-    
-    // DropdownItem
-    // 
-    // Attributes:
-    // href, $icon, $text
-    // 
-    //
-    function DropdownItem(parameters, attributes /*href $icon $text*/) {
-        this.initialize('bootstrap.DropdownItem', parameters, attributes, DropdownItem.template);
-    };
-    DropdownItem.prototype = control_prototype;
-    DropdownItem.template = function(it) {
-        var out = '<li id="' + it.id + '"><a' + it.printAttributes('-id') + '>',
-            attrs = it.attributes;
-        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
-        return out + (it.attributes.$text || '') + '</a></li>';
-    };
-    controls.typeRegister('bootstrap.DropdownItem', DropdownItem);
-    
-    
-    // DividerItem
-    // 
-    //
-    function DividerItem(parameters, attributes) {
-        this.initialize('bootstrap.DividerItem', parameters, attributes, DividerItem.template)
-            .class('divider');
-    };
-    DividerItem.prototype = control_prototype;
-    DividerItem.template = function(it) { return '<li' + it.printAttributes() + '></li>'; };
-    controls.typeRegister('bootstrap.DividerItem', DividerItem);
-    
-    
-    // DropdownLink
-    // 
-    // 
-    function DropdownLink(parameters, attributes) {
-        this.initialize('bootstrap.DropdownLink', parameters, attributes, DropdownLink.template)
-            .class('dropdown');
-    };
-    DropdownLink.prototype = control_prototype;
-    DropdownLink.template = function(it) {
-        var out = '<div' + it.printAttributes() + '><a class="dropdown-toggle" data-toggle="dropdown" href="#">',
-            attrs = it.attributes, ctrls = it.controls;
-        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
-        out += (it.attributes.$text || '') + '</a>';
-        if (ctrls.length) {
-            out += '<ul class="dropdown-menu">';
-            for (var i = 0, c = ctrls.length; i < c; i++)
-                out += ctrls[i].wrappedHTML();
-            out += '</ul>';
-        }
-        return out + '</div>';
-    };
-    controls.typeRegister('bootstrap.DropdownLink', DropdownLink);
-
-
-    //
-    function ToggleBtn(parameters, attributes) {
-        this.initialize('bootstrap.ToggleBtn', parameters, attributes, ToggleBtn.template)
-            .class('btn dropdown-toggle');
-    };
-    ToggleBtn.prototype = control_prototype;
-    ToggleBtn.template = function(it) {
-        var out = '<a' + it.printAttributes() + ' data-toggle="dropdown" href="#">',
-            attrs = it.attributes, ctrls = it.controls;
-        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
-        if (attrs.caret || attrs.Caret) out += '<span class="caret"></span>';
-        out += (it.attributes.$text || '') + '</a>';
-        if (ctrls.length) {
-            out += '<ul class="dropdown-menu">';
-            for (var i = 0, c = ctrls.length; i < c; i++)
-                out += ctrls[i].wrappedHTML();
-            out += '</ul>';
-        }
-        return out;
-    };
-    controls.typeRegister('bootstrap.ToggleBtn', ToggleBtn);
-    
-    
-    // bootstrap@Button
-    // 
-    // Parameters:
-    //  style {'default','primary','success','info','warning','danger','link'} - one of the predefined style of button from bootstrap
-    //  size {0..3, 'xtra-small', 'small', 'default', 'large'}
-    // Attributes:
-    //  $text {string} - text
-    //  $icon {string) - the name of one of the available bootstrap glyphicon, glass music search etc. See http://glyphicons.getbootstrap.com
-    // Example:
-    //  controls.create('bootstrap.Button/style=success', {$icon: "glass"});
-    //
-    var BUTTON_SIZES = { 'xtra-small':'btn-xs', small:'btn-sm', large:'btn-lg' };
-    function buttonTypeHandler() {
-        this.class('btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlSize()] || '')).trim(),
-            this.attributes.class ? 'btn-default btn-primary btn-success btn-info btn-warning btn-danger btn-link btn-xs btn-sm btn-lg' : null);
-    }
-    function Button(parameters, attributes) {
-        this.initialize('bootstrap.Button', parameters, attributes, Button.template)
-            .listen_('type', buttonTypeHandler);
-    };
-    Button.prototype = control_prototype;
-    Button.template = function(it) {
-        var attrs = it.attributes;
-        return '<button type="button"' + it.printAttributes() + '>'
-            + (attrs.$icon ? ('<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>') : '')
-            + ((attrs.$icon && attrs.$text) ? '&nbsp;' : '')
-            + (attrs.$text || '')
-            + '</button>';
-    };
-    controls.typeRegister('bootstrap.Button', Button);
-    
-    
-    // Splitbutton
-    //
-    function Splitbutton(parameters, attributes) {
-        this.initialize('bootstrap.SplitButton', parameters, attributes, Splitbutton.template)
-            ._class('btn-group')
-            ._add('button:bootstrap.Button', {$icon:attributes.$icon})
-            ._add('toggle:bootstrap.Button', {class:'dropdown-toggle', 'data-toggle':'dropdown', $text:'<span class="caret"></span>'})
-            ._add('items:ul', {class:'dropdown-menu'})
-            .listen_('type', function() {
-                var btn_class = 'btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim();
-                this.button.class(btn_class);
-                this.toggle.class(btn_class);
-            });
-    };
-    Splitbutton.prototype = control_prototype;
-    controls.typeRegister('bootstrap.SplitButton', Splitbutton);
-    
-    
-    // BtnGroup
-    // 
-    //
-    function BtnGroup(parameters, attributes) {
-        this.initialize('bootstrap.BtnGroup', parameters, attributes, BtnGroup.template)
-            .class('btn-group');
-    };
-    BtnGroup.prototype = control_prototype;
-    controls.typeRegister('bootstrap.BtnGroup', BtnGroup);
-    
-    
-    // TabPanelHeader
-    // 
-    function TabPanelHeader(parameters, attributes) {
-        this.initialize('bootstrap.TabPanelHeader', parameters, attributes, TabPanelHeader.template)
-            .class('nav nav-tabs tabpanel-header');
-    };
-    TabPanelHeader.prototype = control_prototype;
-    TabPanelHeader.template = function(it) { return '<ul' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</ul>'; };
-    controls.typeRegister('bootstrap.TabPanelHeader', TabPanelHeader);
-    
-    
-    // TabHeader
-    // 
-    function TabHeader(parameters, attributes) {
-        this.initialize('bootstrap.TabHeader', parameters, attributes, TabHeader.template)
-            .class('tab-header');
-    };
-    TabHeader.prototype = control_prototype;
-    TabHeader.template = function(it) {
-        var attrs = it.attributes;
-        return '<li' + it.printAttributes() + '><a href="' + (attrs.$href || '') + '" data-toggle="tab">'
-            + (attrs.$icon ? ('<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>' + ((attrs.$text) ? '&nbsp;' : '')) : '')
-            + (attrs.$text || '')
-            + '</a></li>';
-    };
-    controls.typeRegister('bootstrap.TabHeader', TabHeader);
-    
-    
-    // TabPanelBody
-    // 
-    function TabPanelBody(parameters, attributes) {
-        this.initialize('bootstrap.TabPanelBody', parameters, attributes)
-            .class('tab-content tabpanel-body');
-    };
-    TabPanelBody.prototype = control_prototype;
-    controls.typeRegister('bootstrap.TabPanelBody', TabPanelBody);
-    
-    
-    // TabPage
-    // 
-    function TabPage(parameters, attributes) {
-        this.initialize('bootstrap.TabPage', parameters, attributes)
-            .class('tab-pane fade');
-    };
-    TabPage.prototype = control_prototype;
-    controls.typeRegister('bootstrap.TabPage', TabPage);
-    
-    
-    // Form
-    // 
-    function Form(parameters, attributes) {
-        this.initialize('bootstrap.Form', parameters, attributes, Form.template)
-            .attr('role', 'form');
-    };
-    Form.prototype = control_prototype;
-    Form.template = function(it) { return '<form' + it.printAttributes() + '>' + it.printControls() + '</form>'; };
-    controls.typeRegister('bootstrap.Form', Form);
-    
-    
-    // FormGroup
-    // 
-    function FormGroup(parameters, attributes) {
-        this.initialize('bootstrap.FormGroup', parameters, attributes)
-            .class('form-group');
-    };
-    FormGroup.prototype = control_prototype;
-    controls.typeRegister('bootstrap.FormGroup', FormGroup);
-    
-    
-    // Modal
-    // 
-    function Modal(parameters, attributes) {
-        this.initialize('bootstrap.Modal', parameters, attributes, Modal.template)
-            ._class('modal fade')
-            ._attr('role', 'dialog')
-            ._add('header:div', {class:'modal-header'})
-            ._add('body:div', {class:'modal-body'})
-            ._add('footer:div', {class:'modal-footer'});
-        if (!attributes.hasOwnProperty('tabindex'))    attributes.tabindex = -1;
-        if (!attributes.hasOwnProperty('aria-hidden')) attributes['aria-hidden'] = true;
-    };
-    Modal.prototype = control_prototype;
-    Modal.template = function(it) {
-        return '<div' + it.printAttributes() + '><div class="modal-dialog"><div class="modal-content">' + it.printControls() + '</div></div></div>';
-    };
-    controls.typeRegister('bootstrap.Modal', Modal);
-    
-    
-    // ControlLabel
-    // 
-    function ControlLabel(parameters, attributes) {
-        this.initialize('bootstrap.ControlLabel', parameters, attributes, ControlLabel.template)
-            .class('control-label');
-    };
-    ControlLabel.prototype = control_prototype;
-    ControlLabel.template = function(it) { return '<label' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</label>'; };
-    controls.typeRegister('bootstrap.ControlLabel', ControlLabel);
-    
-    
-    // ControlCheckbox
-    // 
-    function ControlCheckbox(parameters, attributes) {
-        this.initialize('bootstrap.ControlCheckbox', parameters, attributes, ControlCheckbox.template)
-            ._class('checkbox')
-            .add('input:input', attributes.$text, {type:'checkbox', checked:attributes.$checked})
-                .listen_('change', function() {
-                    this.attributes.checked = this.element.checked;
-                }, true)
-                .listen_('element', function(element) {
-                    if (element)
-                        element.checked = this.attributes.checked || '';
-                });
-        Object.defineProperty(this, 'checked', {
-            get: function() { return this.input.attributes.checked; },
-            set: function(value) {
-                value = !!value;
-                var element = this.input._element;
-                this.input.attributes.checked = value;
-                if (element)
-                    element.checked = value;
-            }
-        });
-        attributes.$checked = undefined;
-        attributes.$text = undefined;
-    };
-    ControlCheckbox.prototype = control_prototype;
-    ControlCheckbox.template = function(it) { return '<div' + it.printAttributes() + '><label>' + it.printControls() + '</label></div>'; };
-    controls.typeRegister('bootstrap.ControlCheckbox', ControlCheckbox);
-    
-    
-    // ControlInput
-    // 
-    function ControlInput(parameters, attributes) {
-        var control = new controls['controls.input'](parameters, attributes)
-            ._class('form-control');
-        control.__type = 'bootstrap.ControlInput';
-        return control;
-    };
-    controls.factoryRegister('bootstrap.ControlInput', ControlInput);
-    
-    
-    // ControlSelect
-    // 
-    // Attributes:
-    //  $data {DataArray}
-    //
-    function ControlSelect(parameters, attributes) {
-        var control = new controls['controls.select'](parameters, attributes)
-            ._class('form-control')
-            ._style('display:inline-block;');
-        control.__type = 'bootstrap.ControlSelect';
-        return control;
-    };
-    controls.factoryRegister('bootstrap.ControlSelect', ControlSelect);
-};
-
-
-    // exports
-    if (typeof module !== 'undefined' && module.exports) module.exports = new Bootstrap(require('controls'));
-    if (typeof define === 'function' && define.amd) define(['controls'], function(c) { return new Bootstrap(c); });
-    if (typeof window !== 'undefined') new Bootstrap(window.controls);
-})();
-
-},{"controls":4}],3:[function(require,module,exports){
-var global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {};/**
+/**
  * marked - a markdown parser
  * Copyright (c) 2011-2013, Christopher Jeffrey. (MIT Licensed)
  * https://github.com/chjj/marked
@@ -13139,7 +12243,11 @@ if (typeof exports === 'object') {
 }).call(function() {
   return this || (typeof window !== 'undefined' ? window : global);
 }());
-},{}],4:[function(require,module,exports){
+
+
+
+
+
 //     controls.js
 //     UI framework, code generation tool
 //     status: proposal, example, valid prototype, under development
@@ -13579,7 +12687,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         }
         
         Object.defineProperties(this, {
-            // name of the control
+            // name of the control in parent collection
             name: {
                 enumerable: true, 
                 get: function() { return this._name; },
@@ -14876,7 +13984,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         }
     };
     
-    /*
+    /**
      * Create control from parsed type, parameters and attributes
      * 
      * @param {string} type Base type
@@ -14911,7 +14019,7 @@ DOMNodeInsertedIntoDocument,DOMNodeRemoved,DOMNodeRemovedFromDocument,DOMSubtree
         return new_control;
     };
     
-    /*
+    /**
      * Create control
      * 
      * @param {string} type Type containing the parameters attributes and styles
@@ -15411,292 +14519,1050 @@ table,tbody,td,textarea,tfoot,th,thead,time,title,tr,u,ul,var,video,wbr'
         window.controls = controls;
 })();
 
-},{}],5:[function(require,module,exports){
-// doT.js
-// 2011, Laura Doktorova, https://github.com/olado/doT
-// Licensed under the MIT license.
 
-(function() {
-	"use strict";
 
-	var doT = {
-		version: '1.0.1',
-		templateSettings: {
-			evaluate:    /\{\{([\s\S]+?(\}?)+)\}\}/g,
-			interpolate: /\{\{=([\s\S]+?)\}\}/g,
-			encode:      /\{\{!([\s\S]+?)\}\}/g,
-			use:         /\{\{#([\s\S]+?)\}\}/g,
-			useParams:   /(^|[^\w$])def(?:\.|\[[\'\"])([\w$\.]+)(?:[\'\"]\])?\s*\:\s*([\w$\.]+|\"[^\"]+\"|\'[^\']+\'|\{[^\}]+\})/g,
-			define:      /\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g,
-			defineParams:/^\s*([\w$]+):([\s\S]+)/,
-			conditional: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
-			iterate:     /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
-			varname:	'it',
-			strip:0,
-			append:		true,
-			selfcontained: false
-		},
-		template: undefined, //fn, compile template
-		compile:  undefined  //fn, for express
-	};
 
-	if (typeof module !== 'undefined' && module.exports) {
-		module.exports = doT;
-	} else if (typeof define === 'function' && define.amd) {
-		define(function(){return doT;});
-	} else {
-		this.doT=doT;
-	}
 
-	function encodeHTMLSource() {
-		var encodeHTMLRules = { "&": "&#38;", "<": "&#60;", ">": "&#62;", '"': '&#34;', "'": '&#39;', "/": '&#47;' },
-			matchHTML = /&(?!#?\w+;)|<|>|"|'|\//g;
-		return function() {
-			return this ? this.replace(matchHTML, function(m) {return encodeHTMLRules[m] || m;}) : this;
-		};
-	}
-	String.prototype.encodeHTML = encodeHTMLSource();
 
-	var startend = {
-		append: { start: "'+(",      end: ")+'",      endencode: "||'').toString().encodeHTML()+'" },
-		split:  { start: "';out+=(", end: ");out+='", endencode: "||'').toString().encodeHTML();out+='"}
-	}, skip = /$^/;
+//     controls.bootstrap.js
+//     purpose: twitter bootstrap VCL for using with controls.js
+//     http://aplib.github.io/controls.js/bootstrap.controls-demo.html
+//     (c) 2013 vadim b.
+//     License: MIT
+//
+// require controls.js
 
-	function resolveDefs(c, block, def) {
-		return ((typeof block === 'string') ? block : block.toString())
-		.replace(c.define || skip, function(m, code, assign, value) {
-			if (code.indexOf('def.') === 0) {
-				code = code.substring(4);
-			}
-			if (!(code in def)) {
-				if (assign === ':') {
-					if (c.defineParams) value.replace(c.defineParams, function(m, param, v) {
-						def[code] = {arg: param, text: v};
-					});
-					if (!(code in def)) def[code]= value;
-				} else {
-					new Function("def", "def['"+code+"']=" + value)(def);
-				}
-			}
-			return '';
-		})
-		.replace(c.use || skip, function(m, code) {
-			if (c.useParams) code = code.replace(c.useParams, function(m, s, d, param) {
-				if (def[d] && def[d].arg && param) {
-					var rw = (d+":"+param).replace(/'|\\/g, '_');
-					def.__exp = def.__exp || {};
-					def.__exp[rw] = def[d].text.replace(new RegExp("(^|[^\\w$])" + def[d].arg + "([^\\w$])", "g"), "$1" + param + "$2");
-					return s + "def.__exp['"+rw+"']";
-				}
-			});
-			var v = new Function("def", "return " + code)(def);
-			return v ? resolveDefs(c, v, def) : v;
-		});
-	}
 
-	function unescape(code) {
-		return code.replace(/\\('|\\)/g, "$1").replace(/[\r\t\n]/g, ' ');
-	}
+(function() { "use strict";
 
-	doT.template = function(tmpl, c, def) {
-		c = c || doT.templateSettings;
-		var cse = c.append ? startend.append : startend.split, needhtmlencode, sid = 0, indv,
-			str  = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
+function Bootstrap(controls) {
+    var bootstrap = this;
+    bootstrap.VERSION = '0.7.02'/*#.#.##*/;
+    if (!controls)
+        throw new TypeError('controls.bootstrap.js: controls.js not found!');
+    if (controls.bootstrap && controls.bootstrap.VERSION >= bootstrap.VERSION)
+        return controls.bootstrap;
+    controls.bootstrap = this;
+    
+    var control_prototype = (function() {
+        function bootstrap_proto() { }
+        bootstrap_proto.prototype = controls.control_prototype;
+        return new bootstrap_proto();
+    })();
+    bootstrap.control_prototype = control_prototype;
+    
+    // icon()
+    control_prototype.icon = function(icon_class) {
+        if (arguments.length === 0)
+            return this.attributes.$icon;
+            
+        this.attributes.$icon = icon_class;
+        
+        if (this._element)
+            this.refresh();
+        
+        return icon_class;
+    };
+    
+    control_prototype._icon = function(icon_class) {
+        this.icon(icon_class);
+        return this;
+    };
+    
+    control_prototype.getControlStyle = function() {
+        var parameters = this.parameters;
+        return parameters.style || parameters['/style'] || (parameters.info && 'info') || (parameters.link && 'link') || (parameters.success && 'success')
+            || (parameters.primary && 'primary') || (parameters.warning && 'warning') || (parameters.danger && 'danger') || 'default';
+    };
+    
+    var CONTROL_SIZE = {
+        'xtra-small':'xtra-small', 'xs':'xtra-small', 'btn-xs':'xtra-small', '-2':'xtra-small',
+        'small':'small', 'sm':'small', 'btn-sm':'small', '-1':'small',
+        'default':'', '':'', '0':'',
+        'large':'large', 'lg':'large', 'btn-lg':'large', '1':'large',
+        'xtra-large':'xtra-large', 'xl':'xtra-large', '2':'xtra-large'
+    };
+    control_prototype.getControlSize = function() {
+        var parameters = this.parameters,
+            csize = CONTROL_SIZE[parameters.size || parameters['/size']];
+        
+        if (!csize)
+        for(var prop in parameters)
+        if (!csize)
+            csize = CONTROL_SIZE[prop];
+        
+        return csize || '';
+    };
+    
+    
+    // Label
+    // 
+    function Label(parameters, attributes) {
+        this.initialize('bootstrap.Label', parameters, attributes, Label.template)
+            .listen_('type', function() {
+                this.class('label label-' + this.getControlStyle(), 'label-default label-link label-primary label-success label-info label-warning label-danger');
+            });
+    };
+    Label.prototype = control_prototype;
+    Label.template = function(it) { return '<span' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</span>'; };
+    controls.typeRegister('bootstrap.Label', Label);
+    
+    
+    // Panel
+    // 
+    function Panel(parameters, attributes) {
+        this.initialize('bootstrap.Panel', parameters, attributes)
+            .add('body:div`panel-body', attributes.$text);
+        attributes.$text = undefined;
+    
+        if (parameters.header) {
+            if (typeof parameters.header === 'string')
+                this.insert(0, 'header:div`panel-heading panel-title', parameters.header);
+            else
+                this.insert(0, 'header:div`panel-heading panel-title');
+        }
+        
+        if (parameters.footer) {
+            if (typeof parameters.footer === 'string')
+                this.add('footer:div`panel-footer', parameters.footer);
+            else
+                this.add('footer:div`panel-footer');
+        }
+    
+        this.listen_('type', function() {
+            this.class('panel panel-' + this.getControlStyle(), 'panel-default panel-link panel-primary panel-success panel-info panel-warning panel-danger');
+        });
 
-		str = ("var out='" + (c.strip ? str.replace(/(^|\r|\n)\t* +| +\t*(\r|\n|$)/g,' ')
-					.replace(/\r|\n|\t|\/\*[\s\S]*?\*\//g,''): str)
-			.replace(/'|\\/g, '\\$&')
-			.replace(c.interpolate || skip, function(m, code) {
-				return cse.start + unescape(code) + cse.end;
-			})
-			.replace(c.encode || skip, function(m, code) {
-				needhtmlencode = true;
-				return cse.start + unescape(code) + cse.endencode;
-			})
-			.replace(c.conditional || skip, function(m, elsecase, code) {
-				return elsecase ?
-					(code ? "';}else if(" + unescape(code) + "){out+='" : "';}else{out+='") :
-					(code ? "';if(" + unescape(code) + "){out+='" : "';}out+='");
-			})
-			.replace(c.iterate || skip, function(m, iterate, vname, iname) {
-				if (!iterate) return "';} } out+='";
-				sid+=1; indv=iname || "i"+sid; iterate=unescape(iterate);
-				return "';var arr"+sid+"="+iterate+";if(arr"+sid+"){var "+vname+","+indv+"=-1,l"+sid+"=arr"+sid+".length-1;while("+indv+"<l"+sid+"){"
-					+vname+"=arr"+sid+"["+indv+"+=1];out+='";
-			})
-			.replace(c.evaluate || skip, function(m, code) {
-				return "';" + unescape(code) + "out+='";
-			})
-			+ "';return out;")
-			.replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r')
-			.replace(/(\s|;|\}|^|\{)out\+='';/g, '$1').replace(/\+''/g, '')
-			.replace(/(\s|;|\}|^|\{)out\+=''\+/g,'$1out+=');
+        this.text = function(_text) {
+            return this.body.text(_text);
+        };
+    };
+    Panel.prototype = control_prototype;
+    controls.typeRegister('bootstrap.Panel', Panel);
+    
+    
+    // Dropdowns
+    
+    // DropdownItem
+    // 
+    // Attributes:
+    // href, $icon, $text
+    // 
+    //
+    function DropdownItem(parameters, attributes /*href $icon $text*/) {
+        this.initialize('bootstrap.DropdownItem', parameters, attributes, DropdownItem.template);
+    };
+    DropdownItem.prototype = control_prototype;
+    DropdownItem.template = function(it) {
+        var out = '<li id="' + it.id + '"><a' + it.printAttributes('-id') + '>',
+            attrs = it.attributes;
+        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
+        return out + (it.attributes.$text || '') + '</a></li>';
+    };
+    controls.typeRegister('bootstrap.DropdownItem', DropdownItem);
+    
+    
+    // DividerItem
+    // 
+    //
+    function DividerItem(parameters, attributes) {
+        this.initialize('bootstrap.DividerItem', parameters, attributes, DividerItem.template)
+            .class('divider');
+    };
+    DividerItem.prototype = control_prototype;
+    DividerItem.template = function(it) { return '<li' + it.printAttributes() + '></li>'; };
+    controls.typeRegister('bootstrap.DividerItem', DividerItem);
+    
+    
+    // DropdownLink
+    // 
+    // 
+    function DropdownLink(parameters, attributes) {
+        this.initialize('bootstrap.DropdownLink', parameters, attributes, DropdownLink.template)
+            .class('dropdown');
+    };
+    DropdownLink.prototype = control_prototype;
+    DropdownLink.template = function(it) {
+        var out = '<div' + it.printAttributes() + '><a class="dropdown-toggle" data-toggle="dropdown" href="#">',
+            attrs = it.attributes, ctrls = it.controls;
+        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
+        out += (it.attributes.$text || '') + '</a>';
+        if (ctrls.length) {
+            out += '<ul class="dropdown-menu">';
+            for (var i = 0, c = ctrls.length; i < c; i++)
+                out += ctrls[i].wrappedHTML();
+            out += '</ul>';
+        }
+        return out + '</div>';
+    };
+    controls.typeRegister('bootstrap.DropdownLink', DropdownLink);
 
-		if (needhtmlencode && c.selfcontained) {
-			str = "String.prototype.encodeHTML=(" + encodeHTMLSource.toString() + "());" + str;
-		}
-		try {
-			return new Function(c.varname, str);
-		} catch (e) {
-			if (typeof console !== 'undefined') console.log("Could not create a template function: " + str);
-			throw e;
-		}
-	};
 
-	doT.compile = function(tmpl, def) {
-		return doT.template(tmpl, null, def);
-	};
-}());
-
-},{}],6:[function(require,module,exports){
-/* doT + auto-compilation of doT templates
- *
- * 2012, Laura Doktorova, https://github.com/olado/doT
- * Licensed under the MIT license
- *
- * Compiles .def, .dot, .jst files found under the specified path.
- * It ignores sub-directories.
- * Template files can have multiple extensions at the same time.
- * Files with .def extension can be included in other files via {{#def.name}}
- * Files with .dot extension are compiled into functions with the same name and
- * can be accessed as renderer.filename
- * Files with .jst extension are compiled into .js files. Produced .js file can be
- * loaded as a commonJS, AMD module, or just installed into a global variable
- * (default is set to window.render).
- * All inline defines defined in the .jst file are
- * compiled into separate functions and are available via _render.filename.definename
- *
- * Basic usage:
- * var dots = require("dot").process({path: "./views"});
- * dots.mytemplate({foo:"hello world"});
- *
- * The above snippet will:
- * 1. Compile all templates in views folder (.dot, .def, .jst)
- * 2. Place .js files compiled from .jst templates into the same folder.
- *    These files can be used with require, i.e. require("./views/mytemplate").
- * 3. Return an object with functions compiled from .dot templates as its properties.
- * 4. Render mytemplate template.
- */
-
-var fs = require("fs"),
-	doT = module.exports = require("./doT");
-
-doT.process = function(options) {
-	//path, destination, global, rendermodule, templateSettings
-	return new InstallDots(options).compileAll();
+    //
+    function ToggleBtn(parameters, attributes) {
+        this.initialize('bootstrap.ToggleBtn', parameters, attributes, ToggleBtn.template)
+            .class('btn dropdown-toggle');
+    };
+    ToggleBtn.prototype = control_prototype;
+    ToggleBtn.template = function(it) {
+        var out = '<a' + it.printAttributes() + ' data-toggle="dropdown" href="#">',
+            attrs = it.attributes, ctrls = it.controls;
+        if (attrs.$icon) out += '<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>&nbsp;';
+        if (attrs.caret || attrs.Caret) out += '<span class="caret"></span>';
+        out += (it.attributes.$text || '') + '</a>';
+        if (ctrls.length) {
+            out += '<ul class="dropdown-menu">';
+            for (var i = 0, c = ctrls.length; i < c; i++)
+                out += ctrls[i].wrappedHTML();
+            out += '</ul>';
+        }
+        return out;
+    };
+    controls.typeRegister('bootstrap.ToggleBtn', ToggleBtn);
+    
+    
+    // bootstrap@Button
+    // 
+    // Parameters:
+    //  style {'default','primary','success','info','warning','danger','link'} - one of the predefined style of button from bootstrap
+    //  size {0..3, 'xtra-small', 'small', 'default', 'large'}
+    // Attributes:
+    //  $text {string} - text
+    //  $icon {string) - the name of one of the available bootstrap glyphicon, glass music search etc. See http://glyphicons.getbootstrap.com
+    // Example:
+    //  controls.create('bootstrap.Button/style=success', {$icon: "glass"});
+    //
+    var BUTTON_SIZES = { 'xtra-small':'btn-xs', small:'btn-sm', large:'btn-lg' };
+    function buttonTypeHandler() {
+        this.class('btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlSize()] || '')).trim(),
+            this.attributes.class ? 'btn-default btn-primary btn-success btn-info btn-warning btn-danger btn-link btn-xs btn-sm btn-lg' : null);
+    }
+    function Button(parameters, attributes) {
+        this.initialize('bootstrap.Button', parameters, attributes, Button.template)
+            .listen_('type', buttonTypeHandler);
+    };
+    Button.prototype = control_prototype;
+    Button.template = function(it) {
+        var attrs = it.attributes;
+        return '<button type="button"' + it.printAttributes() + '>'
+            + (attrs.$icon ? ('<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>') : '')
+            + ((attrs.$icon && attrs.$text) ? '&nbsp;' : '')
+            + (attrs.$text || '')
+            + '</button>';
+    };
+    controls.typeRegister('bootstrap.Button', Button);
+    
+    
+    // Splitbutton
+    //
+    function Splitbutton(parameters, attributes) {
+        this.initialize('bootstrap.SplitButton', parameters, attributes, Splitbutton.template)
+            ._class('btn-group')
+            ._add('button:bootstrap.Button', {$icon:attributes.$icon})
+            ._add('toggle:bootstrap.Button', {class:'dropdown-toggle', 'data-toggle':'dropdown', $text:'<span class="caret"></span>'})
+            ._add('items:ul', {class:'dropdown-menu'})
+            .listen_('type', function() {
+                var btn_class = 'btn btn-' + ((this.getControlStyle() || '') + ' ' + (BUTTON_SIZES[this.getControlStyle()] || '')).trim();
+                this.button.class(btn_class);
+                this.toggle.class(btn_class);
+            });
+    };
+    Splitbutton.prototype = control_prototype;
+    controls.typeRegister('bootstrap.SplitButton', Splitbutton);
+    
+    
+    // BtnGroup
+    // 
+    //
+    function BtnGroup(parameters, attributes) {
+        this.initialize('bootstrap.BtnGroup', parameters, attributes, BtnGroup.template)
+            .class('btn-group');
+    };
+    BtnGroup.prototype = control_prototype;
+    controls.typeRegister('bootstrap.BtnGroup', BtnGroup);
+    
+    
+    // TabPanelHeader
+    // 
+    function TabPanelHeader(parameters, attributes) {
+        this.initialize('bootstrap.TabPanelHeader', parameters, attributes, TabPanelHeader.template)
+            .class('nav nav-tabs tabpanel-header');
+    };
+    TabPanelHeader.prototype = control_prototype;
+    TabPanelHeader.template = function(it) { return '<ul' + it.printAttributes() + '>' + (it.attributes.$text || '') + it.printControls() + '</ul>'; };
+    controls.typeRegister('bootstrap.TabPanelHeader', TabPanelHeader);
+    
+    
+    // TabHeader
+    // 
+    function TabHeader(parameters, attributes) {
+        this.initialize('bootstrap.TabHeader', parameters, attributes, TabHeader.template)
+            .class('tab-header');
+    };
+    TabHeader.prototype = control_prototype;
+    TabHeader.template = function(it) {
+        var attrs = it.attributes;
+        return '<li' + it.printAttributes() + '><a href="' + (attrs.$href || '') + '" data-toggle="tab">'
+            + (attrs.$icon ? ('<span class="glyphicon glyphicon-' + attrs.$icon + '"></span>' + ((attrs.$text) ? '&nbsp;' : '')) : '')
+            + (attrs.$text || '')
+            + '</a></li>';
+    };
+    controls.typeRegister('bootstrap.TabHeader', TabHeader);
+    
+    
+    // TabPanelBody
+    // 
+    function TabPanelBody(parameters, attributes) {
+        this.initialize('bootstrap.TabPanelBody', parameters, attributes)
+            .class('tab-content tabpanel-body');
+    };
+    TabPanelBody.prototype = control_prototype;
+    controls.typeRegister('bootstrap.TabPanelBody', TabPanelBody);
+    
+    
+    // TabPage
+    // 
+    function TabPage(parameters, attributes) {
+        this.initialize('bootstrap.TabPage', parameters, attributes)
+            .class('tab-pane fade');
+    };
+    TabPage.prototype = control_prototype;
+    controls.typeRegister('bootstrap.TabPage', TabPage);
+    
+    
+    // Form
+    // 
+    function Form(parameters, attributes) {
+        this.initialize('bootstrap.Form', parameters, attributes, Form.template)
+            .attr('role', 'form');
+    };
+    Form.prototype = control_prototype;
+    Form.template = function(it) { return '<form' + it.printAttributes() + '>' + it.printControls() + '</form>'; };
+    controls.typeRegister('bootstrap.Form', Form);
+    
+    
+    // FormGroup
+    // 
+    function FormGroup(parameters, attributes) {
+        this.initialize('bootstrap.FormGroup', parameters, attributes)
+            .class('form-group');
+    };
+    FormGroup.prototype = control_prototype;
+    controls.typeRegister('bootstrap.FormGroup', FormGroup);
+    
+    
+    // Modal
+    // 
+    function Modal(parameters, attributes) {
+        this.initialize('bootstrap.Modal', parameters, attributes, Modal.template)
+            ._class('modal fade')
+            ._attr('role', 'dialog')
+            ._add('header:div', {class:'modal-header'})
+            ._add('body:div', {class:'modal-body'})
+            ._add('footer:div', {class:'modal-footer'});
+        if (!attributes.hasOwnProperty('tabindex'))    attributes.tabindex = -1;
+        if (!attributes.hasOwnProperty('aria-hidden')) attributes['aria-hidden'] = true;
+    };
+    Modal.prototype = control_prototype;
+    Modal.template = function(it) {
+        return '<div' + it.printAttributes() + '><div class="modal-dialog"><div class="modal-content">' + it.printControls() + '</div></div></div>';
+    };
+    controls.typeRegister('bootstrap.Modal', Modal);
+    
+    
+    // ControlLabel
+    // 
+    function ControlLabel(parameters, attributes) {
+        this.initialize('bootstrap.ControlLabel', parameters, attributes, ControlLabel.template)
+            .class('control-label');
+    };
+    ControlLabel.prototype = control_prototype;
+    ControlLabel.template = function(it) { return '<label' + it.printAttributes() + '>' + (it.attributes.$text || '') + '</label>'; };
+    controls.typeRegister('bootstrap.ControlLabel', ControlLabel);
+    
+    
+    // ControlCheckbox
+    // 
+    function ControlCheckbox(parameters, attributes) {
+        this.initialize('bootstrap.ControlCheckbox', parameters, attributes, ControlCheckbox.template)
+            ._class('checkbox')
+            .add('input:input', attributes.$text, {type:'checkbox', checked:attributes.$checked})
+                .listen_('change', function() {
+                    this.attributes.checked = this.element.checked;
+                }, true)
+                .listen_('element', function(element) {
+                    if (element)
+                        element.checked = this.attributes.checked || '';
+                });
+        Object.defineProperty(this, 'checked', {
+            get: function() { return this.input.attributes.checked; },
+            set: function(value) {
+                value = !!value;
+                var element = this.input._element;
+                this.input.attributes.checked = value;
+                if (element)
+                    element.checked = value;
+            }
+        });
+        attributes.$checked = undefined;
+        attributes.$text = undefined;
+    };
+    ControlCheckbox.prototype = control_prototype;
+    ControlCheckbox.template = function(it) { return '<div' + it.printAttributes() + '><label>' + it.printControls() + '</label></div>'; };
+    controls.typeRegister('bootstrap.ControlCheckbox', ControlCheckbox);
+    
+    
+    // ControlInput
+    // 
+    function ControlInput(parameters, attributes) {
+        var control = new controls['controls.input'](parameters, attributes)
+            ._class('form-control');
+        control.__type = 'bootstrap.ControlInput';
+        return control;
+    };
+    controls.factoryRegister('bootstrap.ControlInput', ControlInput);
+    
+    
+    // ControlSelect
+    // 
+    // Attributes:
+    //  $data {DataArray}
+    //
+    function ControlSelect(parameters, attributes) {
+        var control = new controls['controls.select'](parameters, attributes)
+            ._class('form-control')
+            ._style('display:inline-block;');
+        control.__type = 'bootstrap.ControlSelect';
+        return control;
+    };
+    controls.factoryRegister('bootstrap.ControlSelect', ControlSelect);
 };
 
-function InstallDots(o) {
-	this.__path 		= o.path || "./";
-	if (this.__path[this.__path.length-1] !== '/') this.__path += '/';
-	this.__destination	= o.destination || this.__path;
-	if (this.__destination[this.__destination.length-1] !== '/') this.__destination += '/';
-	this.__global		= o.global || "window.render";
-	this.__rendermodule	= o.rendermodule || {};
-	this.__settings 	= o.templateSettings ? copy(o.templateSettings, copy(doT.templateSettings)) : undefined;
-	this.__includes		= {};
-}
 
-InstallDots.prototype.compileToFile = function(path, template, def) {
-	def = def || {};
-	var modulename = path.substring(path.lastIndexOf("/")+1, path.lastIndexOf("."))
-		, defs = copy(this.__includes, copy(def))
-		, settings = this.__settings || doT.templateSettings
-		, compileoptions = copy(settings)
-		, defaultcompiled = doT.template(template, settings, defs)
-		, exports = []
-		, compiled = ""
-		, fn;
+    // exports
+    if (typeof module !== 'undefined' && module.exports) module.exports = new Bootstrap(require('controls'));
+    if (typeof define === 'function' && define.amd) define(['controls'], function(c) { return new Bootstrap(c); });
+    if (typeof window !== 'undefined') new Bootstrap(window.controls);
+})();
 
-	for (var property in defs) {
-		if (defs[property] !== def[property] && defs[property] !== this.__includes[property]) {
-			fn = undefined;
-			if (typeof defs[property] === 'string') {
-				fn = doT.template(defs[property], settings, defs);
-			} else if (typeof defs[property] === 'function') {
-				fn = defs[property];
-			} else if (defs[property].arg) {
-				compileoptions.varname = defs[property].arg;
-				fn = doT.template(defs[property].text, compileoptions, defs);
-			}
-			if (fn) {
-				compiled += fn.toString().replace('anonymous', property);
-				exports.push(property);
-			}
-		}
-	}
-	compiled += defaultcompiled.toString().replace('anonymous', modulename);
-	fs.writeFileSync(path, "(function(){" + compiled
-		+ "var itself=" + modulename + ";"
-		+ addexports(exports)
-		+ "if(typeof module!=='undefined' && module.exports) module.exports=itself;else if(typeof define==='function')define(function(){return itself;});else {"
-		+ this.__global + "=" + this.__global + "||{};" + this.__global + "['" + modulename + "']=itself;}}());");
-};
 
-function addexports(exports) {
-	for (var ret ='', i=0; i< exports.length; i++) {
-		ret += "itself." + exports[i]+ "=" + exports[i]+";";
-	}
-	return ret;
-}
 
-function copy(o, to) {
-	to = to || {};
-	for (var property in o) {
-		to[property] = o[property];
-	}
-	return to;
-}
 
-function readdata(path) {
-	var data = fs.readFileSync(path);
-	if (data) return data.toString();
-	console.log("problems with " + path);
-}
 
-InstallDots.prototype.compilePath = function(path) {
-	var data = readdata(path);
-	if (data) {
-		return doT.template(data,
-					this.__settings || doT.templateSettings,
-					copy(this.__includes));
-	}
-};
 
-InstallDots.prototype.compileAll = function() {
-	console.log("Compiling all doT templates...");
+(function() { 'use strict';
 
-	var defFolder = this.__path,
-		sources = fs.readdirSync(defFolder),
-		k, l, name;
+    // initialize $ENV
+    
+    $ENV = {
+        dot: doT, // require('dot'),
+        controls: controls, // require('controls'),
+        marked: marked, //require('./temp/marked'),
+        'bootstrap.controls': controls.bootstrap // require('./temp/bootstrap.controls.js')
+    };
+    
+    $ENV.controls.template = $ENV.dot.template; // default template engine
+    var extend = $ENV.controls.extend;
 
-	for( k = 0, l = sources.length; k < l; k++) {
-		name = sources[k];
-		if (/\.def(\.dot|\.jst)?$/.test(name)) {
-			console.log("Loaded def " + name);
-			this.__includes[name.substring(0, name.indexOf('.'))] = readdata(defFolder + name);
-		}
-	}
+    // Set default options except highlight which has no default
+    $ENV.marked.setOptions({
+      gfm: true, tables: true,  breaks: false,  pedantic: false,  sanitize: false,  smartLists: true,  smartypants: false,  langPrefix: 'lang-'
+    });
 
-	for( k = 0, l = sources.length; k < l; k++) {
-		name = sources[k];
-		if (/\.dot(\.def|\.jst)?$/.test(name)) {
-			console.log("Compiling " + name + " to function");
-			this.__rendermodule[name.substring(0, name.indexOf('.'))] = this.compilePath(defFolder + name);
-		}
-		if (/\.jst(\.dot|\.def)?$/.test(name)) {
-			console.log("Compiling " + name + " to file");
-			this.compileToFile(this.__destination + name.substring(0, name.indexOf('.')) + '.js',
-					readdata(defFolder + name));
-		}
-	}
-	return this.__rendermodule;
-};
+    // get default control template
+    var templatesHash = {};
+    $ENV.getDefaultTemplate = function(tag) {
+        return templatesHash[tag || ''] || (templatesHash[tag || ''] = new Function('it',
+'var attributes = it.attributes, controls = it.controls, result = attributes.$text || "";\n\
+for(var i = 0, c = controls.length; i < c; i++)\n\
+ result += controls[i].wrappedHTML();\n\
+return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(result) + "</' + tag + '>";') : '$ENV.marked(result);')) );
+    };
+        
+    // initialize $DOC
+    
+    var url_params = {};
+    window.location.search.substring(1).split('&').forEach(function(seg){ if (seg) {
+        var pos = seg.indexOf('=');
+        if (pos < 0)
+            url_params[seg] = true;
+        else
+            url_params[seg.slice(0,pos)] = decodeURIComponent(seg.slice(pos+1).replace(/\+/g, ' '));
+    }});
+    
+    var scripts_count = 0, scripts_stated = 0;
+    $DOC = {
+        initialize: function() {
+            
+            this.urlParams = extend({}, url_params);
 
-},{"./doT":5,"fs":7}],7:[function(require,module,exports){
+            // "DOC" script element source for: root, script options
 
-},{}]},{},[1])
-;
+            var root = '', js_root_node = document.getElementById('DOC');
+            if (js_root_node) {
+                var attrs = js_root_node.attributes;
+                if (attrs.hasOwnProperty('root'))
+                    root = js_root_node.getAttribute('root');
+                else {
+                    var src = js_root_node.getAttribute('src');
+                    if (src) {
+                        var segs = src.split('/');
+                        root = segs.slice(0, segs.length - 1).join('/');
+                        if (root)
+                            root += '/';
+                    }
+                }
+            }
+            this.root = root;
+            
+            // executing script element source for: codebase
+            
+            var executing = document.currentScript;
+            if (!executing) {
+                var scripts = document.getElementsByTagName('script');
+                for(var i = scripts.length - 1; i >= 0; i--) {
+                    var script = scripts[i];
+                    if (script.src.indexOf('document.') >= 0 && (!script.readyState || ' complete interactive'.indexOf(script.readyState) > 0))
+                        executing = script;
+                }
+            }
+            if (executing) {
+                var src = executing.getAttribute('src');
+                if (src) {
+                    // components is always loaded from path of the executing script
+                    var origin = src.split('/').slice(0, -1).join('/');
+                    this.codebase = origin;
+                    this.components = origin + (origin ? '/' : '') + 'components/';
+                }
+                $OPT.userjs = executing.getAttribute('userjs') || $OPT.userjs;
+                $OPT.icon = executing.getAttribute('icon') || $OPT.icon;
+                var editable = executing.getAttribute('editable') || $OPT.editable;
+                $OPT.editable = (editable === 'false' || editable === '0') ? false : !!editable;
+            }
+
+            // edit mode
+            if ($OPT.editable) {
+                if (url_params.edit && window.self === window.top)
+                    $OPT.edit_mode = 1; // editor
+                if (url_params.preview) {
+                    $OPT.edit_mode = 2; // preview mode
+                    // idgen shift in preview mode
+                    // Preview mode is used for compiled html. Prevent conflict between already stored in html and newly created identifiers.
+                    controls.id_generator = 200000;
+                }
+            }
+            // prevent options changes 
+//            Object.freeze($OPT);
+            
+            // State
+            this.state = 0; // 0 - started, 1 - transformation started, 2 - loaded, -1 - broken
+            
+            // Events
+            this.events = {};
+                    
+            // Sections
+            this.sections = {};
+            
+            // Sections view order
+            this.order = ['fixed-top-bar', 'fixed-top-panel',
+                'header-bar', 'header-panel',
+                'left-side-bar', 'left-side-panel',
+                'content-bar', 'content-panel',
+                'right-side-panel', 'right-side-bar',
+                'footer-panel', 'footer-bar',
+                'fixed-bottom-panel', 'fixed-bottom-bar'];
+            
+            this.columns = ['left-side-bar', 'left-side-panel', 'content-bar', 'content-panel', 'right-side-panel', 'right-side-bar'];
+            
+            // Texts and templates
+            this.vars = {};
+            
+            this.filters = [];
+            
+            this.mods = {};
+            
+            // clear controls tree
+            if (this.chead)
+                this.chead.detachAll();
+            this.chead = controls.create('head');
+            this.chead.attach();
+            
+            if (this.cbody)
+                this.cbody.detachAll();
+            this.cbody = controls.create('body');
+        },
+        
+        forceEvent: function(name) {
+            var events = this.events;
+            return events[name] || (events[name] = new controls.Event());
+        },
+        // on DOMContentLoaded or simulated if DOMContentLoaded is already raised
+        onready: function(handler) {
+            if (this.state === 2 || document.readyState === undefined || ' interactive complete'.indexOf(document.readyState) > 0)
+                handler();
+            else
+                this.forceEvent('ready').addListener(handler);
+        },
+        // Document transformation completed event
+        onload: function(handler) { if (this.state === 2) handler(); else this.forceEvent('load').addListener(handler); },
+        // Section control created event
+        listen: function(type, handler, capture) { this.forceEvent(type).addListener(handler); },
+        raise: function(type, capture) { var event = this.events[type]; if (event) event.raise(); },
+                
+        addSection: function(name, value) {
+            var sections = this.sections, exists = sections[name];
+            if (exists) {
+                if (exists._element)
+                    exists.deleteElement();
+            }
+            sections[name] = value;
+        },
+        removeSection: function(name) {
+            var sections = this.sections, exists = sections[name];
+            if (exists) {
+                if (exists._element)
+                    exists.deleteElement();
+                sections[name] = undefined;
+            }
+        },
+        // move section to placeholder location
+        sectionPlaceholder: function(name, text_node) {
+            var sections = this.sections,
+                exists = sections[name];
+            // move exists node
+            if (exists) {
+                if (exists.__type) {
+                    var element = exists.element;
+                    if (element)
+                        document.insertBefore(element, text_node);
+                } else if (exists.nodeType) {
+                    document.insertBefore(exists, text_node);
+                }
+            }
+            sections[name] = {placeholder:text_node, content:exists};
+        },
+        // move section to other location
+        sectionMover: function(text_node, oldname, newname) {
+            var sections = this.sections, exists = sections[oldname];
+            if (typeof exists === 'string') {
+                sections[newname] = exists;
+                delete sections[oldname];
+            } else if (exists) {
+                if (exists.__type) {
+                    exists.class(newname, oldname);
+                    var element = exists.element;
+                    if (element)
+                        document.insertBefore(element, text_node);
+                } else if (exists.nodeType) {
+                    document.insertBefore(exists, text_node);
+                }
+            }
+        },
+        // parse sections values from text or from function text
+        parseContent: function(content) {
+            if (content) {
+                var frags = content.toString().split(/(<!--\S+\s+)|(-->)/gm);
+                for(var i = 0, c = frags.length; i < c; i+=1) {
+                    var test = frags[i];
+                    if (test && test.substr(0,4) === '<!--') {
+                        // first '$' - var else section
+                        if (test[4] === '$') {
+                            // as var
+                            var varname = test.substr(4).trim();
+                            this.vars[varname] = frags[i+2];
+                        } else {
+                            // as section
+                            var section = test.substr(4).trim();
+                            this.addSection(section, frags[i+2]);
+                        }
+                        i += 2;
+                    }
+                }
+            }
+        },
+        
+        // append to head
+        appendElement: function(id, tag, attributes) {
+            try {
+                if (arguments.length < 3) { attributes = tag; tag = id; id = undefined; }
+                var head = document.head;
+                if (id) {
+                    var element = document.getElementById(id);
+                    if (element && element.parentNode === head)
+                        return;
+                }
+                head.insertAdjacentHTML('beforeend',
+                    '<' + tag + (id ? (' id="'+id+'"') : '') + Object.keys(attributes).map(function(prop){return' '+prop+'="'+attributes[prop]+'"';}).join('') + '></' + tag + '>');
+                return head.lastChild;
+            } catch(e) { console.log(e); }
+        },
+        // remove from head
+        removeElement: function(id) {
+            var element = document.getElementById(id);
+            if (element && element.parentNode === document.head)
+                document.head.removeChild(element);
+        },
+        
+        appendScript: function(id, src, callback) {
+            if (arguments.length === 1 || typeof src === 'function') { callback = src; src = id; id = undefined; }
+            if (id && document.getElementById(id)) {
+                // script already loaded
+                if (callback)
+                    callback(+1);
+                return;
+            }
+            var script = document.createElement('script');
+            if (id)
+                script.id = id;
+            if (src.indexOf('(') >= 0) {
+                // raw script
+                script.innerHTML = src;
+            } else {
+                // load external script
+                script.src = src;
+                scripts_count++;
+                script.src = src;
+                script.async = true;
+                script.addEventListener('load', function() {
+                    if (callback)
+                        callback(+1);
+                    scripts_stated++;
+                    $DOC.checkAllScriptsReady();
+                });
+                script.addEventListener('error', function() {
+                    if (callback)
+                        callback(-1);
+                    scripts_stated++;
+                    $DOC.checkAllScriptsReady();
+                });
+            }
+            document.head.appendChild(script);
+        },
+        // {id1:url1, id2:url2 ...}
+        appendScripts: function(hash, callback) {
+            var started = 0, loaded = 0;
+            for(var prop in hash) {
+                started++;
+                this.appendScript(prop, hash[prop], function(state) {
+                    if (state > 0)
+                        loaded++;
+                    if (callback) {
+                        if (loaded >= started)
+                            callback(1);
+                        else if (state < 0)
+                            callback(-1);
+                    }
+                });
+            }
+        },
+        // get the url relative to the root
+        getRootUrl: function(url) {
+            if (url[0] === '/') {
+                if (url[1] !== '/')
+                    url = this.root + url;
+            } else if (url.indexOf(':') < 0 && url[0] !== '.')
+                url = this.root + url;
+            return url.replace('{{=$DOC.root}}', this.root);
+        },
+        // load user.js scripts
+        loadUserJS: function() {
+            var userjs = $OPT.userjs;
+            if (userjs) {
+                userjs = userjs.split(',');
+                for(var i = 0, c = userjs.length; i < c; i++)
+                    this.appendScript('user.js/' + i, this.getRootUrl(userjs[i]));
+            }
+        },
+        // document transformation start after all scripts loaded or failed
+        checkAllScriptsReady: function() {
+            /*this undefined*/
+            if (scripts_count === scripts_stated && !$DOC.state && $DOC.finalTransformation)
+                $DOC.finalTransformation();
+        },
+        
+        appendCSS: function(id, css, callback, position) {
+            if (arguments.length === 1 || typeof css === 'function') {
+                position = callback;
+                callback = css;
+                css = id;
+                id = '';
+            }
+            var head = document.head, exists = document.getElementById(id),
+                israwcss = (css.indexOf('{') >= 0);
+            if (!exists) {
+                if (israwcss) {
+                    head.insertAdjacentHTML(position || 'beforeend', '<style id="' + id + '" auto="true">' + css + '</style>');
+                } else {
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.type = 'text/css';
+                    id && (link.id = id);
+                    link.auto = true;
+                    link.href = css;
+                    if (callback) {
+                        link.addEventListener('load', function() { callback(1); });
+                        link.addEventListener('error', function() { callback(-1); });
+                    }
+                    switch(position) {
+                        case 'afterbegin':
+                            if (head.firstChild)
+                                head.insertBefore(link, head.firstChild);
+                            else
+                                head.appendChild(link);
+                        break;
+                        default:
+                            head.appendChild(link);
+                    }
+                }
+            } else if (israwcss) {
+                if (exists.innerHTML !== css)
+                    exists.innerHTML = css;
+            } else if (exists.href !== css)
+                exists.href = css;
+        },
+        
+        mod: function(group, names) {
+            if (arguments.length === 1)
+                names = group;
+            var mod_group = $DOC.mods[group];
+            if (!mod_group) {
+                mod_group = [];
+                $DOC.mods[group] = mod_group;
+            }
+            names.split(/ ,;/g).forEach(function(name) {
+                if (mod_group.indexOf(name) < 0) {
+                    var path = $DOC.getRootUrl('mods/' + name + '/' + name);
+                    $DOC.appendCSS(group + '-' + name + '-css', path + '.css');
+                    $DOC.appendScript(group + '-' + name + '-js', path + '.js');
+                    mod_group.push(name);
+                }
+            });
+        },
+        removeMod: function(group, names) {
+            var mod_group = $DOC.mods[group];
+            if (mod_group) {
+                ((arguments.length === 1) ? mod_group : names.split(/ ,;/g)) .forEach(function(name) {
+                    var index = mod_group.indexOf(name);
+                    if (index >= 0) {
+                        $DOC.removeElement(group + '-' + name + '-css');
+                        $DOC.removeElement(group + '-' + name + '-js');
+                        mod_group.splice(index, 1);
+                    }
+                });
+            }
+        }
+    };
+    $DOC.initialize();
+    
+
+    // selected theme
+    var theme = '', theme_confirmed;
+    if (typeof localStorage !== 'undefined') {
+        
+        theme = localStorage.getItem('primary-theme');
+        theme_confirmed = localStorage.getItem('primary-theme-confirmed');
+        
+        // apply theme 'theme=' command
+        var params_theme = url_params.theme;
+        if (params_theme && params_theme !== theme) {
+            theme = params_theme;
+            theme_confirmed = '';
+        }
+        
+        // switch theme 'settheme=' command
+        var params_settheme = url_params.settheme;
+        if (params_settheme) {
+            if (params_settheme !== theme) {
+                theme_confirmed = '';
+                localStorage.setItem('primary-theme-confirmed', '');
+            }
+            localStorage.setItem('primary-theme', params_settheme);
+            theme = params_settheme;
+        }
+    }
+    
+    Object.defineProperty($DOC, 'theme', {
+        get: function() { return theme; },
+        set: function(value) {
+            value = value || '';
+            if (value !== theme && typeof localStorage !== 'undefined') {
+                if (value)
+                    localStorage.setItem('primary-theme', value); 
+                else {
+                    localStorage.removeItem('primary-theme');
+                    localStorage.removeItem('primary-theme-confirmed');
+                }
+                window.location.reload();
+            }
+        }
+    });
+    
+    // >> head transformation
+    
+    $DOC.headTransformation = function() {
+        
+        if ($DOC.mode = document.head.hasAttribute('generator'))
+            return; // html
+        else // mw document
+            document.head.setAttribute('generator', 'markdown webdocs');
+
+        this.appendElement('meta', {name:'viewport', content:'width=device-width, initial-scale=1.0'});
+        if ($OPT.icon)
+            this.appendElement('link', {rel:'shortcut icon', href:this.getRootUrl($OPT.icon)});
+
+        // document style
+
+        this.appendCSS('document.css',
+'.fixed-top-bar, .fixed-top-panel\
+    { display: block; margin: 0; padding: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1030; }\
+.fixed-top-panel\
+    { background-color: inherit; padding: 25px 37px 0px 37px; margin-bottom: 25px; }\
+.fixed-top-panel > .navbar\
+    { margin: 0; }\
+.header-bar, .header-panel\
+    { display: block; margin: 0; padding: 0; }\
+.header-panel\
+    { padding: 25px 37px; }\
+.footer-bar, .footer-panel\
+    { display: block; margin: 0; padding: 0; }\
+.footer-panel\
+    { padding: 25px 37px; }\
+.fixed-bottom-bar, .fixed-bottom-panel\
+    { display: block; margin: 0; padding: 0; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1030; }\
+.fixed-bottom-panel\
+    { padding: 0px 37px 0px 37px; margin-top: 25px; }\
+.fixed-bottom-panel > .navbar\
+    { margin: 0; }\
+.text-box\
+    { width:50%; padding:25px 37px 25px 37px; display: inline-block; }\
+.fixed-left-side-bar, .fixed-left-side-panel\
+    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: auto; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1030; }\
+.fixed-left-side-panel\n\
+    { width: auto; padding:25px 20px; }\
+.left-side-bar, .left-side-panel\
+    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: 26%; min-width: 240px; }\
+.left-side-panel\
+    { padding:25px 9px 25px 37px; }\
+.content-bar, .content-panel\
+    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: 60%; min-width: 250px; max-width: 73%; }\
+.content-panel\
+    { padding:25px 37px 25px 37px; }\
+.fixed-right-side-bar, .fixed-right-side-panel\
+    { display: table-cell; margin: 0; padding: 0; vertical-align: top; width: auto; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1030;}\
+.fixed-right-side-panel\
+    { width: auto; padding:25px 20px;}\
+.right-side-bar, .right-side-panel\
+    { display: table-cell; margin: 0; padding: 0; vertical-align: top; min-width: 240px; width: 28%;}\
+.right-side-panel\
+    { padding:25px 25px 25px 9px;}\
+\
+@media (max-width: 1024px) {\
+.right-side-bar, .right-side-panel\
+    { display: block; padding:25px 25px 25px 37px; width: 50%; }\
+.right-side-panel\
+    { padding:25px 25px 25px 37px; }\
+}\
+\
+@media (max-width: 768px) {\
+.left-side-bar, .left-side-panel\
+    { display: block; margin: 0; padding: 0; width: auto; }\
+.left-side-panel\
+    { padding:25px 25px 25px 25px; }\
+.content-bar, .content-panel\
+    { display: block; margin: 0; padding: 0; max-width: 100%; width: auto; }\
+.content-panel\
+    { padding:25px 25px 25px 25px; }\
+.right-side-bar, .right-side-panel\
+    { display: block; margin: 0; padding: 0; width: auto; }\
+.right-side-panel\
+    { padding:25px 25px 25px 25px; }\
+}\
+.table-bordered {display:table-cell;}\
+.stub {display:inline-block;}\
+.stub-error {width:18px; height:18px; border:silver dotted 1px; border-radius:2px;}\
+.stub-error:before {content:"?"; font-size:small; color:silver; margin:4px; position:relative; top:-2px;}\
+\
+.tabpanel-body {padding-bottom:5px; border-left:#DDD solid 1px; border-right:#DDD solid 1px; border-bottom:#DDD solid 1px;}\
+.nav-tabs > li > a:focus {outline-color:silver;}\
+\
+.transparent {background-color:transparent;border-color:transparent;} .transparent:hover {text-decoration:none;}\
+.rel {position:relative;} .abs {position:absolute;}\
+.hidden {display:none;} .block {display:block;} .inline {display:inline;} .inlineblock {display:inline-block;} .tabcell {display:table-cell;} .tabcol {display:table-column;} .tabrow {display:table-row;}\
+.bold {font-weight:bold;} .justify {text-align:justify;} .nowrap {white-space:nowrap;} .l {font-size:90%;} .ll {font-size:80%;}\
+.fleft {float:left;} .fright {float:right;} .fnone {float:none;}\
+.left {text-align:left;} .right {text-align:right;} .clear {clear:both;} .clearleft {clear:left;} .clearright {clear:right;}\
+.center {text-align:center;vertical-align:middle;} .hcenter {text-align:center;} .vcenter {vertical-align:middle;} .bottom {vertical-align:bottom;}'
+ + ['0','5','10','15','20'].map(function(val) { return '.mar' + val + '{margin:' + val + 'px}.martop' + val + '{margin-top:' + val + 'px}.marright' + val + '{margin-right:' + val + 'px}.marbottom' + val + '{margin-bottom:' + val + 'px}.marleft' + val + '{margin-left:' + val + 'px}.pad' + val + '{padding:' + val + 'px}.padtop' + val + '{padding-top:' + val + 'px}.padright' + val + '{padding-right:' + val + 'px}.padbottom' + val + '{padding-bottom:' + val + 'px}.padleft' + val + '{padding-left:' + val + 'px}'; }).join('')
+);     
+        
+        if (theme && $OPT.edit_mode !== 1) {
+            // theme loading and confirmed flag
+            this.appendCSS('theme.css', this.getRootUrl('mods/' + theme + '/' + theme + '.css'), function(state) {
+                if (state < 0 && theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', '');
+                else if (state > 0 && !theme_confirmed)
+                    localStorage.setItem('primary-theme-confirmed', true);
+            }, 'afterbegin');
+            this.appendScript('theme.js', this.getRootUrl('mods/' + theme + '/' + theme + '.js'));
+        }
+        // load bootstrap.css if not theme or previous load error
+        if (!theme || !theme_confirmed || $OPT.edit_mode === 1) {
+            var bcss = document.getElementById('bootstrap.css');
+            if (!bcss) {
+                // check boostrap.css load
+                var links = document.getElementsByTagName('link');
+                for(var i = links.length - 1; i >= 0; i--) {
+                    var href = links[i].href;
+                    if (href.indexOf('bootstrap.css') >= 0 || href.indexOf('bootstrap.min.css') >= 0) {
+                        bcss = true;
+                        break;
+                    }
+                }
+                if (!bcss) {
+                    var bootstrapcss_cdn = (window.location.protocol === 'file:' ? 'http:' : '') + '//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css';
+                    this.appendCSS('bootstrap.css', (this.codebase.indexOf('aplib.github.io') >= 0) ? bootstrapcss_cdn : (this.codebase + (this.codebase ? '/' : '') + 'bootstrap.css'), function(state) {
+                        if (state < 0) $DOC.appendCSS('bootstrap.css', bootstrapcss_cdn, null, 'afterbegin'); // load from CDN
+                    }, 'afterbegin');
+                }
+            }
+        }
+    };
+    
+    $DOC.headTransformation();
+    
+    window.addEventListener('DOMContentLoaded', function() {
+        var ready_event = $DOC.events.ready;
+        if (ready_event) {
+            ready_event.raise();
+            ready_event.clear();
+        }
+        if (scripts_count === 0)
+        window.addEventListener('load', function() {
+            $DOC.finalTransformation();
+        });
+    });
+
+
+    if ($OPT.editable) {
+        if ($OPT.edit_mode === 1 && window.top === window.self)
+            eval('!function(){"use strict";function t(){function t(){m=new c,$DOC.cbody.attachAll(),$DOC.appendCSS("document.editor.css",".tooltip, .popover { z-index:1200; }"),S=new r,$DOC.cbody.add(x=new i),x.createElement(),g=$DOC.cbody.add("div",{style:"overflow:hidden; border-radius:4px; position:fixed; top:20px;bottom:20px;right:20px; height:50%; width:50%; z-index:1101; border: silver solid 1px; background-color:white;"}),v=g.add("toolbar:div`clearfix",{style:"z-index:1111; background-color:#f0f0f0; line-height:32px; padding:0;"}).listen("element",function(t){t&&$(t).find("button,li,a").tooltip({placement:"bottom",container:"body",toggle:"tooltip"})}),v.add("save_group:bootstrap.BtnGroup`mar5",function(t){function e(){b.save(),t.download.element.href=(window.navigator.appName.indexOf("etscape")>0?"data:unknown":"data:application")+"/octet-stream;charset=utf-8,"+encodeURIComponent(b.buildHTML())}t.add("revert:bootstrap.Button",{$icon:"backward","data-original-title":"Revert"}).listen("click",function(){b.revert()});var n=m.fileName||"document.html";".html"!==n.toLowerCase().slice(-5)&&(n+=".html"),t.add("download:a`btn btn-default",\'<b class="glyphicon glyphicon-save"></b>\',{download:n,"data-original-title":"Download"}).listen("mousedown",e).listen("focus",e).listen("click",function(t){try{var e=new Blob([b.buildHTML()]);return window.navigator.msSaveOrOpenBlob(e,n),void t.preventDefault()}catch(o){}}),t.add("save:bootstrap.SplitButton",{$icon:"floppy-disk","data-original-title":"Save"},function(t){t.button._class("disabled").listen("click",function(){b.write()}),t.toggle._class("disabled"),t.items.add("bootstrap.DropdownItem",{$icon:"resize-small"}).listen("click",function(){b.write(0)}).text(".html"),t.items.add("bootstrap.DropdownItem",{$icon:"resize-full"}).listen("click",function(){b.write(1)}).text(".html + .mw.html"),t.items.add("bootstrap.DropdownItem",{$icon:"share-alt"}).listen("click",function(){b.copy()}).text("Copy")}),v.add("cpanel:bootstrap.Button`hide fleft martop5 marbottom5 marleft5 padleft15 padright15",{$icon:"cog","data-original-title":"Control panel"}).listen("click",function(){})}),v.add("bootstrap.Button`mar5 fright",{$icon:"remove","data-original-title":"Close editor (Ctrl-F12)"}).listen("click",function(){var t=location.href,e=t.indexOf("?edit");0>e&&(e=t.indexOf("&edit")),e>=0&&(window.location=t.slice(0,e)+t.slice(e+5))});var t=v.add("bootstrap.Splitbutton`martop5 fright",{$icon:"fullscreen"});t.button.listen("click",function(){b.mode=b.mode?0:1});var l=t.items;l.add("bootstrap.DropdownItem",{$icon:"chevron-left"}).listen("click",function(){b.position=1}),l.add("bootstrap.DropdownItem",{$icon:"chevron-right"}).listen("click",function(){b.position=0}),l.add("bootstrap.DropdownItem",{$icon:"chevron-up"}).listen("click",function(){b.position=2}),l.add("bootstrap.DropdownItem",{$icon:"chevron-down"}).listen("click",function(){b.position=3}),v.add("export_group:bootstrap.BtnGroup`mar5",function(t){t.add("github:bootstrap.Button",{"data-original-title":"Publish"})._icon("export")._text("GitHub").listen("click",function(){O.getSettings(!1,function(t){t&&O.publish()})})}),v.add(w=new o),g.add(T=new n),g.add(y=new e),g.createElement(),b=new a,O=new s,setInterval(function(){for(var t=0,e=k.length;e>t;t++)k[t]()},25),setInterval(function(){for(var t=0,e=C.length;e>t;t++)C[t]()},1e3)}function e(){var t=controls.create("div",{"class":"pad20"}),e=!0;Object.defineProperty(t,"visible",{get:function(){return e},set:function(n){e=n,t.element&&(t.element.style.display=e?"block":"none")}}),t.listen("element",function(t){t&&(t.style.display=e?"block":"none")});var n=t.add("bootstrap.FormGroup");return n.add("bootstrap.ControlLabel",{$text:"Title:"}),n.add("title_edit:bootstrap.ControlInput",{value:""}).listen("change",function(){S.title=n.title_edit.value}),S.listen(function(){S.title!==n.title_edit.value&&(n.title_edit.value=S.title)}),t.save=function(){},t}function n(){function t(){if(e.mode){var t=e._element;t&&t.value!==o&&(e.modified=25,o=t.value)}}var e=controls.create("textarea",{"class":"form-control",style:"font-family:Consolas,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace; display:none; border:0; border-radius:0; border-left:#f9f9f9 solid 6px; box-shadow:none; width:100%; height:100%; resize:none; "});e.code_edit_resize=function(){var t=e.element;t&&(t.style.height=$(g.element).height()-$(v.element).height()+"px")},$(window).on("resize",e.code_edit_resize),C.push(e.code_edit_resize);var n=0;Object.defineProperty(e,"mode",{get:function(){return n},set:function(t){t>2&&(t=2),t!==n&&(n=t,this.element&&(e.element.style.display=n?"block":"none"),e.code_edit_resize())}});var o;return e.listen("element",function(t){t&&(t.value=o),e.code_edit_resize()}),Object.defineProperty(e,"text",{get:function(){return this.element?this.element.value:o},set:function(t){o=t||"",this.element&&(this.element.value=o),this.modified=0}}),e.save=function(){t(),this.modified&&(this.modified=0,this.raise("text",o))},e.listen("change",t,!0),k.push(function(){t(),e.modified&&--e.modified<2&&(e.modified=0,e.raise("text",o))}),e}function o(){function t(){o.selectedIndex=o.controls.indexOf(this)}var e,n=-1,o=v.add("tabs_header:bootstrap.TabPanelHeader");return o.bind(controls.create("dataarray")),o.data.push({isoptions:!0,text:"",hint:"Page options",icon:"list-alt"},{ishtml:!0,text:"HTML",hint:"Edit as HTML"}),o.setTabs=function(t){var e=w.data;t.length+2<e.length&&e.splice(1,e.length-t.length-2);for(var n=e.length,o=t.length+2;o>n;n++)e.splice(1,0,{});for(var n=1,i=e.length-1;i>n;n++)e[n].text=t[n-1];e.raise()},o.listen("data",function(){for(var n=o.controls,i=this.data,r=n.length,a=i.length;a>r;r++)o.add("bootstrap.TabHeader").listen("click",t);for(var r=n.length-1,a=i.length;r>=a;r--){var s=n[r];s.deleteAll(),s.removeListener("click",t),o.remove(s)}for(var r=0,a=i.length;a>r;r++){var l=i[r];l.id=n[r].id;var s=n[r];s.attributes["data-original-title"]=l.hint,s.attributes.$icon=l.icon,s.text(l.text),l===e?s.class("active"):s.class(null,"active")}o.checkSelection(),o.element&&o.refresh()}),Object.defineProperty(o,"selectedIndex",{get:function(){return n},set:function(t){this.selected=t}}),Object.defineProperty(o,"selected",{get:function(){return e},set:function(t){var o=this.data;if("string"!=typeof t){if("number"==typeof t)return void(t>=0&&t<o.length&&t!==n?this.selected=o[t]:-1===t&&(this.selected=void 0));var i=o.indexOf(t);if(i>=0){var r=o[i];r!==e&&e&&(this.lastSelected=e)}if(t!==e||i!==n){for(var a=this.controls,s=0,l=a.length;l>s;s++)s===i?a[s].class("active"):a[s].class(null,"active");this.raise("selected",e=t?t:void 0,n=i)}}else{for(var s=0,l=o.length;l>s;s++){var r=o[s];if(r.id===t)return void(this.selected=r)}for(var s=0,l=o.length;l>s;s++){var r=o[s];if(r.text===t)return void(this.selected=r)}}}}),o.checkSelection=function(){var t=this.data;if(t.length){var n=t.indexOf(e);0>n&&(this.selected=this.lastSelected),this.selected||(this.selected=0)}else this.selected=-1},o}function i(){function t(t){var e=document.createElement("textarea");return e.innerHTML=t,e.value}var e,n,o=location.href;return o=o.slice(0,o.length-location.hash.length),o+=o.indexOf("?")>0?"&preview":"?preview",x=controls.create("iframe",{sandbox:"",src:o,style:"position:fixed; left:0; top:0; width:100%; height:100%; z-index:1100; border:none;"}),x.updateInnerHtml=function(t,o){e=t,n=o;var i=this.element,r=this.$DOC;if(i&&r){var a=i.contentDocument,s=i.contentWindow,l=a.getElementsByTagName("html")[0];l&&(r.initialize(),l.innerHTML=t,r.headTransformation(),s.$OPT.userjs?r.loadUserJS():setTimeout(function(){r.finalTransformation()},0))}},x.reload=function(){this.element&&this.deleteAll(),this.createElement()},x.listen("load",function(){setTimeout(function(){try{this.element.contentWindow.location.pathname!==window.location.pathname&&this.reload()}catch(t){this.reload()}this.$DOC=this.element&&x.element.contentWindow.$DOC,void 0!==e&&this.updateInnerHtml(e,n)}.bind(x),0)}),x.updateNamedSection=function(t,n,o){e=o;var i=this.$DOC,r=i.sections[t];"object"==typeof r&&r.source_node&&i.processTextNode(r.source_node,t+"\\n"+n)},x.grabHTML=function(){for(var e=this.element&&this.element.contentDocument,n=this.$DOC,o=e.documentElement.cloneNode(),i=e.createNodeIterator(o,128,null,!1),r=i.nextNode();r;)r.parentNode.removeChild(r),r=i.nextNode();var a="<!DOCTYPE html>"+o.outerHTML.replace(/<noscript>([\\s\\S]*?)<\\/noscript>/g,function(e,n){return"<noscript>"+t(n)+"</noscript>"}),s=a.lastIndexOf("</body>");return a.substr(0,s)+\'<script>$DOC.onready(function() { if ($OPT.edit_mode) return;$DOC.chead = JSON.parse(unescape("\'+escape(JSON.stringify(n.chead))+\'"), controls.reviverJSON);$DOC.cbody = JSON.parse(unescape("\'+escape(JSON.stringify(n.cbody))+\'"), controls.reviverJSON);$DOC.vars = JSON.parse(unescape("\'+escape(JSON.stringify(n.vars))+\'"), controls.reviverJSON);$DOC.onload(function(){ $DOC.chead.attachAll(); $DOC.cbody.attachAll(); for(var prop in $DOC.vars) { var v = $DOC.vars[prop]; if (v.__type) v.attachAll(); } });});</script>\'+a.substr(s)},x}function r(){function t(){return(this.opentag||"")+(this.attributes.$text||"")+this.controls.map(function(t){return t.outerHTML()}).join("")+(this.closetag||"")}var e,n,o,i;Object.defineProperty(this,"title",{get:function(){return o},set:function(r){if(o=r,!i){if(!n)return;i=n.add("div"),i.template(t)}i.controls.length=0,i.opentag="<title>"+r+"</title>",i.closetag="",e=this.buildHTML(),this.raise()}}),Object.defineProperty(this,"html",{get:function(){return e},set:function(r){if(r!==e){e=r;var a={},s={},l=document.implementation.createHTMLDocument(""),c=l.documentElement,d=/<html[\\s\\S]*?>([\\s\\S]*)<\\/html>/im.exec(e);d&&(c.innerHTML=d[1]);for(var u=controls.create("div"),h=[],f=[],p=l.createNodeIterator(c,65535,null,!1),m=p.nextNode();m;){var b=m===c?u:controls.create("div");b.template(t),h.push(m),f.push(b);var g=h.indexOf(m.parentNode);if(g>=0&&f[g].add(b),8===m.nodeType){var v=m.nodeValue,w=v[0];if(b.opentag="<!--"+m.nodeValue+"-->","%"===w);else if("!"===w);else{var y=v.indexOf(" "),T=v.indexOf("\\n"),S=v.indexOf("->");if(0>y&&0>T&&0>S);else if(0>y&&S>0);else if(T>0&&(0>y||y>T)&&(y=T),y>0&&128>y){var x=v.slice(0,y);a[x]=v.slice(y+1),s[x]=b}}}else if(m===c){var d=/(<html[\\s\\S]*?>)[\\s\\S]*?<head/im.exec(e);b.opentag="<!DOCTYPE html>\\n"+(d?d[1]:"<html>")+"\\n",b.closetag="\\n</html>"}else{var O=m.outerHTML,k=m.innerHTML;if(k){var C=O.lastIndexOf(k);0>C?b.opentag=O:(b.opentag=O.slice(0,C),b.closetag=O.slice(C+k.length))}else b.opentag=O?O:m.nodeValue}m=p.nextNode()}var N=l.getElementsByTagName("head")[0];n=N&&f[h.indexOf(N)];var E=l.getElementsByTagName("title")[0];E?(o=E.textContent,i=f[h.indexOf(E)]):(o="",i=null),this.chtml=u,this.sections=a,this.seccontrols=s,this.raise()}}}),this.updateNamedSection=function(t,n){var o=this.seccontrols[t];o&&(this.sections[t]=n,o.opentag="<!--"+t+"\\n"+n+"-->\\n",e=this.chtml.outerHTML())},this.buildHTML=function(){return this.chtml.outerHTML()}}function a(){function t(t,e,n,o,i,r,a,s,l,c,d,u){if(x.element){var h=x.element.style;h.top=t,h.right=e,h.bottom=n,h.left=o,h.width=i,h.height=r,h=g.element.style,h.top=a,h.right=s,h.bottom=l,h.left=c,h.width=d,h.height=u}}function e(){if(i)switch(r){case 1:t("0","0","0","0","100%","100%","auto","auto","20px","20px","50%","50%");break;case 2:t("0","0","0","0","100%","100%","20px","auto","auto","20px","50%","50%");break;case 3:t("0","0","0","0","100%","100%","auto","20px","20px","auto","50%","50%");break;default:t("0","0","0","0","100%","100%","20px","20px","auto","auto","50%","50%")}else switch(r){case 1:t("0","0","0","auto","50%","100%","0","auto","0","0","50%","100%");break;case 2:t("auto","0","0","0","100%","50%","0","0","auto","0","100%","50%");break;case 3:t("0","0","auto","0","100%","50%","auto","0","0","0","100%","50%");break;default:t("0","auto","0","0","50%","100%","0","0","0","auto","50%","100%")}T.code_edit_resize()}var n=this;S.listen(function(){n.edit_html=S.html,w.setTabs(Object.keys(S.sections)),x.updateInnerHtml(S.chtml.innerHTML(),Object.keys(S.sections))});var o;Object.defineProperty(this,"edit_html",{get:function(){return o},set:function(t){t!==o&&(o=t,S.html=o)}}),this.checkEdits=function(){var t=w.selected;t&&t.isoptions?y.save():t&&T.save()},w.listen("selected",this,function(){this.checkEdits(),this.updateCodeEdit(),this.modified=5,y.visible=0===w.selectedIndex}),this.updateCodeEdit=function(){var t=w.selected;switch(T.mode=!t||t.isoptions?0:t.ishtml?1:2,T.mode){case 1:T.text=n.edit_html;break;case 2:var e=w.selected;e?(T.section=e.text,T.text=S.sections[e.text]):T.text="";break;default:T.text=""}},T.listen("text",function(t){switch(T.mode){case 1:n.edit_html=t,n.modified=25;break;case 2:n.updateNamedSection(T.section,T.text),n.modified=25}}),this.updateNamedSection=function(t,e){S.updateNamedSection(t,e),o=S.buildHTML(),x.updateNamedSection(t,e,S.chtml.innerHTML())},this.save=function(){this.checkEdits(),f.selected=w.selected&&w.selected.text,f.editMw=this.edit_html,f.html===m.mwHtml&&(f.delete=!0),f.raise(),this.modified=0},this.write=function(){this.save(),arguments.length&&(m.fileMode=arguments[0]),m.fileMode?m.write(n.buildHTML(),x.grabHTML())&&h.onReady(function(){location.reload()}):m.write(n.buildHTML())&&h.onReady(function(){location.reload()})},this.copy=function(){this.save();var t=window.prompt("Enter file name",m.fileName);if(t&&t!==m.fileName)if(m.fileMode){var e=m.writeTo(t,n.buildHTML(),x.grabHTML());e&&h.onReady(function(){window.location=e})}else{var e=m.writeTo(t,n.buildHTML());e&&h.onReady(function(){window.location=e})}},this.revert=function(){this.edit_html=m.mwHtml,this.updateCodeEdit(),this.modified=2,setTimeout(function(){window.location.reload()},300)},this.buildHTML=function(){return T.save(),S.buildHTML()};var i=0,r=0,a=600,s=500;if(Object.defineProperty(this,"mode",{get:function(){return i},set:function(t){i=t,e(),n.saveLayout()}}),Object.defineProperty(this,"position",{get:function(){return r},set:function(t){r=t,e(),n.saveLayout()}}),this.saveLayout=function(){"undefined"!=typeof localStorage&&localStorage.setItem("editor layout",[i,r,a,s].join(";"))},"undefined"!=typeof localStorage){try{var l=localStorage.getItem("editor layout").split(";");i=parseInt(l[0]),r=parseInt(l[1]),a=parseInt(l[2]),s=parseInt(l[3])}catch(c){}e()}var d=localStorage&&localStorage.getItem("default selected page");w.lastSelected=f.selected||d||w.data[0],this.edit_html=f.editMw||m.mwHtml||"",w.checkSelection(),m.writable&&(v.save_group.save.button.class(null,"disabled"),v.save_group.save.toggle.class(null,"disabled")),k.push(function(){this.modified&&--this.modified<2&&(this.modified=0,this.save())}.bind(this))}function s(){function t(){var t=controls.create("bootstrap.modal",{style:"z-index:1200;",disabled:!0});t.close=t.header.add("button`close","&times;",{type:"button"}),t.header.add("h4`modal-title","Publish on GitHub");var e=t.body.add("form:bootstrap.Form");return e._add("bootstrap.FormGroup",function(e){e.add("bootstrap.ControlLabel","Username:"),t.user=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Repository:"),t.repo=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Branch:"),t.branch=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Path in repository:"),t.path=e.add("bootstrap.ControlInput")})._add("bootstrap.FormGroup",function(e){e._add("bootstrap.ControlLabel","Personal access token or password:"),t.apikey=e.add("bootstrap.ControlInput")}),t.OK=t.footer.add("bootstrap.Button#primary","OK"),t.Cancel=t.footer.add("bootstrap.Button","Cancel"),t.modeCheckbox=e.add("bootstrap.FormGroup").add("bootstrap.ControlCheckbox`martop20",{$text:"Compile to html"}),t.ref0=e.add("bootstrap.FormGroup").add("a`martop20",{target:"repo"}),setInterval(function(){var e=t.user.value,n=t.repo.value;if(e&&n){var o="https://github.com/"+e+"/"+n;t.ref0._text(o)._attr("href",o)}},977),t}this.getSettings=function(e,n){var o=p.github||(p.github={}),i=o.user,r=o.repo,a=o.branch,s=l({fileName:f.github_path}),c=sessionStorage.getItem("github-apikey")||"";s.fileName||(s=l({fileName:decodeURIComponent(location.pathname).split("/").slice(2).join("/")})),i=i||location.host.split(".")[0],r=r||decodeURIComponent(location.pathname).split("/")[1],a=a||"gh-pages";var d=$DOC.cbody.github_modal;d||(d=$DOC.cbody.github_modal=$DOC.cbody.add(t()),d.createElement(),d.close.listen("click",function(){$(d.element).modal("hide"),n&&n(!1)}),d.OK.listen("click",function(){var t=p.github||(p.github={});t.user=d.user.value||"",sessionStorage.setItem("github-apikey",d.apikey.value||""),t.repo=d.repo.value||"",t.branch=d.branch.value||"gh-pages",p.raise(),f.github_path=d.path.value||"",f.raise(),d.callback&&d.callback(t.user&&t.repo&&t.branch&&f.github_path&&d.apikey.value)}),d.Cancel.listen("click",function(){$(d.element).modal("hide"),d.callback&&d.callback(!1)})),d.user.value=i,d.apikey.value=c,d.repo.value=r,d.branch.value=a,d.path.value=s.fileName,d.modeCheckbox.checked=m.fileMode,d.callback=n,$(d.element).modal("show")},this.publish=function(){var t=p.github||(p.github={}),e=new window.github_api({username:t.user,password:sessionStorage.getItem("github-apikey"),auth:"basic"}),n=e.getRepo(t.user,t.repo),o=b.buildHTML(),i=l({fileName:f.github_path}),r=$DOC.cbody.github_modal;if(r.modeCheckbox.checked){var a=x.grabHTML();n.write(t.branch,i.mwFileName,o,"---",function(e){e?console.log(e):setTimeout(function(){n.write(t.branch,i.fileName,a,"---",function(e){e?setTimeout(function(){n.write(t.branch,i.fileName,a,"---",function(t){t?console.log(t):$(r&&r.element).modal("hide")})},3e3):$(r&&r.element).modal("hide")})},3e3)})}else n.write(t.branch,i.fileName,o,"---",function(e){e?console.log(e):setTimeout(function(){n.removeFile(t.branch,i.mwFileName,function(e){e&&404!==e?setTimeout(function(){n.removeFile(t.branch,i.mwFileName,function(t){t&&404!==t?console.log(t):$(r&&r.element).modal("hide")})},3e3):$(r&&r.element).modal("hide")})},3e3)})}}function l(t){var e=t.fileName,n=t.mwFileName;return e?".html"!==e.slice(-5)?(t.fileName+=".html",l(t)):(".mw.html"===e.slice(-8)?(e=e.slice(0,e.length-8),n=e+".mw.html",e+=".html"):n=e.slice(0,e.length-5)+".mw.html",t.fileName=e,t.mwFileName=n,t):t}function c(){this.environment=0,this.writable=0,this.errorState=-1,this.mwHtml="",this.fileMode=0;var t=location.url,e=t.lastIndexOf("/"),n=t.lastIndexOf("\\\\");e=n>e?n:e,this.path=t.slice(0,e+1),this.fileName=t.slice(e+1),l(this);var o=this;if("undefined"!=typeof nwDispatcher&&"file:"===location.protocol){this.environment=1,this.writable=!0;var i=require("fs"),r=this.path.slice(8)+this.mwFileName,a=this.path.slice(8)+this.fileName;try{i.existsSync(r)?(this.fileMode=1,this.mwHtml=i.readFileSync(r).toString().replace(/\\r/g,"")):this.mwHtml=i.readFileSync(a).toString().replace(/\\r/g,""),this.errorState=0}catch(s){this.errorState=1}this.write=function(t,e){if(this.writable&&!this.errorState)try{if(this.fileMode)i.writeFileSync(r,t),i.writeFileSync(a,e);else{i.writeFileSync(a,t);try{i.unlinkSync(r)}catch(n){}}return a}catch(n){console.log(n)}},this.writeTo=function(t,e,n){if(this.writable&&!this.errorState)try{var o=l({fileName:t}),r=this.path.slice(8)+o.mwFileName,a=this.path.slice(8)+o.fileName;if(this.fileMode)i.writeFileSync(r,e),i.writeFileSync(a,n);else{i.writeFileSync(a,e);try{i.unlinkSync(r)}catch(s){}}return a}catch(s){console.log(s)}}}else{"file:"===location.protocol&&(this.errorState=1);var c=this;$.ajax({url:o.path+o.mwFileName,type:"GET",dataType:"html",async:0}).done(function(t){c.mwHtml=t.replace(/\\r/g,""),c.fileMode=1}).fail(function(){$.ajax({url:o.path+o.fileName,type:"GET",dataType:"html",async:0}).done(function(t){c.mwHtml=t.replace(/\\r/g,"")}).fail(function(){this.errorState=1})})}}function d(t,e){function n(){u(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Your browser does not supported and can not be used to edit documents. Please use Firefox, Chrome, Opera or Safari.\')}var o,i,r=this;this.errorState=-1;for(var a in t){var s=t[a];s.listen(function(){this.modified=!0})}if(k.push(function(){for(var e in t){var n=t[e];n.modified&&r.write()}}),window.indexedDB){try{var l=window.indexedDB.open("markdown-webdocs.editor.db.1",1);l.onsuccess=function(t){o=t.target.result,e()},l.onupgradeneeded=function(n){o=n.target.result;for(var i in t)o.createObjectStore(i,{keyPath:"key"});e()},l.onerror=function(t){u(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database error. Please try using another browser for editing the document.\'),console.log(t)},l.onblocked=function(t){u(\'<h4><b class="glyphicon glyphicon-warning-sign">&nbsp;</b>Editor loading error</h4>Database blocked\'),console.log(t)}}catch(c){return void n()}r.restore=function(e){try{var n=o.transaction(Object.keys(t),"readonly"),i=0,a=0;for(var s in t){var l=t[s],c=n.objectStore(s).get(l.key);i++,c.onsuccess=function(n){l=t[n.target.source.name],l.fromJSON(n.target.result),l.modified=!1,a++,a===i&&(r.errorState=0,e&&e())},c.onerror=function(t){console.log(t),this.errorState=1}}}catch(d){console.log(d),this.errorState=1}},r.write=function(){if(!this.errorState)try{var e=o.transaction(Object.keys(t),"readwrite");for(var n in t){var i=t[n];if(i.modified){var r=e.objectStore(n);if(i.delete)delete i.delete,r.delete(i.key);else{var a=r.put(i.toJSON());a.onsuccess=function(){},a.onerror=function(t){console.log(t)}}i.modified=!1,i.selected&&localStorage&&localStorage.setItem("default selected page",i.selected)}}}catch(s){console.log(s)}}}else{if(!window.openDatabase)return void n();try{var i=window.openDatabase("markdown-webdocs.editor.db.1","1.0","markdow webdocs editor",0);if(!i)return void n();i.transaction(function(e){for(var o in t)e.executeSql("CREATE TABLE IF NOT EXISTS "+o+" (key TEXT NOT NULL PRIMARY KEY, value TEXT)",[],null,n)},n,e)}catch(c){return void n()}r.restore=function(e){try{i.transaction(function(n){var o=0,i=0;for(var a in t){var s=t[a];n.executeSql("SELECT value FROM "+a+" WHERE key = ? LIMIT 1",[s.key],function(t,n){if(n.rows.length){try{s.fromJSON(JSON.parse(n.rows.item(0).value))}catch(a){s.fromJSON({})}s.modified=!1}i++,i===o&&(r.errorState=0,e&&e())},function(t){console.log(t)})}},function(){console.log(event)},function(){})}catch(n){}},r.write=function(){if(!errorState)try{i.transaction(function(e){for(var n in t){var o=t[n];o.delete?(delete o.delete,e.executeSql("DELETE FROM "+n+" WHERE key = ?",[o.key],function(){},function(t){console.log(t)})):e.executeSql("INSERT OR REPLACE INTO "+n+" (key, value) VALUES (?, ?)",[o.key,JSON.stringify(o)],function(){},function(t){console.log(t)})}},function(){console.log(event)},function(){}),modified=!1}catch(e){console.log(e)}}}r.onReady=function(t){setTimeout(function(){t()},400)}}function u(t){$DOC.cbody.attachAll().add("div",{style:"position:fixed; left:0; top:0; width:100%; height:100%; background-color:white; opacity:0.9; z-index:1201;"}).createElement(),$DOC.cbody.add("alert:div.mar20 alert alert-warning col1-sm-offset-3 col-sm-6",{$text:t,style:"position:fixed; left:25px; top:25px; z-index:1202;"}).createElement()}var h,f,p,m,b,g,v,w,y,T,S,x,O,k=[],C=[];$(window).load(function(){location.url=decodeURI(location.href.split("?")[0]),f=controls.create("DataObject"),f.key=location.url,f.fromJSON=function(t){this.selected=t&&t.selected,this.sourceMw=t&&t.sourceMw,this.editMw=t&&t.editMw,this.history=t&&t.history,this.github_path=t&&t.github_path,Array.isArray(this.history)||(this.history=[])},f.toJSON=function(){return{key:this.key,selected:this.selected,sourceMw:this.sourceMw,editMw:this.editMw,history:this.history,github_path:this.github_path}},p=controls.create("DataObject");var e=document.createElement("script");e.setAttribute("src",$DOC.root),p.key=e.src.split("?")[0],p.fromJSON=function(t){this.github=t&&t.github},p.toJSON=function(){return{key:this.key,github:this.github}},h=new d({drafts:f,settings:p},function(){h.restore(t)})}),r.prototype=controls.create("DataObject")}window.top!==window.self||window["mw-document-editor"]||(window["mw-document-editor"]=!0,"undefined"!=typeof $ENV?t():(window.defercqueue||(window.defercqueue=[])).push(t))}(),function(){function t(t){var e,n,o,i,r,a,s,l="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",c="",d=0;do e=t.charCodeAt(d++),n=t.charCodeAt(d++),o=t.charCodeAt(d++),i=e>>2,r=(3&e)<<4|n>>4,a=(15&n)<<2|o>>6,s=63&o,isNaN(n)?a=s=64:isNaN(o)&&(s=64),c=c+l.charAt(i)+l.charAt(r)+l.charAt(a)+l.charAt(s);while(d<t.length);return c}var e="https://api.github.com",n=function(o){function i(n,i,r,a,s,l){function c(){var t=i.indexOf("//")>=0?i:e+i;return t+(/\\?/.test(t)?"&":"?")+(new Date).getTime()}var d=new XMLHttpRequest;return s||(d.dataType="json"),d.open(n,c(),!l),l||(d.onreadystatechange=function(){4===this.readyState&&(this.status>=200&&this.status<300||304===this.status?a(null,s?this.responseText:this.responseText?JSON.parse(this.responseText):!0,this):a({path:i,request:this,error:this.status}))}),d.setRequestHeader("Accept","application/vnd.github.raw+json"),d.setRequestHeader("Content-Type","application/json;charset=UTF-8"),(o.token||o.username&&o.password)&&d.setRequestHeader("Authorization",o.token?"token "+o.token:"Basic "+t(o.username+":"+o.password)),r?d.send(JSON.stringify(r)):d.send(),l?d.response:void 0}function r(t,e){var n=[];!function o(){i("GET",t,null,function(i,r,a){if(i)return e(i);n.push.apply(n,r);var s=(a.getResponseHeader("link")||"").split(/\\s*,\\s*/g),l=_.find(s,function(t){return/rel="next"/.test(t)});l&&(l=(/<(.*)>/.exec(l)||[])[1]),l?(t=l,o()):e(i,n)})}()}n.User=function(){this.repos=function(t){r("/user/repos?type=all&per_page=1000&sort=updated",function(e,n){t(e,n)})},this.userRepos=function(t,e){r("/users/"+t+"/repos?type=all&per_page=1000&sort=updated",function(t,n){e(t,n)})},this.orgRepos=function(t,e){r("/orgs/"+t+"/repos?type=all&&page_num=1000&sort=updated&direction=desc",function(t,n){e(t,n)})}},n.Repository=function(t){function e(t,e){return t===s.branch&&s.sha?e(null,s.sha):void r.getRef("heads/"+t,function(n,o){s.branch=t,s.sha=o,e(n,o)})}var n=t.name,o=t.user,r=this,a="/repos/"+o+"/"+n,s={branch:null,sha:null};this.getRef=function(t,e){i("GET",a+"/git/refs/"+t,null,function(t,n){return t?e(t):void e(null,n.object.sha)})},this.createRef=function(t,e){i("POST",a+"/git/refs",t,e)},this.deleteRef=function(e,n){i("DELETE",a+"/git/refs/"+e,t,n)},this.compare=function(t,e,n){i("GET",a+"/compare/"+t+"..."+e,null,function(t,e){return t?n(t):void n(null,e)})},this.listBranches=function(t){i("GET",a+"/git/refs/heads",null,function(e,n){return e?t(e):void t(null,_.map(n,function(t){return _.last(t.ref.split("/"))}))})},this.getBlob=function(t,e){i("GET",a+"/git/blobs/"+t,null,e,"raw")},this.getSha=function(t,e,n){return""===e?r.getRef("heads/"+t,n):void r.getTree(t+"?recursive=true",function(t,o){if(t)return n(t);var i=_.select(o,function(t){return t.path===e})[0];n(null,i?i.sha:null)})},this.getTree=function(t,e){i("GET",a+"/git/trees/"+t,null,function(t,n){return t?e(t):void e(null,n.tree)})},this.postBlob=function(t,e){"string"==typeof t&&(t={content:t,encoding:"utf-8"}),i("POST",a+"/git/blobs",t,function(t,n){return t?e(t):void e(null,n.sha)})},this.updateTree=function(t,e,n,o){var r={base_tree:t,tree:[{path:e,mode:"100644",type:"blob",sha:n}]};i("POST",a+"/git/trees",r,function(t,e){return t?o(t):void o(null,e.sha)})},this.postTree=function(t,e){i("POST",a+"/git/trees",{tree:t},function(t,n){return t?e(t):void e(null,n.sha)})},this.commit=function(e,n,o,r){var l={message:o,author:{name:t.username},parents:[e],tree:n};i("POST",a+"/git/commits",l,function(t,e){return s.sha=e&&e.sha,t?r(t):void r(null,e&&e.sha)})},this.updateHead=function(t,e,n){i("PATCH",a+"/git/refs/heads/"+t,{sha:e},function(t){n(t)})},this.show=function(t){i("GET",a,null,t)},this.contents=function(t,e,n,o){return i("GET",a+"/contents?ref="+t+(e?"&path="+e:""),null,n,"raw",o)},this.fork=function(t){i("POST",a+"/forks",null,t)},this.branch=function(t,e,n){2===arguments.length&&"function"==typeof arguments[1]&&(n=e,e=t,t="master"),this.getRef("heads/"+t,function(t,o){return t&&n?n(t):void r.createRef({ref:"refs/heads/"+e,sha:o},n)})},this.createPullRequest=function(t,e){i("POST",a+"/pulls",t,e)},this.listHooks=function(t){i("GET",a+"/hooks",null,t)},this.getHook=function(t,e){i("GET",a+"/hooks/"+t,null,e)},this.createHook=function(t,e){i("POST",a+"/hooks",t,e)},this.editHook=function(t,e,n){i("PATCH",a+"/hooks/"+t,e,n)},this.deleteHook=function(t,e){i("DELETE",a+"/hooks/"+t,null,e)},this.read=function(t,e,n){r.getSha(t,e,function(t,e){return e?void r.getBlob(e,function(t,o){n(t,o,e)}):n("not found",null)})},this.remove=function(t,n,o){e(t,function(e,i){r.getTree(i+"?recursive=true",function(e,a){var s=a.filter(function(t){return t.path!==n});s.forEach(function(t){"tree"===t.type&&delete t.sha}),a.length===s.length&&o(404),r.postTree(s,function(e,a){r.commit(i,a,"Deleted "+n,function(e,n){r.updateHead(t,n,function(t){o(t)})})})})})},this.removeFile=function(t,n,o){e(t,function(e,s){r.getTree(s+"?recursive=true",function(e,r){r&&r.some(function(e){if(e.path===n&&"blob"===e.type){var r={path:e.path,message:"---",sha:e.sha,branch:t};return i("DELETE",a+"/contents/"+n,r,function(t,e){return t?o(t):void o(null,e.sha)}),!0}})||o(null)})})},this.move=function(t,n,o,i){e(t,function(e,a){r.getTree(a+"?recursive=true",function(e,s){_.each(s,function(t){t.path===n&&(t.path=o),"tree"===t.type&&delete t.sha}),r.postTree(s,function(e,o){r.commit(a,o,"Deleted "+n,function(e,n){r.updateHead(t,n,function(t){i(t)})})})})})},this.write=function(t,n,o,i,a){e(t,function(e,s){return e?a(e):void r.postBlob(o,function(e,o){return e?a(e):void r.updateTree(s,n,o,function(e,n){return e?a(e):void r.commit(s,n,i,function(e,n){return e?a(e):void r.updateHead(t,n,a)})})})})},this.getCommits=function(t,e){t=t||{};var n=a+"/commits",o=[];if(t.sha&&o.push("sha="+encodeURIComponent(t.sha)),t.path&&o.push("path="+encodeURIComponent(t.path)),t.since){var r=t.since;r.constructor===Date&&(r=r.toISOString()),o.push("since="+encodeURIComponent(r))}if(t.until){var s=t.until;s.constructor===Date&&(s=s.toISOString()),o.push("until="+encodeURIComponent(s))}o.length>0&&(n+="?"+o.join("&")),i("GET",n,null,e)}},this.getRepo=function(t,e){return new n.Repository({user:t,name:e})},this.getUser=function(){return new n.User}};window.github_api=n}();');
+            //$DOC.appendScript('document.editor.js', '/*include editor*/');
+
+        window.addEventListener('keydown', function(event) {
+            if (event.keyCode === 123 && !event.altKey && event.ctrlKey) {
+                if ($OPT.edit_mode) {
+                    var url = location.href, pos = url.indexOf('?edit'); if (pos < 0) pos = url.indexOf('&edit');
+                    if (pos >= 0)
+                        window.location = url.slice(0, pos) + url.slice(pos + 5);
+                } else
+                    window.location = (window.location.protocol || '') + '//' + window.location.host + window.location.pathname + '?' + window.location.search + ((window.location.search) ? '&edit' : 'edit');
+            }
+        });
+    }
+    
+})();
+
+
 
 
 
@@ -16936,5 +16802,5 @@ function initialize() {
     
     
     // check for start document transformation
-    $DOC.onready($DOC.checkAllScriptsReady.bind($DOC));
+    $DOC.onready( /* debian chromium fix: bind undefined, .bind() raise exception */ function() { $DOC.checkAllScriptsReady(); });
 })();

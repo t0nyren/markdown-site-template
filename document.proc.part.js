@@ -587,5 +587,5 @@
     
     
     // check for start document transformation
-    $DOC.onready($DOC.checkAllScriptsReady.bind($DOC));
+    $DOC.onready( /* debian chromium fix: bind undefined, .bind() raise exception */ function() { $DOC.checkAllScriptsReady(); });
 })();
