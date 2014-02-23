@@ -174,7 +174,7 @@
                                             found_parts.push(text.slice(text_start, open_tag_pos));
                                         text_start = right_bracket + 1;
                                         // found bbcode
-                                        found_parts.push([is_one_pair, open_tag_pos, open_tag_len - 1, open_tag_pos, open_tag_len - 1]);
+                                        found_parts.push([is_one_pair, open_tag_pos, open_tag_len, open_tag_pos, open_tag_len - 1]);
                                     }
                                 } else {
                                     // push open tag - type that between ':' and ' #`@($'
@@ -260,16 +260,16 @@
             try {
                 if (first_char === '[') {
                     // <--[namespace.cid params] ... -->
-                    // exclude string literals from seach
+                    // search ']' not in string literal
                     var known_patterns = enumerateKnownPatterns(text, 1),
                         rcurrent = 0, llength = known_patterns.length,
                         right_bracket_found = false,
                     right_bracket = text.indexOf(']', 1);
                     while(!right_bracket_found && right_bracket >= 0) {
                         // check if not in literals
-                        while(rcurrent < llength && known_patterns[rcurrent + 1] < right_bracket)
+                        while(rcurrent < llength && known_patterns[rcurrent].lastIndex < right_bracket)
                             rcurrent += 2;
-                        if (rcurrent >= llength || right_bracket < known_patterns[rcurrent] || right_bracket >= known_patterns[rcurrent + 1]) {
+                        if (rcurrent >= llength || right_bracket < known_patterns[rcurrent].index || right_bracket >= known_patterns[rcurrent].lastIndex) {
                             right_bracket_found = true;
                             
                             var com_definition = text.slice(1, right_bracket),

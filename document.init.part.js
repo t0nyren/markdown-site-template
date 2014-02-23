@@ -3,10 +3,10 @@
     // initialize $ENV
     
     $ENV = {
-        dot: doT, // require('dot'),
-        controls: controls, // require('controls'),
-        marked: marked, //require('./temp/marked'),
-        'bootstrap.controls': controls.bootstrap // require('./temp/bootstrap.controls.js')
+        dot: doT,
+        controls: controls,
+        marked: marked,
+        'bootstrap.controls': controls.bootstrap
     };
     
     $ENV.controls.template = $ENV.dot.template; // default template engine
@@ -405,7 +405,8 @@ return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(res
 
     // selected theme
     var theme = '', theme_confirmed;
-    if (typeof localStorage !== 'undefined') {
+    // fix: case 1: localStorage undefined, case 2: access denied exception under 'data:' url
+    try {
         
         theme = localStorage.getItem('primary-theme');
         theme_confirmed = localStorage.getItem('primary-theme-confirmed');
@@ -427,7 +428,7 @@ return ' + (tag ? ('"<' + tag + '" + it.printAttributes()+ ">" + $ENV.marked(res
             localStorage.setItem('primary-theme', params_settheme);
             theme = params_settheme;
         }
-    }
+    } catch (e) {}
     
     Object.defineProperty($DOC, 'theme', {
         get: function() { return theme; },
